@@ -1,39 +1,41 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserModule } from './modules/user/user.module';
-import { UserEntity } from './database/entities/UserEntity';
-import { UserService } from './services/user/user.service';
-import { UserController } from './controllers/user/user.controller';
-import { DataSource } from 'typeorm';
+import dataSource from './database/dataSource';
+import { UserModule } from './modules/user.module';
+import { AuthService } from './services/auth.service';
+
+const dataSourceOptions: any = dataSource.options;
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       envFilePath: ".env",
     }),
-    TypeOrmModule.forRoot({
-      type: "postgres",
-      host: process.env.DATABASE_HOST,
-      port: parseInt(process.env.DATABASE_PORT),
-      username: process.env.DATABASE_USERNAME,
-      password: process.env.DATABASE_PASSWORD,
-      database: process.env.DATABASE_NAME,
-      synchronize: false,
-      retryAttempts: 3,
-      retryDelay: 10000,
-      autoLoadEntities: false,
-      entities: [
-        UserEntity
-      ]
+    TypeOrmModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        ...dataSourceOptions,
+        autoLoadEntities: true,
+        entities: [`${__dirname}/database/entities/**/*{.ts,.js}`],
+        migrations: [`${__dirname}/database/migrations/**/*{.ts,.js}`],
+        migrationsRun: true,
+        seeds: [],
+        factories: [],
+        retryAttempts: 3,
+        retryDelay: 20000
+      }),
     }),
     UserModule,
   ],
-  controllers: [AppController, UserController],
-  providers: [AppService, UserService]
+  controllers: [AppController],
+  providers: [
+    AppService, 
+    AuthService
+  ]
 })
-export class AppModule { 
-  constructor(private dataSource: DataSource) {}
+export class AppModule {
+  constructor(private dataSource: DataSource) { }
 }
