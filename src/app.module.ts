@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import dataSource from './database/dataSource';
 import { UserModule } from './modules/user.module';
 import { AuthService } from './services/auth.service';
+import { MailService } from './services/mail.service';
 
 const dataSourceOptions: any = dataSource.options;
 
@@ -33,9 +34,13 @@ const dataSourceOptions: any = dataSource.options;
   controllers: [AppController],
   providers: [
     AppService, 
-    AuthService
+    AuthService, 
+    MailService, 
   ]
 })
 export class AppModule {
-  constructor(private dataSource: DataSource) { }
+  constructor(
+    private dataSource: DataSource,
+  ) {
+  }
 }

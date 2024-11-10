@@ -11,8 +11,14 @@ export class UserEntity {
   @Column({ type: "varchar", length: 1024, nullable: false, unique: true })
   email: string;
 
-  @Column({ type: "varchar", length: 4096, nullable: false })
+  @Column({ type: "varchar", length: 4096, nullable: true })
   password: string;
+
+  @Column({ type: "boolean", default: false, nullable: false })
+  verified: boolean;
+
+  @Column({ type: "varchar", length: 10, nullable: true })
+  confirmation_code: string;
 
   @CreateDateColumn()
   created_at: string;
