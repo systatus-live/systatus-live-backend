@@ -1,8 +1,9 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Put, UseGuards, Request } from '@nestjs/common';
 import { UserEntity } from '../database/entities/user.entity';
 import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { AuthService } from '../services/auth.service';
+import { AuthGuard } from '../guards/auth.guard';
 
 @Controller("users")
 export class UserController {
@@ -138,32 +139,18 @@ export class UserController {
     }
   }
 
-  @Get(":id")
-  getUserById(@Param("id") id: string) {
-    return this.userRepository.findOne({
-      where: {
-        id: id
-      }
-    });
-  }
-
-  @Put(":id")
-  async updateUser(@Param("id") id: string, @Body() body: any) {
+  @UseGuards(AuthGuard)
+  @Get("me")
+  async getProfile(@Request() req: Request) {
     const findUser = await this.userRepository.findOne({
       where: {
-        id: id
-      }
+        id: req.headers["logged_user_id"]
+      },
+      select: ["id", "name", "email", "created_at", "updated_at"]
     });
     if (!findUser) {
-      throw new NotFoundException("User not found.")
+      throw new NotFoundException("User not found.");
     }
-
-    await this.userRepository.update(id, {
-      name: body.name,
-      email: body.email
-    });
-    return {
-      message: "User updated successfully."
-    }
+    return findUser;
   }
 }

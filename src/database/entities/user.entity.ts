@@ -20,9 +20,9 @@ export class UserEntity {
   @Column({ type: "varchar", length: 10, nullable: true })
   confirmation_code: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updated_at: string;
 }
