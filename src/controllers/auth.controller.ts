@@ -1,13 +1,12 @@
 import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserEntity } from 'src/database/entities/user.entity';
-import { AuthService } from 'src/services/auth.service';
+import { UserEntity } from '../database/entities/user.entity';
+import { AuthService } from '../services/auth.service';
 import { DataSource, Repository } from 'typeorm';
 
 @Controller("auth")
 export class AuthController {
   private userRepository: Repository<UserEntity> = null;
-  private jwtSecret = process.env.JWT_SECRET;
 
   constructor(
     private datasource: DataSource,
@@ -33,8 +32,6 @@ export class AuthController {
 
     const jwt = await this.jwtService.signAsync({
       user: findUser.id
-    }, {
-      secret: this.jwtSecret
     })
 
     return {

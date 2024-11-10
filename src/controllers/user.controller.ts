@@ -1,6 +1,6 @@
 import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
-import { UserEntity } from 'src/database/entities/user.entity';
-import { MailService } from 'src/services/mail.service';
+import { UserEntity } from '../database/entities/user.entity';
+import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { AuthService } from '../services/auth.service';
 

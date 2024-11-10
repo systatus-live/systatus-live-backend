@@ -10,6 +10,7 @@ import { AuthService } from './services/auth.service';
 import { MailService } from './services/mail.service';
 import { AuthController } from './controllers/auth.controller';
 import { JwtModule, JwtService } from '@nestjs/jwt';
+import { AuthModule } from './modules/auth.module';
 
 const dataSourceOptions: any = dataSource.options;
 
@@ -32,16 +33,14 @@ const dataSourceOptions: any = dataSource.options;
       }),
     }),
     UserModule,
+    AuthModule
   ],
   controllers: [
     AppController, 
-    AuthController
   ],
   providers: [
     AppService, 
-    AuthService, 
-    MailService, 
-    JwtService
+    MailService
   ]
 })
 export class AppModule {
