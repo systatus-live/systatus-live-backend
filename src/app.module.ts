@@ -5,12 +5,12 @@ import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import dataSource from './database/dataSource';
-import { UserModule } from './modules/user.module';
-import { AuthService } from './services/auth.service';
-import { MailService } from './services/mail.service';
-import { AuthController } from './controllers/auth.controller';
-import { JwtModule, JwtService } from '@nestjs/jwt';
 import { AuthModule } from './modules/auth.module';
+import { MonitorModule } from './modules/monitor.module';
+import { UserModule } from './modules/user.module';
+import { MailService } from './services/mail.service';
+import { MonitorService } from './services/monitor.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 const dataSourceOptions: any = dataSource.options;
 
@@ -32,20 +32,22 @@ const dataSourceOptions: any = dataSource.options;
         retryDelay: 20000
       }),
     }),
+    ScheduleModule.forRoot(),
     UserModule,
-    AuthModule
+    AuthModule,
+    MonitorModule,
   ],
   controllers: [
-    AppController, 
+    AppController
   ],
   providers: [
-    AppService, 
-    MailService
+    AppService,
+    MailService,
+    MonitorService
   ]
 })
 export class AppModule {
   constructor(
     private dataSource: DataSource,
-  ) {
-  }
+  ) { }
 }

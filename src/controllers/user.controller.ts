@@ -1,9 +1,9 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Put, UseGuards, Request } from '@nestjs/common';
-import { UserEntity } from '../database/entities/user.entity';
-import { MailService } from '../services/mail.service';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { AuthService } from '../services/auth.service';
+import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth.guard';
+import { AuthService } from '../services/auth.service';
+import { MailService } from '../services/mail.service';
 
 @Controller("users")
 export class UserController {
@@ -26,22 +26,22 @@ export class UserController {
       password: null
     };
 
-    let findUser = await this.userRepository.findOne({
+    let user = await this.userRepository.findOne({
       where: {
         email: newUser.email
       }
     })
 
-    if (findUser && findUser.verified) {
+    if (user && user.verified) {
       throw new ConflictException("E-mail already registered. Try logging in.");
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 
-    if (!findUser) {
+    if (!user) {
       try {
-        findUser = await queryRunner.manager.save(UserEntity, {
+        user = await queryRunner.manager.save(UserEntity, {
           ...newUser,
           confirmation_code: this.authService.generateUUID().split("-")[0].toUpperCase()
         });
@@ -57,7 +57,7 @@ export class UserController {
         <p>Hi, ${newUser.name}.</p>
         <p>Thank you for signing up for an Systatus.Live account!</p>
         <p>Copy the code below and paste it into the form to confirm your e-mail:</p>
-        <p><b>${findUser.confirmation_code}</b></p>
+        <p><b>${user.confirmation_code}</b></p>
         <hr>
         <p>Systatus.Live, an product of <a href="https://artcode.dev" target="_blank"">Artcode</a></p>
       `);
@@ -73,7 +73,7 @@ export class UserController {
     return {
       message: "User created successfully",
       data: {
-        id: findUser.id
+        id: user.id
       }
     }
   }
@@ -82,21 +82,21 @@ export class UserController {
   async confirmUser(@Param("id") id: string, @Body() body: any) {
     const { code, password } = body;
 
-    let findUser = await this.userRepository.findOne({
+    let user = await this.userRepository.findOne({
       where: {
         id: id
       }
     })
 
-    if (!findUser) {
+    if (!user) {
       throw new NotFoundException("User not found.")
     }
 
-    if (findUser.verified) {
+    if (user.verified) {
       throw new ConflictException(`User already confirmed.`);
     }
 
-    if (findUser.confirmation_code != code) {
+    if (user.confirmation_code != code) {
       throw new ForbiddenException(`Invalid code. Please enter the correct code received in your inbox or spam folder.`)
     }
 
@@ -116,9 +116,9 @@ export class UserController {
     }
 
     try {
-      await this.mailService.sendMail(findUser.email, "Your Systatus.Live account has been confirmed.", "text/html", `
-        <p>Hi, ${findUser.name}.</p>
-        <p>Your Systatus.Live account has been confirmed at the email ${findUser.email}. Log in to use the aplication features.</p>
+      await this.mailService.sendMail(user.email, "Your Systatus.Live account has been confirmed.", "text/html", `
+        <p>Hi, ${user.name}.</p>
+        <p>Your Systatus.Live account has been confirmed at the email ${user.email}. Log in to use the aplication features.</p>
         <hr>
         <p>Systatus.Live, an product of <a href="https://artcode.dev" target="_blank"">Artcode</a></p>
       `);
@@ -134,7 +134,7 @@ export class UserController {
     return {
       message: "User successfully confirmed.",
       data: {
-        id: findUser.id
+        id: user.id
       }
     }
   }
@@ -142,15 +142,15 @@ export class UserController {
   @UseGuards(AuthGuard)
   @Get("me")
   async getProfile(@Request() req: Request) {
-    const findUser = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: {
         id: req.headers["logged_user_id"]
       },
       select: ["id", "name", "email", "created_at", "updated_at"]
     });
-    if (!findUser) {
+    if (!user) {
       throw new NotFoundException("User not found.");
     }
-    return findUser;
+    return user;
   }
 }

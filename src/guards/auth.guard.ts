@@ -1,6 +1,6 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Request, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserEntity } from '../database/entities/user.entity';
+import { UserEntity } from '../database/entities/UserEntity';
 import { DataSource } from 'typeorm';
 
 @Injectable()
@@ -27,7 +27,7 @@ export class AuthGuard implements CanActivate {
         }
       })
 
-      request["logged_user_id"] = findUser.id;
+       request.headers["logged_user_id"] = findUser.id;
     } catch (error) {
       throw new UnauthorizedException("Unauthorized. Please try to log in again.");
     }
