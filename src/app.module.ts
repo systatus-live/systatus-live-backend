@@ -8,6 +8,8 @@ import dataSource from './database/dataSource';
 import { UserModule } from './modules/user.module';
 import { AuthService } from './services/auth.service';
 import { MailService } from './services/mail.service';
+import { AuthController } from './controllers/auth.controller';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 
 const dataSourceOptions: any = dataSource.options;
 
@@ -31,11 +33,15 @@ const dataSourceOptions: any = dataSource.options;
     }),
     UserModule,
   ],
-  controllers: [AppController],
+  controllers: [
+    AppController, 
+    AuthController
+  ],
   providers: [
     AppService, 
     AuthService, 
     MailService, 
+    JwtService
   ]
 })
 export class AppModule {

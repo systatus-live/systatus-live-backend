@@ -6,7 +6,9 @@ import { AuthService } from '../services/auth.service';
 import { MailService } from 'src/services/mail.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity])],
+  imports: [
+    TypeOrmModule.forFeature([UserEntity])
+  ],
   exports: [TypeOrmModule],
   providers: [
     AuthService,

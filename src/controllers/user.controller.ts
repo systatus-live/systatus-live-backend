@@ -1,16 +1,20 @@
-import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
-import { AuthService } from '../services/auth.service';
-import { DataSource } from 'typeorm';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
 import { UserEntity } from 'src/database/entities/user.entity';
 import { MailService } from 'src/services/mail.service';
+import { DataSource, Repository } from 'typeorm';
+import { AuthService } from '../services/auth.service';
 
 @Controller("users")
 export class UserController {
+  private userRepository: Repository<UserEntity> = null;
+
   constructor(
     private authService: AuthService,
     private dataSource: DataSource,
     private mailService: MailService
-  ) { }
+  ) {
+    this.userRepository = this.dataSource.getRepository(UserEntity);
+  }
 
   @Post()
   async createUser(@Body() body: any) {
@@ -21,8 +25,7 @@ export class UserController {
       password: null
     };
 
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    let findUser = await userRepository.findOne({
+    let findUser = await this.userRepository.findOne({
       where: {
         email: newUser.email
       }
@@ -37,7 +40,7 @@ export class UserController {
 
     if (!findUser) {
       try {
-        findUser = await userRepository.save({
+        findUser = await queryRunner.manager.save(UserEntity, {
           ...newUser,
           confirmation_code: this.authService.generateUUID().split("-")[0].toUpperCase()
         });
@@ -75,10 +78,10 @@ export class UserController {
   }
 
   @Patch(":id")
-  async confirmUser(@Param("id") id: string, @Body("code") code: string) {
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    
-    let findUser = await userRepository.findOne({
+  async confirmUser(@Param("id") id: string, @Body() body: any) {
+    const { code, password } = body;
+
+    let findUser = await this.userRepository.findOne({
       where: {
         id: id
       }
@@ -88,6 +91,10 @@ export class UserController {
       throw new NotFoundException("User not found.")
     }
 
+    if (findUser.verified) {
+      throw new ConflictException(`User already confirmed.`);
+    }
+
     if (findUser.confirmation_code != code) {
       throw new ForbiddenException(`Invalid code. Please enter the correct code received in your inbox or spam folder.`)
     }
@@ -95,17 +102,16 @@ export class UserController {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 
-    if (!findUser) {
-      try {
-        await userRepository.update(id, {
-          verified: true,
-          confirmation_code: null
-        })
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        await queryRunner.release();
-        throw new InternalServerErrorException(`Internal failure when confirmation the user. Please contact support.`);
-      }
+    try {
+      await queryRunner.manager.update(UserEntity, id, {
+        verified: true,
+        confirmation_code: null,
+        password: this.authService.bcryptHashSync(password)
+      })
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      throw new InternalServerErrorException(`Internal failure when confirmation the user. Please contact support.`);
     }
 
     try {
@@ -133,46 +139,17 @@ export class UserController {
   }
 
   @Get(":id")
-  getUserList() {
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    return userRepository.find();
-  }
-
-  @Get(":id")
   getUserById(@Param("id") id: string) {
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    return userRepository.findOne({
+    return this.userRepository.findOne({
       where: {
         id: id
       }
     });
-  }
-
-  @Delete(":id")
-  async deleteUser(@Param("id") id: string) {
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    const findUser = await userRepository.findOne({
-      where: {
-        id: id
-      }
-    });
-    if (!findUser) {
-      throw new NotFoundException("User not found.")
-    }
-
-    await userRepository.delete({
-      id: id
-    });
-
-    return {
-      message: "User deleted successfully."
-    }
   }
 
   @Put(":id")
   async updateUser(@Param("id") id: string, @Body() body: any) {
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    const findUser = await userRepository.findOne({
+    const findUser = await this.userRepository.findOne({
       where: {
         id: id
       }
@@ -181,7 +158,7 @@ export class UserController {
       throw new NotFoundException("User not found.")
     }
 
-    await userRepository.update(id, {
+    await this.userRepository.update(id, {
       name: body.name,
       email: body.email
     });
