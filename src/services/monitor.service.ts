@@ -24,9 +24,9 @@ export class MonitorService {
   }
 
   public start(monitor: MonitorEntity) {
-    const job = new CronJob(monitor.cron, () => {
-      const address = this.authService.aesDecrypt(monitor.address);
+    const address = this.authService.aesDecrypt(monitor.address);
 
+    const job = new CronJob(monitor.cron, () => {
       let doTest: () => Promise<any> = null;
 
       switch (monitor.type) {
@@ -59,6 +59,7 @@ export class MonitorService {
       }).catch(error => {
         this.logger.error(`${monitor.type} ${address}: ${error}`)
         status = MonitorLogStatusEnum.ERROR;
+        httpStatus = error.status;
       }).finally(() => {
         this.monitorLogRepository.insert({
           id_monitor: monitor.id,
@@ -67,8 +68,12 @@ export class MonitorService {
         })
       })
     });
+
     this.schedulerRegistry.addCronJob(monitor.id, job as any);
+
     job.start();
+
+    this.logger.log(`New monitor ${monitor.type} ${address}`)
   }
 
   public stop(id: string) {
