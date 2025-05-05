@@ -1,5 +1,6 @@
 import { Body, ConflictException, Controller, InternalServerErrorException, Post } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { readFileSync } from 'fs';
 import { UserEntity } from 'src/database/entities/UserEntity';
 import { AuthService } from 'src/services/auth.service';
 import { MailService } from 'src/services/mail.service';
@@ -22,7 +23,7 @@ export class AuthController {
       }
     })
 
-    if (findUser) {
+    if (findUser && findUser.verified) {
       throw new ConflictException("E-mail already registered.");
     }
 
@@ -31,16 +32,40 @@ export class AuthController {
     await queryRunner.startTransaction();
 
     try {
-      const newUser = this.userRepository.create({
-        name: body.name,
-        email: body.email,
-        password: this.authService.bcryptHashSync(body.password),
-        accepted_terms: body.acceptTerms,
-        discovery: body.discovery,
-        verified: false
-      })
+      const verificationCode = Array.from({ length: 6 }, () => Math.floor(Math.random() * 9) + 1).join("");
+      const password = this.authService.bcryptHashSync(body.password);
 
-      await queryRunner.manager.save(UserEntity, newUser);
+      let savedUser: any = null;
+
+      if (findUser) {
+        savedUser = {
+          id: findUser.id,
+          name: body.name,
+          email: body.email,
+          password: password,
+          accepted_terms: body.acceptTerms,
+          discovery: body.discovery,
+          verified: false,
+          verification_code: verificationCode
+        };
+      } else {
+        savedUser = this.userRepository.create({
+          name: body.name,
+          email: body.email,
+          password: password,
+          accepted_terms: body.acceptTerms,
+          discovery: body.discovery,
+          verified: false,
+          verification_code: verificationCode
+        });
+      }
+
+      await queryRunner.manager.save(UserEntity, savedUser);
+
+      let emailBody = readFileSync(`${__dirname}/../../assets/mail/${findUser ? "VerifyUserEmail" : "NewUserEmail"}.html`, "utf-8");
+      emailBody = emailBody.replace(/{{USERNAME}}/g, savedUser.name.split(" ")[0]).replace(/{{CODE}}/g, savedUser.verification_code);
+
+      await this.mailService.sendMail(savedUser.email, findUser ? "Welcome back to Systatus Live 👋" : "Welcome to Systatus Live 👋", emailBody)
 
       await queryRunner.commitTransaction();
 

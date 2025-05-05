@@ -23,6 +23,9 @@ export class UserEntity {
   @Column({ type: "boolean", nullable: false, default: false })
   verified: boolean;
 
+  @Column({ type: "varchar", length: 6, nullable: true })
+  verification_code: string;
+
   @CreateDateColumn()
   created_at: string;
 
