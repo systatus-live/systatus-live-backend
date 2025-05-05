@@ -3,6 +3,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { AuthController } from './controllers/auth/auth.controller';
+import { AuthService } from './services/auth.service';
+import { AuthModule } from './modules/auth/auth.module';
+import { MailService } from './services/mail.service';
 
 @Module({
   imports: [
@@ -24,8 +28,9 @@ import { ConfigModule } from '@nestjs/config';
       retryDelay: 10000,
       migrationsRun: true
     }),
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AuthService, MailService],
 })
 export class AppModule { }

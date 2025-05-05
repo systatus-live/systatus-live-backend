@@ -11,6 +11,18 @@ export class UserEntity {
   @Column({ type: "varchar", unique: true, length: 1024, nullable: false })
   email: string;
 
+  @Column({ type: "text", nullable: false })
+  password: string;
+
+  @Column({ type: "boolean", nullable: false, default: false })
+  accepted_terms: boolean;
+
+  @Column({ type: "varchar", length: 10, nullable: true })
+  discovery: string;
+
+  @Column({ type: "boolean", nullable: false, default: false })
+  verified: boolean;
+
   @CreateDateColumn()
   created_at: string;
 
