@@ -1,7 +1,8 @@
-import { Body, ConflictException, Controller, InternalServerErrorException, Patch, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, ConflictException, Controller, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { UserEntity } from 'src/database/entities/UserEntity';
+import { SigninTypeEnum } from 'src/enums/SigninTypeEnum';
 import { AuthService } from 'src/services/auth.service';
 import { MailService } from 'src/services/mail.service';
 import { DataSource, Repository } from 'typeorm';
@@ -92,6 +93,39 @@ export class AuthController {
 
     return {
       message: "Code validated successfully."
+    }
+  }
+
+  @Post("/signin")
+  async signin(@Body() body) {
+    let accessToken = "";
+
+    switch (body.type) {
+      case SigninTypeEnum.EMAIL_PASSWORD:
+        const findUser = await this.userRepository.findOne({
+          where: {
+            email: body.email
+          }
+        })
+
+        if (!findUser || !this.authService.bcryptCompareSync(findUser.password, body.password)) {
+          throw new UnauthorizedException("Incorrect e-mail or password.");
+        }
+
+        accessToken = this.authService.generateJWT({
+          user: findUser.id
+        });
+
+        break;
+      default:
+        throw new NotImplementedException("Sign in type is not supported.");
+    }
+
+    return {
+      message: "Authorized",
+      data: {
+        access_token: accessToken
+      }
     }
   }
 }
