@@ -18,13 +18,13 @@ export class UserEntity {
   accepted_terms: boolean;
 
   @Column({ type: "varchar", length: 10, nullable: true })
-  discovery: string;
+  discovery: string | null;
 
   @Column({ type: "boolean", nullable: false, default: false })
   verified: boolean;
 
   @Column({ type: "varchar", length: 6, nullable: true })
-  verification_code: string;
+  verification_code: string | null;
 
   @CreateDateColumn()
   created_at: string;
