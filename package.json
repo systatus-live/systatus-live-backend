@@ -19,6 +19,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^5.1.1",
+    "google-auth-library": "^9.15.1",
     "helmet": "^8.1.0",
     "nodemailer": "^7.0.2",
     "pg": "^8.15.6",

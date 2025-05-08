@@ -18,6 +18,10 @@ export class AuthService {
     return this.jwtService.verify(jwt);
   }
 
+  public decodeJWT(jwt: string) {
+    return this.jwtService.decode(jwt);
+  }
+
   public bcryptHashSync(text: string): string {
     return bcrypt.hashSync(text, 16);
   }

@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { UserEntity } from 'src/database/entities/UserEntity';
@@ -6,6 +6,7 @@ import { SigninTypeEnum } from 'src/enums/SigninTypeEnum';
 import { AuthService } from 'src/services/auth.service';
 import { MailService } from 'src/services/mail.service';
 import { DataSource, Repository } from 'typeorm';
+import { OAuth2Client } from "google-auth-library";
 
 @Controller("auth")
 export class AuthController {
@@ -24,8 +25,8 @@ export class AuthController {
       }
     })
 
-    if (findUser && findUser.verified) {
-      throw new ConflictException("E-mail already registered.");
+    if (findUser) {
+      throw new ConflictException("User already registered. Try sign in.");
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -36,7 +37,7 @@ export class AuthController {
       const verificationCode = Array.from({ length: 6 }, () => Math.floor(Math.random() * 9) + 1).join("");
       const password = this.authService.bcryptHashSync(body.password);
 
-      let savedUser: Partial<UserEntity> = {
+      const savedUser = this.userRepository.create({
         name: body.name,
         email: body.email,
         password: password,
@@ -44,19 +45,14 @@ export class AuthController {
         discovery: body.discovery,
         verified: false,
         verification_code: verificationCode
-      };
-
-      if (findUser) {
-        savedUser.id = findUser.id;
-      } else {
-        savedUser = this.userRepository.create(savedUser);
-      }
+      });
 
       await queryRunner.manager.save(UserEntity, savedUser);
 
-      let emailBody = readFileSync(`${__dirname}/../../assets/mail/${findUser ? "VerifyUserEmail" : "NewUserEmail"}.html`, "utf-8");
-      emailBody = emailBody.replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0]).replace(/{{CODE}}/g, verificationCode);
-      await this.mailService.sendMail(savedUser.email!, findUser ? "Welcome back to Systatus Live 👋" : "Welcome to Systatus Live 👋", emailBody)
+      const emailBody = readFileSync(`${__dirname}/../../assets/mail/NewUserEmail.html`, "utf-8")
+        .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])
+        .replace(/{{CODE}}/g, verificationCode);
+      await this.mailService.sendMail(savedUser.email!, "Welcome to Systatus Live 👋", emailBody);
 
       await queryRunner.commitTransaction();
 
@@ -71,7 +67,7 @@ export class AuthController {
     }
   }
 
-  @Patch("/code-verifications")
+  @Patch("/codes")
   async verifyCode(@Body() body) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -96,35 +92,109 @@ export class AuthController {
     }
   }
 
+  @Post("/codes")
+  async sendCode(@Body() body) {
+    const findUser = await this.userRepository.findOne({
+      where: {
+        email: body.email,
+      }
+    })
+
+    const defaultMsg = "If the user exists, a verification code will be sent to their e-mail.";
+
+    if (!findUser) {
+      return {
+        message: defaultMsg
+      }
+    }
+
+    if (findUser.verified) {
+      throw new ForbiddenException("Action not permited.")
+    }
+
+    const emailBody = readFileSync(`${__dirname}/../../assets/mail/VerifyUserEmail.html`, "utf-8")
+      .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
+      .replace(/{{CODE}}/g, findUser.verification_code!);
+    await this.mailService.sendMail(findUser.email!, "Welcome back to Systatus Live 👋", emailBody);
+
+    return {
+      message: defaultMsg
+    }
+  }
+
   @Post("/signin")
   async signin(@Body() body) {
-    let accessToken = "";
+    let findUser: UserEntity | null = null;
+    let genericUnauthorizedMsg = "Incorrect password or user does not exist.";
 
     switch (body.type) {
       case SigninTypeEnum.EMAIL_PASSWORD:
-        const findUser = await this.userRepository.findOne({
+        findUser = await this.userRepository.findOne({
           where: {
             email: body.email
           }
         })
 
         if (!findUser || !this.authService.bcryptCompareSync(findUser.password, body.password)) {
-          throw new UnauthorizedException("Incorrect e-mail or password.");
+          throw new UnauthorizedException(genericUnauthorizedMsg);
         }
 
-        accessToken = this.authService.generateJWT({
-          user: findUser.id
-        });
+        if (!findUser.verified) {
+          return {
+            message: "Pending e-mail verification",
+            data: {
+              access_token: null,
+              verified: false
+            }
+          }
+        }
+
+        break;
+      case SigninTypeEnum.GOOGLE:
+        try {
+          const oAuth2Client = new OAuth2Client();
+
+          const decodedGoogleToken = await oAuth2Client.verifyIdToken({
+            idToken: body.credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+          });
+
+          findUser = await this.userRepository.findOne({
+            where: {
+              email: decodedGoogleToken.getPayload()?.email!
+            }
+          })
+
+          if (!findUser) {
+            throw new UnauthorizedException(genericUnauthorizedMsg);
+          }
+
+          if (!findUser.verified) {
+            const userRepository = this.dataSource.getRepository(UserEntity);
+            findUser = await userRepository.save({
+              id: findUser.id,
+              verified: true,
+              verification_code: null
+            })
+          }
+        } catch (error) {
+          throw new UnauthorizedException(genericUnauthorizedMsg);
+        }
 
         break;
       default:
         throw new NotImplementedException("Sign in type is not supported.");
     }
 
+    const accessToken = this.authService.generateJWT({
+      user: findUser!.id
+    });
+
     return {
       message: "Authorized",
       data: {
-        access_token: accessToken
+        access_token: accessToken,
+        verified: true
       }
     }
   }
