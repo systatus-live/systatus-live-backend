@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { AuthController } from './controllers/auth/auth.controller';
 import { AuthService } from './services/auth.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { MailService } from './services/mail.service';
@@ -31,6 +29,6 @@ import { MailService } from './services/mail.service';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AuthService, MailService],
+  providers: [AuthService, MailService],
 })
 export class AppModule { }

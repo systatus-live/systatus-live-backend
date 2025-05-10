@@ -60,6 +60,7 @@ export class AuthController {
         message: "User created successfully."
       }
     } catch (error) {
+      console.log(error.message);
       await queryRunner.rollbackTransaction();
       throw new InternalServerErrorException("Failed to register user.");
     } finally {
