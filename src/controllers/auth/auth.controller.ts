@@ -7,18 +7,20 @@ import { AuthService } from 'src/services/auth.service';
 import { MailService } from 'src/services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
+import { I18n, I18nContext } from 'nestjs-i18n';
 
 @Controller("auth")
 export class AuthController {
+  @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+
   constructor(
     private authService: AuthService,
-    @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
     private dataSource: DataSource,
     private mailService: MailService
   ) { }
 
   @Post("/signup")
-  async signup(@Body() body) {
+  async signup(@Body() body: any, @I18n() i18n: I18nContext) {
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email
@@ -26,7 +28,7 @@ export class AuthController {
     })
 
     if (findUser) {
-      throw new ConflictException("User already registered. Try sign in.");
+      throw new ConflictException(i18n.translate("messages.authController.userAlreadyExists"));
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -57,19 +59,18 @@ export class AuthController {
       await queryRunner.commitTransaction();
 
       return {
-        message: "User created successfully."
+        message: i18n.translate("messages.authController.userCreateSuccess")
       }
     } catch (error) {
-      console.log(error.message);
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException("Failed to register user.");
+      throw new InternalServerErrorException(i18n.translate("messages.authController.userCreateError"));
     } finally {
       await queryRunner.release();
     }
   }
 
   @Patch("/codes")
-  async verifyCode(@Body() body) {
+  async verifyCode(@Body() body: any, @I18n() i18n: I18nContext) {
     const findUser = await this.userRepository.findOne({
       where: {
         verified: false,
@@ -78,7 +79,7 @@ export class AuthController {
     })
 
     if (!findUser) {
-      throw new UnauthorizedException("Invalid code.");
+      throw new UnauthorizedException(i18n.translate("messages.authController.verifyCodeError"));
     }
 
     const userRepository = this.dataSource.getRepository(UserEntity);
@@ -89,19 +90,19 @@ export class AuthController {
     })
 
     return {
-      message: "Code validated successfully."
+      message: i18n.translate("messages.authController.verifyCodeSuccess")
     }
   }
 
   @Post("/codes")
-  async sendCode(@Body() body) {
+  async sendCode(@Body() body: any, @I18n() i18n: I18nContext) {
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email,
       }
     })
 
-    const defaultMsg = "If the user exists, a verification code will be sent to their e-mail.";
+    const defaultMsg = i18n.translate("messages.authController.sendCodeSuccess");
 
     if (!findUser) {
       return {
@@ -110,7 +111,7 @@ export class AuthController {
     }
 
     if (findUser.verified) {
-      throw new ForbiddenException("Action not permited.")
+      throw new ForbiddenException(i18n.translate("messages.authController.sendCodeError"))
     }
 
     const emailBody = readFileSync(`${__dirname}/../../assets/mail/VerifyUserEmail.html`, "utf-8")
@@ -124,9 +125,9 @@ export class AuthController {
   }
 
   @Post("/signin")
-  async signin(@Body() body) {
+  async signin(@Body() body, @I18n() i18n: I18nContext) {
     let findUser: UserEntity | null = null;
-    let genericUnauthorizedMsg = "Incorrect password or user does not exist.";
+    let defaultMsg = i18n.translate("messages.authController.authUserPasswordError");
 
     switch (body.type) {
       case SigninTypeEnum.EMAIL_PASSWORD:
@@ -137,12 +138,12 @@ export class AuthController {
         })
 
         if (!findUser || !this.authService.bcryptCompareSync(findUser.password, body.password)) {
-          throw new UnauthorizedException(genericUnauthorizedMsg);
+          throw new UnauthorizedException(defaultMsg);
         }
 
         if (!findUser.verified) {
           return {
-            message: "Pending e-mail verification",
+            message: i18n.translate("messages.authController.authUserEmailVerificationError"),
             data: {
               access_token: null,
               verified: false
@@ -167,7 +168,7 @@ export class AuthController {
           })
 
           if (!findUser) {
-            throw new UnauthorizedException(genericUnauthorizedMsg);
+            throw new UnauthorizedException(defaultMsg);
           }
 
           if (!findUser.verified) {
@@ -179,12 +180,12 @@ export class AuthController {
             })
           }
         } catch (error) {
-          throw new UnauthorizedException(genericUnauthorizedMsg);
+          throw new UnauthorizedException(defaultMsg);
         }
 
         break;
       default:
-        throw new NotImplementedException("Sign in type is not supported.");
+        throw new NotImplementedException(i18n.translate("messages.authController.authUserTypeError"));
     }
 
     const accessToken = this.authService.generateJWT({

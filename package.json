@@ -24,6 +24,7 @@
     "bcrypt": "^5.1.1",
     "google-auth-library": "^9.15.1",
     "helmet": "^8.1.0",
+    "nestjs-i18n": "^10.5.1",
     "nodemailer": "^7.0.2",
     "pg": "^8.15.6",
     "reflect-metadata": "^0.2.2",

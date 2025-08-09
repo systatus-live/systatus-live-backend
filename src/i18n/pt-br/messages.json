@@ -1,0 +1,12 @@
+{
+  "authController.userAlreadyExists": "Usuário já existe. Tente fazer login.",
+  "authController.userCreateSuccess": "Usuário criado com sucesso.",
+  "authController.userCreateError": "Falha ao registrar o usuário.",
+  "authController.verifyCodeSuccess": "Código validado com sucesso.",
+  "authController.verifyCodeError": "Código inválido.",
+  "authController.sendCodeSuccess": "Se o usuário existir, um código de verificação irá ser enviado pelo e-mail.",
+  "authController.sendCodeError": "Ação não permitida.",
+  "authController.authUserPasswordError": "Senha incorreta ou usuário não existe.",
+  "authController.authUserEmailVerificationError": "E-mail ainda não foi verificado.",
+  "authController.authUserTypeError": "Método de login não é suportado."
+}
