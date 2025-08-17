@@ -26,7 +26,7 @@ import { MailService } from 'src/services/mail.service';
   exports: [
     AuthService,
     MailService,
-    TypeOrmModule
+    TypeOrmModule,
   ],
 })
 export class AuthModule { }

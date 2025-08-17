@@ -4,10 +4,10 @@ import { Attachment } from 'nodemailer/lib/mailer';
 
 @Injectable()
 export class MailService {
-  private transporter: any;
+  private static transporter: any;
 
-  constructor() {
-    this.transporter = createTransport({
+  public configure() {
+    MailService.transporter = createTransport({
       host: process.env.SMTP_HOST,
       port: +process.env.SMTP_PORT!,
       secure: true,
@@ -21,8 +21,8 @@ export class MailService {
     });
   }
 
-  verify() {
-    this.transporter.verify((error, success) => {
+  public verify() {
+    MailService.transporter.verify((error, success) => {
       if (error) {
         console.log("[E-MAIL] Error: " + error.message)
       } else {
@@ -41,7 +41,7 @@ export class MailService {
         attachments: attachments
       };
 
-      await this.transporter.sendMail(mailOptions, (error, success) => {
+      await MailService.transporter.sendMail(mailOptions, (error, success) => {
         if (error) {
           reject(error);
         } else {

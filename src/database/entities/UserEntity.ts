@@ -15,7 +15,7 @@ export class UserEntity {
   password: string;
 
   @Column({ type: "boolean", nullable: false, default: false })
-  accepted_terms: boolean;
+  acceptedTerms: boolean;
 
   @Column({ type: "varchar", length: 10, nullable: true })
   discovery: string | null;
@@ -24,11 +24,11 @@ export class UserEntity {
   verified: boolean;
 
   @Column({ type: "varchar", length: 6, nullable: true })
-  verification_code: string | null;
+  verificationCode: string | null;
 
   @CreateDateColumn()
-  created_at: string;
+  createdAt: string;
 
   @UpdateDateColumn()
-  updated_at: string;
+  updatedAt: string;
 }

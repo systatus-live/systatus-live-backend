@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MailService } from './services/mail.service';
 import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
 import * as path from 'path';
+import { MonitorModule } from './modules/monitor/monitor.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import * as path from 'path';
       migrationsRun: true
     }),
     AuthModule,
+    MonitorModule,
   ],
   controllers: [AppController],
   providers: [AuthService, MailService],

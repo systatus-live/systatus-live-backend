@@ -8,5 +8,7 @@
   "authController.sendCodeError": "Ação não permitida.",
   "authController.authUserPasswordError": "Senha incorreta ou usuário não existe.",
   "authController.authUserEmailVerificationError": "E-mail ainda não foi verificado.",
-  "authController.authUserTypeError": "Método de login não é suportado."
+  "authController.authUserTypeError": "Método de login não é suportado.",
+  "monitorController.monitorCreateSuccess": "Monitor criado com sucesso.",
+  "monitorController.monitorCreateError": "Falha ao criar o monitor."
 }

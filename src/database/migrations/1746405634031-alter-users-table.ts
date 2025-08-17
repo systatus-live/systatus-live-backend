@@ -8,7 +8,5 @@ export class AlterUsersTable1746405634031 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "verification_code"`);
   }
-
 }

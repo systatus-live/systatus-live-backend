@@ -8,8 +8,12 @@ import { MailService } from 'src/services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
 import { I18n, I18nContext } from 'nestjs-i18n';
+import { version } from 'os';
 
-@Controller("auth")
+@Controller({
+  version: "1",
+  path: "/auth"
+})
 export class AuthController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
 
@@ -43,10 +47,10 @@ export class AuthController {
         name: body.name,
         email: body.email,
         password: password,
-        accepted_terms: body.acceptTerms,
+        acceptedTerms: body.acceptTerms,
         discovery: body.discovery,
         verified: false,
-        verification_code: verificationCode
+        verificationCode: verificationCode
       });
 
       await queryRunner.manager.save(UserEntity, savedUser);
@@ -74,7 +78,7 @@ export class AuthController {
     const findUser = await this.userRepository.findOne({
       where: {
         verified: false,
-        verification_code: body.code
+        verificationCode: body.code
       }
     })
 
@@ -86,7 +90,7 @@ export class AuthController {
     await userRepository.save({
       id: findUser.id,
       verified: true,
-      verification_code: null
+      verificationCode: null
     })
 
     return {
@@ -116,7 +120,7 @@ export class AuthController {
 
     const emailBody = readFileSync(`${__dirname}/../../assets/mail/VerifyUserEmail.html`, "utf-8")
       .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
-      .replace(/{{CODE}}/g, findUser.verification_code!);
+      .replace(/{{CODE}}/g, findUser.verificationCode!);
     await this.mailService.sendMail(findUser.email!, "Welcome back to Systatus Live 👋", emailBody);
 
     return {
@@ -176,7 +180,7 @@ export class AuthController {
             findUser = await userRepository.save({
               id: findUser.id,
               verified: true,
-              verification_code: null
+              verificationCode: null
             })
           }
         } catch (error) {

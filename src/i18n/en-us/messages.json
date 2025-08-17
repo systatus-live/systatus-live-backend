@@ -8,5 +8,7 @@
   "authController.sendCodeError": "Action not permited.",
   "authController.authUserPasswordError": "Incorrect password or user does not exist.",
   "authController.authUserEmailVerificationError": "Pending e-mail verification",
-  "authController.authUserTypeError": "Sign in type is not supported."
+  "authController.authUserTypeError": "Sign in type is not supported.",
+  "monitorController.monitorCreateSuccess": "Monitor created successfully.",
+  "monitorController.monitorCreateError": "Failed to create monitor."
 }
