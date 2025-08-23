@@ -2,22 +2,28 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MonitorController } from 'src/controllers/monitor/monitor.controller';
 import { MonitorEntity } from 'src/database/entities/MonitorEntity';
-import { MonitorService } from 'src/services/monitor.service';
+import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
+import { AuthService } from 'src/services/auth.service';
+import { CronService } from 'src/services/cron.service';
 
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MonitorEntity])
+    TypeOrmModule.forFeature([
+      MonitorEntity,
+      MonitorHistoryEntity
+    ])
   ],
   providers: [
-    MonitorService
+    CronService,
+    AuthService
   ],
   controllers: [
     MonitorController
   ],
   exports: [
     TypeOrmModule,
-    MonitorService,
+    CronService,
   ]
 })
 export class MonitorModule {

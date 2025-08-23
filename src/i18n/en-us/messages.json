@@ -10,5 +10,6 @@
   "authController.authUserEmailVerificationError": "Pending e-mail verification",
   "authController.authUserTypeError": "Sign in type is not supported.",
   "monitorController.monitorCreateSuccess": "Monitor created successfully.",
-  "monitorController.monitorCreateError": "Failed to create monitor."
+  "monitorController.monitorCreateError": "Failed to create monitor.",
+  "httpStatus.unauthorized": "Não Unauthorized."
 }

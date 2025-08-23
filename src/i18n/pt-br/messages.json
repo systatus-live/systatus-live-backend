@@ -10,5 +10,6 @@
   "authController.authUserEmailVerificationError": "E-mail ainda não foi verificado.",
   "authController.authUserTypeError": "Método de login não é suportado.",
   "monitorController.monitorCreateSuccess": "Monitor criado com sucesso.",
-  "monitorController.monitorCreateError": "Falha ao criar o monitor."
+  "monitorController.monitorCreateError": "Falha ao criar o monitor.",
+  "httpStatus.unauthorized": "Não autorizado."
 }

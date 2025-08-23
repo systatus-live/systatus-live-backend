@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { MailService } from './services/mail.service';
-import { MonitorService } from './services/monitor.service';
+import { CronService } from './services/cron.service';
 import { VersioningType } from '@nestjs/common';
 
 async function bootstrap() {
@@ -25,7 +25,7 @@ async function bootstrap() {
   }
 
   // Agenda
-  new MonitorService().configure();
+  new CronService().configure();
 }
 
 bootstrap();

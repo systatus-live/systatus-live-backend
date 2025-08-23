@@ -10,12 +10,14 @@ export class AuthService {
 
   public generateJWT(data: any) {
     return this.jwtService.sign(data, {
-      privateKey: process.env.JWT_KEY,
+      secret: process.env.JWT_KEY,
     })
   }
 
   public verifyJWT(jwt: string) {
-    return this.jwtService.verify(jwt);
+    return this.jwtService.verify(jwt, {
+      secret: process.env.JWT_KEY,
+    });
   }
 
   public decodeJWT(jwt: string) {

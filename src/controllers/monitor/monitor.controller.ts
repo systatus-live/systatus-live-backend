@@ -1,44 +1,100 @@
-import { Body, Controller, InternalServerErrorException, Post } from '@nestjs/common';
+import { Body, Controller, InternalServerErrorException, Post, UseGuards, Request } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MonitorEntity } from 'src/database/entities/MonitorEntity';
-import { MonitorService } from 'src/services/monitor.service';
+import { CronService } from 'src/services/cron.service';
 import { DataSource, Repository } from 'typeorm';
 import { I18n, I18nContext } from 'nestjs-i18n';
+import { AuthGuard } from 'src/guards/auth/auth.guard';
+import axios from "axios";
+import { MonitorTypeEnum } from 'src/enums/MonitorTypeEnum';
+import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
+import { HttpStatusCode } from 'src/enums/HttpStatusCode';
 
 @Controller({
   version: "1",
   path: "/monitors"
 })
+@UseGuards(AuthGuard)
 export class MonitorController {
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>
+  @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
 
   constructor(
-    private monitorService: MonitorService,
+    private cronService: CronService,
     private dataSource: DataSource
   ) { }
 
   @Post("/")
-  async createMonitor(@Body() body: any, @I18n() i18n: I18nContext) {
+  async createMonitor(@Request() request: Request, @Body() body: any, @I18n() i18n: I18nContext) {
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const savedMonitor = this.monitorRepository.create({
+      const newMonitor = this.monitorRepository.create({
         title: body.title,
         type: body.type,
         uri: body.uri,
         active: body.active,
-        cron: body.cron,
-        createdUserId: "", // TODO get logged user ID
-        updatedUserId: "" // TODO get logged user ID
+        cron: "* * * * *",
+        createdUserId: request["loggedUser"],
+        updatedUserId: request["loggedUser"]
       });
 
-      await queryRunner.manager.save(MonitorEntity, savedMonitor);
+      await queryRunner.manager.save(MonitorEntity, newMonitor);
       await queryRunner.commitTransaction();
 
-      this.monitorService.schedule(savedMonitor.id, "* * * * *", (error) => {
-        // TODO verify type to monitor
+      this.cronService.schedule(newMonitor.id, newMonitor.cron, async (_) => {
+        const lastMonitorHistory = await this.monitorHistoryRepository.findOne({
+          where: {
+            monitorId: newMonitor.id
+          },
+          order: {
+            createdAt: "DESC"
+          },
+        })
+
+        let newMonitorHistory = this.monitorHistoryRepository.create({
+          monitorId: newMonitor.id
+        });
+
+        let newStatus = "UNKNOWN";
+
+        switch (newMonitor.type) {
+          case MonitorTypeEnum.HTTP:
+            try {
+              const response = await axios.get(newMonitor.uri, {
+                timeout: 30000, // 30 seconds in milliseconds
+              });
+              newStatus = response.status.toString();
+            } catch (error) {
+              if (axios.isAxiosError(error)) {
+                if (error.response) {
+                  newStatus = error.response.status.toString();
+                } else if (error.code == "ECONNABORTED") {
+                  newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
+                } else if (error.code == "ECONNREFUSED") {
+                  newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+                }
+              }
+            } finally {
+              if (lastMonitorHistory) {
+                if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
+                  console.log("status changed from UP to DOWN"); // TODO
+                } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
+                  console.log("status changed from DOWN to UP"); // TODO
+                }
+              }
+            }
+            break;
+          case MonitorTypeEnum.PING:
+            // TODO
+            break;
+          default:
+          // TODO
+        }
+
+        newMonitorHistory.status = newStatus;
+        await this.monitorHistoryRepository.save(newMonitorHistory);
       })
 
       return {
