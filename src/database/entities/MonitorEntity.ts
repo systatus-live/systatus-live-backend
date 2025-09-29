@@ -13,7 +13,7 @@ export class MonitorEntity {
   type: string;
 
   @Column({ type: "text", nullable: false })
-  uri: string;
+  address: string;
 
   @Column({ type: "boolean", nullable: false, default: true })
   active: boolean;
@@ -21,14 +21,14 @@ export class MonitorEntity {
   @Column({ type: "varchar", length: 10, nullable: false })    
   cron: string
 
-  @ManyToMany(() => UserEntity, { cascade: true, nullable: false })
+  @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
   @JoinColumn({ name: "createdUserId", referencedColumnName: "id" })
   createdUser: UserEntity;
 
   @Column()
   createdUserId: string;
 
-  @ManyToMany(() => UserEntity, { cascade: true, nullable: false })
+  @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
   @JoinColumn({ name: "updatedUserId", referencedColumnName: "id" })
   updatedUser: UserEntity;
 

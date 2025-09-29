@@ -3,11 +3,10 @@ import { AppController } from './app.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './services/auth.service';
-import { AuthModule } from './modules/auth/auth.module';
 import { MailService } from './services/mail.service';
 import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
 import * as path from 'path';
-import { MonitorModule } from './modules/monitor/monitor.module';
+import { MainModule } from './modules/main.module';
 
 @Module({
   imports: [
@@ -43,8 +42,7 @@ import { MonitorModule } from './modules/monitor/monitor.module';
       retryDelay: 10000,
       migrationsRun: true
     }),
-    AuthModule,
-    MonitorModule,
+    MainModule,
   ],
   controllers: [AppController],
   providers: [AuthService, MailService],

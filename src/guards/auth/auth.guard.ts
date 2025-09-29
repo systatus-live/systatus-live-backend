@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { I18nService } from 'nestjs-i18n';
-import { AuthService } from 'src/services/auth.service';
+import { AuthService } from '../../services/auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -14,14 +14,14 @@ export class AuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
-      throw new UnauthorizedException(this.i18nService.translate("messages.httpStatus.unauthorized"));
+      throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
     }
 
     try {
       const payload = await this.authService.verifyJWT(token);
       request["loggedUser"] = payload.user;
     } catch (error) {
-      throw new UnauthorizedException(this.i18nService.translate("messages.httpStatus.unauthorized"));
+      throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
     }
     return true;
   }

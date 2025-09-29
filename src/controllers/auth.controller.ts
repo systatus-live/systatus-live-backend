@@ -1,14 +1,13 @@
 import { Body, ConflictException, Controller, ForbiddenException, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
-import { UserEntity } from 'src/database/entities/UserEntity';
-import { SigninTypeEnum } from 'src/enums/SigninTypeEnum';
-import { AuthService } from 'src/services/auth.service';
-import { MailService } from 'src/services/mail.service';
+import { UserEntity } from '../database/entities/UserEntity';
+import { SigninTypeEnum } from '../enums/SigninTypeEnum';
+import { AuthService } from '../services/auth.service';
+import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
 import { I18n, I18nContext } from 'nestjs-i18n';
-import { version } from 'os';
 
 @Controller({
   version: "1",
@@ -32,7 +31,7 @@ export class AuthController {
     })
 
     if (findUser) {
-      throw new ConflictException(i18n.translate("messages.authController.userAlreadyExists"));
+      throw new ConflictException(i18n.translate("translate.authController.userAlreadyExists"));
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -55,19 +54,19 @@ export class AuthController {
 
       await queryRunner.manager.save(UserEntity, savedUser);
 
-      const emailBody = readFileSync(`${__dirname}/../../assets/mail/NewUserEmail.html`, "utf-8")
+      const emailBody = readFileSync(`${__dirname}/../assets/mail/NewUserEmail.html`, "utf-8")
         .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])
         .replace(/{{CODE}}/g, verificationCode);
-      await this.mailService.sendMail(savedUser.email!, "Welcome to Systatus Live 👋", emailBody);
+      await this.mailService.sendMail(savedUser.email!, "Bem-vindo(a) ao Systatus Live 👋", emailBody);
 
       await queryRunner.commitTransaction();
 
       return {
-        message: i18n.translate("messages.authController.userCreateSuccess")
+        message: i18n.translate("translate.authController.userCreateSuccess")
       }
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException(i18n.translate("messages.authController.userCreateError"));
+      throw new InternalServerErrorException(i18n.translate("translate.authController.userCreateError"));
     } finally {
       await queryRunner.release();
     }
@@ -83,7 +82,7 @@ export class AuthController {
     })
 
     if (!findUser) {
-      throw new UnauthorizedException(i18n.translate("messages.authController.verifyCodeError"));
+      throw new UnauthorizedException(i18n.translate("translate.authController.verifyCodeError"));
     }
 
     const userRepository = this.dataSource.getRepository(UserEntity);
@@ -94,7 +93,7 @@ export class AuthController {
     })
 
     return {
-      message: i18n.translate("messages.authController.verifyCodeSuccess")
+      message: i18n.translate("translate.authController.verifyCodeSuccess")
     }
   }
 
@@ -106,7 +105,7 @@ export class AuthController {
       }
     })
 
-    const defaultMsg = i18n.translate("messages.authController.sendCodeSuccess");
+    const defaultMsg = i18n.translate("translate.authController.sendCodeSuccess");
 
     if (!findUser) {
       return {
@@ -115,7 +114,7 @@ export class AuthController {
     }
 
     if (findUser.verified) {
-      throw new ForbiddenException(i18n.translate("messages.authController.sendCodeError"))
+      throw new ForbiddenException(i18n.translate("translate.authController.sendCodeError"))
     }
 
     const emailBody = readFileSync(`${__dirname}/../../assets/mail/VerifyUserEmail.html`, "utf-8")
@@ -131,7 +130,7 @@ export class AuthController {
   @Post("/signin")
   async signin(@Body() body, @I18n() i18n: I18nContext) {
     let findUser: UserEntity | null = null;
-    let defaultMsg = i18n.translate("messages.authController.authUserPasswordError");
+    let defaultMsg = i18n.translate("translate.authController.authUserPasswordError");
 
     switch (body.type) {
       case SigninTypeEnum.EMAIL_PASSWORD:
@@ -147,7 +146,7 @@ export class AuthController {
 
         if (!findUser.verified) {
           return {
-            message: i18n.translate("messages.authController.authUserEmailVerificationError"),
+            message: i18n.translate("translate.authController.authUserEmailVerificationError"),
             data: {
               access_token: null,
               verified: false
@@ -189,7 +188,7 @@ export class AuthController {
 
         break;
       default:
-        throw new NotImplementedException(i18n.translate("messages.authController.authUserTypeError"));
+        throw new NotImplementedException(i18n.translate("translate.authController.authUserTypeError"));
     }
 
     const accessToken = this.authService.generateJWT({

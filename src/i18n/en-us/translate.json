@@ -9,7 +9,9 @@
   "authController.authUserPasswordError": "Incorrect password or user does not exist.",
   "authController.authUserEmailVerificationError": "Pending e-mail verification",
   "authController.authUserTypeError": "Sign in type is not supported.",
-  "monitorController.monitorCreateSuccess": "Monitor created successfully.",
-  "monitorController.monitorCreateError": "Failed to create monitor.",
+  "monitorController.createSuccess": "Monitor created successfully.",
+  "monitorController.createError": "Failed to create monitor.",
+  "integrationController.createSuccess": "Integration created successfully.",
+  "integrationController.createError": "Failed to create integration.",
   "httpStatus.unauthorized": "Não Unauthorized."
 }

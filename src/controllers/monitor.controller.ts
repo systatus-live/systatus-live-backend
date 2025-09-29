@@ -1,14 +1,14 @@
 import { Body, Controller, InternalServerErrorException, Post, UseGuards, Request } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MonitorEntity } from 'src/database/entities/MonitorEntity';
-import { CronService } from 'src/services/cron.service';
+import { MonitorEntity } from '../database/entities/MonitorEntity';
+import { CronService } from '../services/cron.service';
 import { DataSource, Repository } from 'typeorm';
 import { I18n, I18nContext } from 'nestjs-i18n';
-import { AuthGuard } from 'src/guards/auth/auth.guard';
+import { AuthGuard } from '../guards/auth/auth.guard';
 import axios from "axios";
-import { MonitorTypeEnum } from 'src/enums/MonitorTypeEnum';
-import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
-import { HttpStatusCode } from 'src/enums/HttpStatusCode';
+import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
+import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
+import { HttpStatusCode } from '../enums/HttpStatusCode';
 
 @Controller({
   version: "1",
@@ -33,7 +33,7 @@ export class MonitorController {
       const newMonitor = this.monitorRepository.create({
         title: body.title,
         type: body.type,
-        uri: body.uri,
+        address: body.address,
         active: body.active,
         cron: "* * * * *",
         createdUserId: request["loggedUser"],
@@ -58,12 +58,13 @@ export class MonitorController {
         });
 
         let newStatus = "UNKNOWN";
+        let notifyType: "UP" | "DOWN" | null = null;
 
         switch (newMonitor.type) {
           case MonitorTypeEnum.HTTP:
             try {
-              const response = await axios.get(newMonitor.uri, {
-                timeout: 30000, // 30 seconds in milliseconds
+              const response = await axios.get(newMonitor.address, {
+                timeout: 30000
               });
               newStatus = response.status.toString();
             } catch (error) {
@@ -79,9 +80,9 @@ export class MonitorController {
             } finally {
               if (lastMonitorHistory) {
                 if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
-                  console.log("status changed from UP to DOWN"); // TODO
+                  notifyType = "DOWN";
                 } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
-                  console.log("status changed from DOWN to UP"); // TODO
+                  notifyType = "UP";
                 }
               }
             }
@@ -95,14 +96,18 @@ export class MonitorController {
 
         newMonitorHistory.status = newStatus;
         await this.monitorHistoryRepository.save(newMonitorHistory);
+
+        if (notifyType) {
+          // TODO: Notify user about the status change
+        }
       })
 
       return {
-        message: i18n.translate("messages.monitorController.monitorCreateSuccess")
+        message: i18n.translate("translate.monitorController.createSuccess")
       }
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException(i18n.translate("messages.monitorController.monitorCreateError"));
+      throw new InternalServerErrorException(i18n.translate("translate.monitorController.createError"));
     } finally {
       await queryRunner.release();
     }

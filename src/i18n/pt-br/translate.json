@@ -9,7 +9,9 @@
   "authController.authUserPasswordError": "Senha incorreta ou usuário não existe.",
   "authController.authUserEmailVerificationError": "E-mail ainda não foi verificado.",
   "authController.authUserTypeError": "Método de login não é suportado.",
-  "monitorController.monitorCreateSuccess": "Monitor criado com sucesso.",
-  "monitorController.monitorCreateError": "Falha ao criar o monitor.",
+  "monitorController.createSuccess": "Monitor criado com sucesso.",
+  "monitorController.createError": "Falha ao criar o monitor.",
+  "integrationController.createSuccess": "Integração criada com sucesso.",
+  "integrationController.createError": "Falha ao criar a integração.",
   "httpStatus.unauthorized": "Não autorizado."
 }
