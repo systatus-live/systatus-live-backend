@@ -117,10 +117,10 @@ export class AuthController {
       throw new ForbiddenException(i18n.translate("translate.authController.sendCodeError"))
     }
 
-    const emailBody = readFileSync(`${__dirname}/../../assets/mail/VerifyUserEmail.html`, "utf-8")
+    const emailBody = readFileSync(`${__dirname}/../assets/mail/VerifyAccountEmail.html`, "utf-8")
       .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
       .replace(/{{CODE}}/g, findUser.verificationCode!);
-    await this.mailService.sendMail(findUser.email!, "Welcome back to Systatus Live 👋", emailBody);
+    await this.mailService.sendMail(findUser.email!, "Bem-vindo(a) de volta ao Systatus Live 👋", emailBody);
 
     return {
       message: defaultMsg

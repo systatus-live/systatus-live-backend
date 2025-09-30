@@ -17,7 +17,7 @@ export class UserEntity {
   @Column({ type: "boolean", nullable: false, default: false })
   acceptedTerms: boolean;
 
-  @Column({ type: "varchar", length: 10, nullable: true })
+  @Column({ type: "varchar", length: 50, nullable: true })
   discovery: string | null;
 
   @Column({ type: "boolean", nullable: false, default: false })
