@@ -12,10 +12,8 @@ ENCRYPT_KEY=
 # Google
 GOOGLE_CLIENT_ID=
 # E-mail
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM=
+# E-mail
+RESEND_API_URL=https://api.resend.com
+RESEND_API_KEY=
 # Others
 ENV=DEV

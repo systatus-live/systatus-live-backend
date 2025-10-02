@@ -1,53 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { createTransport } from "nodemailer";
-import { Attachment } from 'nodemailer/lib/mailer';
+import axios from "axios";
 
 @Injectable()
 export class MailService {
-  private static transporter: any;
-
-  public configure() {
-    MailService.transporter = createTransport({
-      host: process.env.SMTP_HOST,
-      port: +process.env.SMTP_PORT!,
-      secure: true,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
-  }
-
-  public verify() {
-    MailService.transporter.verify((error, success) => {
-      if (error) {
-        console.log("[E-MAIL] Error: " + error.message)
-      } else {
-        console.log("[E-MAIL] Configured successfully")
+  public sendMail(from: string, to: string, subject: string, message: string): Promise<any> {
+    return axios.post(`${process.env.RESEND_API_URL}/emails`, {
+      from: from,
+      to: to,
+      subject: subject,
+      html: message
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`
       }
     })
-  }
-
-  public sendMail(to: string, subject: string, message: string, attachments?: Array<Attachment>): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      const mailOptions = {
-        from: process.env.SMTP_FROM,
-        to: to,
-        subject: subject,
-        html: message,
-        attachments: attachments
-      };
-
-      await MailService.transporter.sendMail(mailOptions, (error, success) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(true);
-        }
-      })
-    });
   }
 }

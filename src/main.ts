@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import { MailService } from './services/mail.service';
 import { VersioningType } from '@nestjs/common';
 
 async function bootstrap() {
@@ -14,14 +13,6 @@ async function bootstrap() {
   });
   
   await app.listen(process.env.PORT ?? 3000);
-
-  // E-mail
-  const mailService = new MailService()
-  mailService.configure();
-
-  if (process.env.ENV != "DEV") {
-    new MailService().verify();
-  }
 }
 
 bootstrap();
