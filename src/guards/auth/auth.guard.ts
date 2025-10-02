@@ -1,9 +1,14 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { I18nService } from 'nestjs-i18n';
 import { AuthService } from '../../services/auth.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from 'src/database/entities/UserEntity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+
   constructor(
     private authService: AuthService,
     private i18nService: I18nService
@@ -23,6 +28,17 @@ export class AuthGuard implements CanActivate {
     } catch (error) {
       throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
     }
+
+    const findUser = await this.userRepository.findOne({
+      where: {
+        id: request["loggedUser"]
+      }
+    })
+
+    if (!findUser) {
+      throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
+    }
+
     return true;
   }
 

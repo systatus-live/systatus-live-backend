@@ -13,5 +13,6 @@
   "monitorController.createError": "Failed to create monitor.",
   "integrationController.createSuccess": "Integration created successfully.",
   "integrationController.createError": "Failed to create integration.",
-  "httpStatus.unauthorized": "Não Unauthorized."
+  "httpStatus.authorized": "Authorized.",
+  "httpStatus.unauthorized": "Unauthorized."
 }

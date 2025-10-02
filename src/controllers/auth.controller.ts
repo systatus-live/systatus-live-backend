@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, ForbiddenException, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException, UseGuards, Request } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { UserEntity } from '../database/entities/UserEntity';
@@ -8,6 +8,7 @@ import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
 import { I18n, I18nContext } from 'nestjs-i18n';
+import { AuthGuard } from 'src/guards/auth/auth.guard';
 
 @Controller({
   version: "1",
@@ -145,10 +146,14 @@ export class AuthController {
         }
 
         if (!findUser.verified) {
+          const accessToken = this.authService.generateJWT({
+            user: findUser!.id
+          });
+          
           return {
             message: i18n.translate("translate.authController.authUserEmailVerificationError"),
             data: {
-              access_token: null,
+              access_token: accessToken,
               verified: false
             }
           }
@@ -176,6 +181,7 @@ export class AuthController {
 
           if (!findUser.verified) {
             const userRepository = this.dataSource.getRepository(UserEntity);
+
             findUser = await userRepository.save({
               id: findUser.id,
               verified: true,
@@ -196,10 +202,30 @@ export class AuthController {
     });
 
     return {
-      message: "Authorized",
+      message: i18n.translate("translate.httpStatus.authorized"),
       data: {
         access_token: accessToken,
         verified: true
+      }
+    }
+  }
+
+  @Get("/verify")
+  @UseGuards(AuthGuard)
+  async verifyToken(@Request() request: Request, @I18n() i18n: I18nContext) {
+    const findUser = await this.userRepository.findOne({
+      where: {
+        id: request["loggedUser"]
+      }
+    })
+
+    return {
+      message: i18n.translate("translate.httpStatus.authorized"),
+      data: {
+        id: findUser?.id,
+        name: findUser?.name,
+        email: findUser?.email,
+        verified: findUser?.verified
       }
     }
   }
