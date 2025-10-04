@@ -149,7 +149,7 @@ export class AuthController {
           const accessToken = this.authService.generateJWT({
             user: findUser!.id
           });
-          
+
           return {
             message: i18n.translate("translate.authController.authUserEmailVerificationError"),
             data: {
@@ -227,6 +227,52 @@ export class AuthController {
         email: findUser?.email,
         verified: findUser?.verified
       }
+    }
+  }
+
+  @Post("/forgot-passwords")
+  async forgetPassword(@Body() body: any, @I18n() i18n: I18nContext) {
+    const findUser = await this.userRepository.findOne({
+      where: {
+        email: body.email,
+      }
+    })
+
+    const defaultMsg = i18n.translate("translate.authController.sendRecoverPasswordSuccess");
+
+    if (!findUser) {
+      return {
+        message: defaultMsg
+      }
+    }
+
+    const accessToken = this.authService.generateJWT({
+      user: findUser!.id
+    }, "1h");
+
+    const emailBody = readFileSync(`${__dirname}/../assets/mail/ForgotPassword.html`, "utf-8")
+      .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
+      .replace(/{{LINK}}/g, `${process.env.WEB_URL}/auth/reset-password?token=${accessToken}`);
+    await this.mailService.sendMail("Systatus.Live <no-reply@systatus.live>", findUser.email!, "Redefinir Senha", emailBody);
+
+    return {
+      message: defaultMsg
+    }
+  }
+
+  @Patch("/reset-passwords")
+  @UseGuards(AuthGuard)
+  async resetPassword(@Request() request: Request, @Body() body: any, @I18n() i18n: I18nContext) {
+    try {
+      await this.userRepository.update(request["loggedUser"], {
+        password: this.authService.bcryptHashSync(body.password)
+      })
+
+      return {
+        message: i18n.translate("translate.authController.resetPasswordSuccess"),
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(i18n.translate("translate.authController.resetPasswordError"));
     }
   }
 }

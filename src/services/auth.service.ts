@@ -8,9 +8,10 @@ export class AuthService {
     private jwtService: JwtService
   ) {}
 
-  public generateJWT(data: any) {
+  public generateJWT(data: any, expiresIn: string | number = "7d"): string {
     return this.jwtService.sign(data, {
       secret: process.env.JWT_KEY,
+      expiresIn: expiresIn
     })
   }
 
