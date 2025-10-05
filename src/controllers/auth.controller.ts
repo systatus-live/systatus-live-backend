@@ -205,7 +205,10 @@ export class AuthController {
       message: i18n.translate("translate.httpStatus.authorized"),
       data: {
         access_token: accessToken,
-        verified: true
+        id: findUser!.id,
+        name: findUser!.name,
+        email: findUser!.email,
+        verified: true,
       }
     }
   }
@@ -273,6 +276,27 @@ export class AuthController {
       }
     } catch (error) {
       throw new InternalServerErrorException(i18n.translate("translate.authController.resetPasswordError"));
+    }
+  }
+  
+  @Get("/me")
+  @UseGuards(AuthGuard)
+  async me(@Request() request: Request) {
+    const findUser = await this.userRepository.findOne({
+      where: {
+        id: request["loggedUser"]
+      }
+    })
+
+    return {
+      data: {
+        id: findUser?.id,
+        name: findUser?.name,
+        email: findUser?.email,
+        verified: findUser?.verified,
+        createdAt: findUser?.createdAt,
+        updatedAt: findUser?.updatedAt,
+      }
     }
   }
 }
