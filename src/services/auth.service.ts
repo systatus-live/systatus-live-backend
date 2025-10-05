@@ -26,7 +26,7 @@ export class AuthService {
   }
 
   public bcryptHashSync(text: string): string {
-    return bcrypt.hashSync(text, 16);
+    return bcrypt.hashSync(text, 12);
   }
 
   public bcryptCompareSync(encrypted: string, data: string): boolean {
