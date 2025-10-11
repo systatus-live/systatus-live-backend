@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { CronService } from '../services/cron.service';
 import { DataSource, Repository } from 'typeorm';
-import { I18n, I18nContext } from 'nestjs-i18n';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import axios from "axios";
 import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
@@ -25,7 +24,7 @@ export class MonitorController {
   ) { }
 
   @Post("/")
-  async createMonitor(@Request() request: Request, @Body() body: any, @I18n() i18n: I18nContext) {
+  async createMonitor(@Request() request: Request, @Body() body: any) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 
@@ -103,11 +102,11 @@ export class MonitorController {
       })
 
       return {
-        message: i18n.translate("translate.monitorController.createSuccess")
+        message: "Monitor criado com sucesso."
       }
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException(i18n.translate("translate.monitorController.createError"));
+      throw new InternalServerErrorException("Falha ao criar o monitor.");
     } finally {
       await queryRunner.release();
     }

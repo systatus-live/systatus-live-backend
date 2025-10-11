@@ -7,7 +7,6 @@ import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
-import { I18n, I18nContext } from 'nestjs-i18n';
 import { AuthGuard } from 'src/guards/auth/auth.guard';
 
 @Controller({
@@ -24,7 +23,7 @@ export class AuthController {
   ) { }
 
   @Post("/signup")
-  async signup(@Body() body: any, @I18n() i18n: I18nContext) {
+  async signup(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email
@@ -32,7 +31,7 @@ export class AuthController {
     })
 
     if (findUser) {
-      throw new ConflictException(i18n.translate("translate.authController.userAlreadyExists"));
+      throw new ConflictException("Usuário já existe. Tente fazer login.");
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -63,18 +62,18 @@ export class AuthController {
       await queryRunner.commitTransaction();
 
       return {
-        message: i18n.translate("translate.authController.userCreateSuccess")
+        message: "Usuário criado com sucesso."
       }
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException(i18n.translate("translate.authController.userCreateError"));
+      throw new InternalServerErrorException("Falha ao registrar o usuário.");
     } finally {
       await queryRunner.release();
     }
   }
 
   @Patch("/codes")
-  async verifyCode(@Body() body: any, @I18n() i18n: I18nContext) {
+  async verifyCode(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         verified: false,
@@ -83,7 +82,7 @@ export class AuthController {
     })
 
     if (!findUser) {
-      throw new UnauthorizedException(i18n.translate("translate.authController.verifyCodeError"));
+      throw new UnauthorizedException("Código inválido.");
     }
 
     const userRepository = this.dataSource.getRepository(UserEntity);
@@ -94,19 +93,19 @@ export class AuthController {
     })
 
     return {
-      message: i18n.translate("translate.authController.verifyCodeSuccess")
+      message: "Código validado com sucesso."
     }
   }
 
   @Post("/codes")
-  async sendCode(@Body() body: any, @I18n() i18n: I18nContext) {
+  async sendCode(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email,
       }
     })
 
-    const defaultMsg = i18n.translate("translate.authController.sendCodeSuccess");
+    const defaultMsg = "Se o usuário existir, um código de verificação irá ser enviado pelo e-mail.";
 
     if (!findUser) {
       return {
@@ -115,7 +114,7 @@ export class AuthController {
     }
 
     if (findUser.verified) {
-      throw new ForbiddenException(i18n.translate("translate.authController.sendCodeError"))
+      throw new ForbiddenException("Ação não permitida.")
     }
 
     const emailBody = readFileSync(`${__dirname}/../assets/mail/VerifyAccountEmail.html`, "utf-8")
@@ -129,9 +128,9 @@ export class AuthController {
   }
 
   @Post("/signin")
-  async signin(@Body() body, @I18n() i18n: I18nContext) {
+  async signin(@Body() body) {
     let findUser: UserEntity | null = null;
-    let defaultMsg = i18n.translate("translate.authController.authUserPasswordError");
+    let defaultMsg = "Senha incorreta ou usuário não existe.";
 
     switch (body.type) {
       case SigninTypeEnum.EMAIL_PASSWORD:
@@ -151,7 +150,7 @@ export class AuthController {
           });
 
           return {
-            message: i18n.translate("translate.authController.authUserEmailVerificationError"),
+            message: "E-mail ainda não foi verificado.",
             data: {
               access_token: accessToken,
               verified: false
@@ -194,7 +193,7 @@ export class AuthController {
 
         break;
       default:
-        throw new NotImplementedException(i18n.translate("translate.authController.authUserTypeError"));
+        throw new NotImplementedException("Método de login não é suportado.");
     }
 
     const accessToken = this.authService.generateJWT({
@@ -202,7 +201,7 @@ export class AuthController {
     });
 
     return {
-      message: i18n.translate("translate.httpStatus.authorized"),
+      message: "Autorizado",
       data: {
         access_token: accessToken,
         id: findUser!.id,
@@ -215,7 +214,7 @@ export class AuthController {
 
   @Get("/verify")
   @UseGuards(AuthGuard)
-  async verifyToken(@Request() request: Request, @I18n() i18n: I18nContext) {
+  async verifyToken(@Request() request: Request) {
     const findUser = await this.userRepository.findOne({
       where: {
         id: request["loggedUser"]
@@ -223,7 +222,7 @@ export class AuthController {
     })
 
     return {
-      message: i18n.translate("translate.httpStatus.authorized"),
+      message: "Autorizado",
       data: {
         id: findUser?.id,
         name: findUser?.name,
@@ -234,14 +233,14 @@ export class AuthController {
   }
 
   @Post("/forgot-passwords")
-  async forgetPassword(@Body() body: any, @I18n() i18n: I18nContext) {
+  async forgetPassword(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email,
       }
     })
 
-    const defaultMsg = i18n.translate("translate.authController.sendRecoverPasswordSuccess");
+    const defaultMsg = "Se o usuário existir, uma mensagem de recuperação será enviada para o e-mail.";
 
     if (!findUser) {
       return {
@@ -265,17 +264,17 @@ export class AuthController {
 
   @Patch("/reset-passwords")
   @UseGuards(AuthGuard)
-  async resetPassword(@Request() request: Request, @Body() body: any, @I18n() i18n: I18nContext) {
+  async resetPassword(@Request() request: Request, @Body() body: any) {
     try {
       await this.userRepository.update(request["loggedUser"], {
         password: this.authService.bcryptHashSync(body.password)
       })
 
       return {
-        message: i18n.translate("translate.authController.resetPasswordSuccess"),
+        message: "Senha atualizada com sucesso.",
       }
     } catch (error) {
-      throw new InternalServerErrorException(i18n.translate("translate.authController.resetPasswordError"));
+      throw new InternalServerErrorException("Falha ao atualizar a senha.");
     }
   }
   

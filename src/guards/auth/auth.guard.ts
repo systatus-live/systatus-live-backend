@@ -1,5 +1,4 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { I18nService } from 'nestjs-i18n';
 import { AuthService } from '../../services/auth.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from 'src/database/entities/UserEntity';
@@ -11,7 +10,6 @@ export class AuthGuard implements CanActivate {
 
   constructor(
     private authService: AuthService,
-    private i18nService: I18nService
   ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -19,14 +17,14 @@ export class AuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
-      throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
+      throw new UnauthorizedException("Não autorizado.");
     }
 
     try {
       const payload = await this.authService.verifyJWT(token);
       request["loggedUser"] = payload.user;
     } catch (error) {
-      throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
+      throw new UnauthorizedException("Não autorizado.");
     }
 
     const findUser = await this.userRepository.findOne({
@@ -36,7 +34,7 @@ export class AuthGuard implements CanActivate {
     })
 
     if (!findUser) {
-      throw new UnauthorizedException(this.i18nService.translate("translate.httpStatus.unauthorized"));
+      throw new UnauthorizedException("Não autorizado.");
     }
 
     return true;

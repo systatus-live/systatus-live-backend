@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './services/auth.service';
 import { MailService } from './services/mail.service';
-import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
 import * as path from 'path';
 import { MainModule } from './modules/main.module';
 
@@ -12,20 +11,6 @@ import { MainModule } from './modules/main.module';
   imports: [
     ConfigModule.forRoot({
       envFilePath: ".env"
-    }),
-    I18nModule.forRoot({
-      fallbackLanguage: "pt-br",
-      loaderOptions: {
-        path: path.join(__dirname, "/i18n/"),
-        watch: true
-      },
-      resolvers: [
-        {
-          use: QueryResolver,
-          options: ["lang"]
-        },
-        AcceptLanguageResolver,
-      ],
     }),
     TypeOrmModule.forRoot({
       type: "postgres",
