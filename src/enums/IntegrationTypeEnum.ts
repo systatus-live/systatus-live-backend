@@ -1,11 +1,11 @@
 export enum IntegrationTypeEnum {
-  DISCORD = "DISCORD",
+  SLACK = "SLACK",
   GOOGLE_CHAT = "GOOGLE_CHAT",
-  SLACK = "SLACK"
+  DISCORD = "DISCORD",
 }
 
 export enum IntegrationTypeLabelEnum {
-  DISCORD = "Discord",
+  SLACK = "Slack",
   GOOGLE_CHAT = "Google Chat",
-  SLACK = "Slack"
+  DISCORD = "Discord",
 }

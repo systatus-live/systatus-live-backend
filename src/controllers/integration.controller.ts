@@ -184,6 +184,8 @@ export class IntegrationController {
       id: integration.id
     })
 
-    return integration
+    return {
+      message: "Integração excluída com sucesso."
+    }
   }
 }
