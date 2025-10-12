@@ -12,12 +12,11 @@ import { UserEntity } from '../database/entities/UserEntity';
 import { AuthService } from '../services/auth.service';
 import { CronService } from '../services/cron.service';
 import { MailService } from '../services/mail.service';
-import { AuthModule } from './auth/auth.module';
 
 const serviceList = [
   AuthService,
   MailService,
-  CronService
+  CronService,
 ]
 
 @Module({
@@ -35,7 +34,6 @@ const serviceList = [
       MonitorHistoryEntity,
       UserEntity
     ]),
-    AuthModule
   ],
   providers: [
     ...serviceList

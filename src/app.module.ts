@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { AuthService } from './services/auth.service';
-import { MailService } from './services/mail.service';
-import * as path from 'path';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
 import { MainModule } from './modules/main.module';
 
 @Module({
@@ -29,7 +26,6 @@ import { MainModule } from './modules/main.module';
     }),
     MainModule,
   ],
-  controllers: [AppController],
-  providers: [AuthService, MailService],
+  controllers: [AppController]
 })
 export class AppModule { }

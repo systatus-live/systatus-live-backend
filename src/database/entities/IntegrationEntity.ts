@@ -8,7 +8,7 @@ export class IntegrationEntity {
   id: string;
 
   @Column({ type: "varchar", length: 30, nullable: false })
-  title: string;
+  name: string;
 
   @Column({ type: "varchar", length: 1024, nullable: false })
   url: string;
