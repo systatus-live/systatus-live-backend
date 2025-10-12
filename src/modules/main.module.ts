@@ -12,11 +12,13 @@ import { UserEntity } from '../database/entities/UserEntity';
 import { AuthService } from '../services/auth.service';
 import { CronService } from '../services/cron.service';
 import { MailService } from '../services/mail.service';
+import { IntegrationService } from 'src/services/integration.service';
 
 const serviceList = [
   AuthService,
   MailService,
   CronService,
+  IntegrationService
 ]
 
 @Module({

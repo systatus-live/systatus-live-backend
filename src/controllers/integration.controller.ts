@@ -5,6 +5,9 @@ import removeAccents from 'src/utils/removeAccents';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
+import { IntegrationService } from 'src/services/integration.service';
+import { HttpStatusCode } from 'src/enums/HttpStatusCode';
+import { IntegrationTypeEnum } from 'src/enums/IntegrationTypeEnum';
 
 @Controller({
   version: "1",
@@ -19,6 +22,7 @@ export class IntegrationController {
 
   constructor(
     private dataSource: DataSource,
+    private integrationService: IntegrationService
   ) { }
 
   @Post("/")
@@ -186,6 +190,47 @@ export class IntegrationController {
 
     return {
       message: "Integração excluída com sucesso."
+    }
+  }
+
+  @Post("/validates")
+  async validateIntegration(@Request() request: Request, @Body("id") id: string) {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        createdUserId: request["loggedUser"],
+        id: id
+      },
+      select: ["id", "name", "url", "type", "createdAt", "updatedAt"],
+    })
+
+    if (!integration) {
+      throw new NotFoundException("Integração não encontrada.");
+    }
+
+    try {
+      const title = "Integração verificada";
+      const msg = `A integração '${integration.name}' foi validada com sucesso.`;
+      const footer = "Systatus.Live (https://systatus.live)"
+
+      switch (integration.type) {
+        case IntegrationTypeEnum.SLACK:
+          await this.integrationService.sendSlackWebhook(integration.url, title, msg, footer);
+          break;
+        case IntegrationTypeEnum.GOOGLE_CHAT:
+          await this.integrationService.sendGoogleChatWebhook(integration.url, title, msg, footer);
+          break;
+        case IntegrationTypeEnum.DISCORD:
+          await this.integrationService.sendDiscordWebhook(integration.url, title, msg, footer);
+          break;
+        default:
+          throw new BadRequestException(`Tipo de integração '${integration.type}' inválido.`);
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(`Falha ao validar a integração. Verifique a URL informada.`);
+    }
+
+    return {
+      message: "Integração validada com sucesso."
     }
   }
 }
