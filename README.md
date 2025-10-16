@@ -11,5 +11,5 @@ npm run typeorm migration:generate -- ./src/database/migrations/nome-migration -
 Gerar migration vazia:
 
 ```
-npm run typeorm migration:generate -- ./src/database/migrations/nome-migration
+npm run typeorm migration:create -- ./src/database/migrations/nome-migration
 ```

@@ -1,13 +1,11 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserEntity } from 'src/database/entities/UserEntity';
+import { IntegrationService } from 'src/services/integration.service';
 import removeAccents from 'src/utils/removeAccents';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
-import { IntegrationService } from 'src/services/integration.service';
-import { HttpStatusCode } from 'src/enums/HttpStatusCode';
-import { IntegrationTypeEnum } from 'src/enums/IntegrationTypeEnum';
+import { ChatPlatformEnum } from 'src/enums/ChatPlatformEnum';
 
 @Controller({
   version: "1",
@@ -16,7 +14,6 @@ import { IntegrationTypeEnum } from 'src/enums/IntegrationTypeEnum';
 @UseGuards(AuthGuard)
 export class IntegrationController {
   @InjectRepository(IntegrationEntity) private integrationRepository: Repository<IntegrationEntity>
-  @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
@@ -46,7 +43,7 @@ export class IntegrationController {
       const newIntegration = this.integrationRepository.create({
         url: body.url,
         name: body.name,
-        type: body.type,
+        chatPlatformId: body.chatPlatformId,
         createdUserId: request["loggedUser"],
         updatedUserId: request["loggedUser"]
       });
@@ -80,18 +77,28 @@ export class IntegrationController {
 
     const results = await Promise.all([
       this.dataSource.query(`
-        select itg.id, itg.name, itg.url, itg.type, itg."createdAt", itg."updatedAt"
+        select
+          itg.id
+          , itg.name
+          , itg.url
+          , itg."chatPlatformId"
+          , cpl.description as "chatPlatform"
+          , cpl."iconUrl" as "chatPlatformIconUrl"
+          , itg."createdAt"
+          , itg."updatedAt"
         from integrations itg
+        join chat_platforms cpl on cpl.id = itg."chatPlatformId"
         where itg."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.type))) like '%${search}%' or lower(trim(unaccent(itg.url))) like '%${search}%')` : ""}
+        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
         order by itg."createdAt" desc  
         limit ${this.querySize} offset ${this.querySize * page}
       `),
       this.dataSource.query(`
         select count(1) as total
         from integrations itg
+        join chat_platforms cpl on cpl.id = itg."chatPlatformId"
         where itg."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.type))) like '%${search}%' or lower(trim(unaccent(itg.url))) like '%${search}%')` : ""}
+        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
       `),
     ]);
 
@@ -108,7 +115,7 @@ export class IntegrationController {
         createdUserId: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "url", "type", "createdAt", "updatedAt"]
+      select: ["id", "name", "url", "chatPlatformId", "createdAt", "updatedAt"]
     })
 
     if (!integration) {
@@ -154,7 +161,7 @@ export class IntegrationController {
       }, {
         url: body.url,
         name: body.name,
-        type: body.type,
+        chatPlatformId: body.chatPlatformId,
         updatedUserId: request["loggedUser"]
       });
       await queryRunner.commitTransaction();
@@ -200,7 +207,8 @@ export class IntegrationController {
         createdUserId: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "url", "type", "createdAt", "updatedAt"],
+      select: ["id", "name", "url", "chatPlatformId", "createdAt", "updatedAt"],
+      relations: ["chatPlatform"]
     })
 
     if (!integration) {
@@ -208,22 +216,22 @@ export class IntegrationController {
     }
 
     try {
-      const title = "Integração verificada";
-      const msg = `A integração '${integration.name}' foi validada com sucesso.`;
+      const title = "Teste de Integração";
+      const msg = `A integração '${integration.name}' está funcionando corretamente.`;
       const footer = "Systatus.Live (https://systatus.live)"
 
-      switch (integration.type) {
-        case IntegrationTypeEnum.SLACK:
+      switch (integration.chatPlatform.name) {
+        case ChatPlatformEnum.SLACK:
           await this.integrationService.sendSlackWebhook(integration.url, title, msg, footer);
           break;
-        case IntegrationTypeEnum.GOOGLE_CHAT:
+        case ChatPlatformEnum.GOOGLE_CHAT:
           await this.integrationService.sendGoogleChatWebhook(integration.url, title, msg, footer);
           break;
-        case IntegrationTypeEnum.DISCORD:
+        case ChatPlatformEnum.DISCORD:
           await this.integrationService.sendDiscordWebhook(integration.url, title, msg, footer);
           break;
         default:
-          throw new BadRequestException(`Tipo de integração '${integration.type}' inválido.`);
+          throw new BadRequestException(`Tipo de integração '${integration.chatPlatform.description}' inválido.`);
       }
     } catch (error) {
       throw new InternalServerErrorException(`Falha ao validar a integração. Verifique a URL informada.`);

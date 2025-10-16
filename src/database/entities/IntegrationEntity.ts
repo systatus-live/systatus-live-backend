@@ -1,6 +1,6 @@
-import { IntegrationTypeEnum } from '../../enums/IntegrationTypeEnum';
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { UserEntity } from './UserEntity';
+import { ChatPlatformEntity } from './ChatPlatformEntity';
 
 @Entity({ name: "integrations" })
 export class IntegrationEntity {
@@ -13,8 +13,12 @@ export class IntegrationEntity {
   @Column({ type: "varchar", length: 1024, nullable: false })
   url: string;
 
-  @Column({ type: "varchar", nullable: false })
-  type: IntegrationTypeEnum;
+  @ManyToOne(() => ChatPlatformEntity, { nullable: false })
+  @JoinColumn({ name: "chatPlatformId", referencedColumnName: "id" })
+  chatPlatform: ChatPlatformEntity;
+
+  @Column()
+  chatPlatformId: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
   @JoinColumn({ name: "createdUserId", referencedColumnName: "id" })
@@ -30,9 +34,9 @@ export class IntegrationEntity {
   @Column()
   updatedUserId: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: string;
 }

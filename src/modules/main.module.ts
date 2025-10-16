@@ -13,6 +13,8 @@ import { AuthService } from '../services/auth.service';
 import { CronService } from '../services/cron.service';
 import { MailService } from '../services/mail.service';
 import { IntegrationService } from 'src/services/integration.service';
+import { ChatPlatformController } from 'src/controllers/chat-platform.controller';
+import { ChatPlatformEntity } from 'src/database/entities/ChatPlatformEntity';
 
 const serviceList = [
   AuthService,
@@ -34,7 +36,8 @@ const serviceList = [
       IntegrationEntity,
       MonitorEntity,
       MonitorHistoryEntity,
-      UserEntity
+      UserEntity,
+      ChatPlatformEntity
     ]),
   ],
   providers: [
@@ -43,7 +46,8 @@ const serviceList = [
   controllers: [
     AuthController,
     IntegrationController,
-    MonitorController
+    MonitorController,
+    ChatPlatformController
   ],
   exports: [
     TypeOrmModule,
