@@ -149,7 +149,7 @@ export class IntegrationController {
     })
 
     if (integrationWithSameURL) {
-      throw new ConflictException(`Já existe a integração '${integrationWithSameURL.name}' com esta URL`)
+      throw new ConflictException(`Já existe a integração '${integrationWithSameURL.name}' com esta URL.`)
     }
 
     const queryRunner = this.dataSource.createQueryRunner();

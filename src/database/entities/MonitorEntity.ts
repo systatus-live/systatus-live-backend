@@ -7,7 +7,7 @@ export class MonitorEntity {
   id: string;
 
   @Column({ type: "varchar", length: 30, nullable: false })
-  title: string;
+  name: string;
 
   @Column({ type: "varchar", length: 10, nullable: false })
   type: string;
