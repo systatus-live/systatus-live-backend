@@ -1,11 +1,15 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MonitorEntity } from 'src/database/entities/MonitorEntity';
-import removeAccents from 'src/utils/removeAccents';
+import { MonitorEntity } from '../database/entities/MonitorEntity';
+import removeAccents from '../utils/removeAccents';
 import { DataSource, Not, Repository } from 'typeorm';
 import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { CronService } from '../services/cron.service';
+import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
+import axios from "axios";
+import { HttpStatusCode } from '../enums/HttpStatusCode';
+import { IntegrationService } from 'src/services/integration.service';
 
 @Controller({
   version: "1",
@@ -20,7 +24,8 @@ export class MonitorController {
 
   constructor(
     private cronService: CronService,
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    private integrationService: IntegrationService
   ) { }
 
   @Post("/")
@@ -34,72 +39,85 @@ export class MonitorController {
         type: body.type,
         address: body.address,
         active: body.active,
-        cron: "* * * * *",
+        cron: "*/5 * * * *",
         createdUserId: request["loggedUser"],
         updatedUserId: request["loggedUser"]
       });
 
       await queryRunner.manager.save(MonitorEntity, newMonitor);
+
+      this.cronService.schedule(newMonitor.id, newMonitor.cron, async (_) => {
+        console.log(`Executing monitor check for monitor ID: ${newMonitor.id}`);
+
+        const lastMonitorHistory = await this.monitorHistoryRepository.findOne({
+          where: {
+            monitorId: newMonitor.id
+          },
+          order: {
+            createdAt: "DESC"
+          },
+        })
+
+        let newMonitorHistory = this.monitorHistoryRepository.create({
+          monitorId: newMonitor.id
+        });
+
+        let newStatus = "UNKNOWN";
+        let notifyType: "ONLINE" | "OFFLINE" | null = null;
+
+        switch (newMonitor.type) {
+          case MonitorTypeEnum.HTTP:
+            try {
+              const response = await axios.get(newMonitor.address, {
+                timeout: 10000
+              });
+              newStatus = response.status.toString();
+            } catch (error) {
+              if (axios.isAxiosError(error)) {
+                if (error.response) {
+                  newStatus = error.response.status.toString();
+                } else if (error.code == "ECONNABORTED") {
+                  newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
+                } else if (error.code == "ECONNREFUSED") {
+                  newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+                } else if (error.code == "ERR_BAD_RESPONSE") {
+                  newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+                }
+              }
+            } finally {
+              if (lastMonitorHistory) {
+                if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
+                  notifyType = "OFFLINE";
+                } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
+                  notifyType = "ONLINE";
+                }
+              }
+            }
+            break;
+          case MonitorTypeEnum.PING:
+            // TODO
+            break;
+          default:
+          // TODO
+        }
+
+        newMonitorHistory.status = newStatus;
+        await this.monitorHistoryRepository.save(newMonitorHistory);
+
+        console.log(`Monitor ID: ${newMonitor.id} checked. Status: ${newStatus}. NotifyType: ${notifyType}`);
+        if (notifyType) {
+          const title = `Monitor '${newMonitor.name}' está ${notifyType == "ONLINE" ? "ONLINE" : "OFFLINE"}`;
+          const msg = "...";
+          const footer = "Systatus.Live (https://systatus.live)"
+          await this.integrationService.sendDiscordWebhook("https://discord.com/api/webhooks/1426565409255198732/9sD2RiGE-onXyxBa4KOzFEh0iiD7Ak9vofaRCjnXnokaLogHU-Y78n05LkGSRQ3gkhCp", title, msg, footer);
+        }
+
+        if (notifyType) {
+          // TODO: Notify user about the status change
+        }
+      })
+
       await queryRunner.commitTransaction();
-
-      // this.cronService.schedule(newMonitor.id, newMonitor.cron, async (_) => {
-      //   const lastMonitorHistory = await this.monitorHistoryRepository.findOne({
-      //     where: {
-      //       monitorId: newMonitor.id
-      //     },
-      //     order: {
-      //       createdAt: "DESC"
-      //     },
-      //   })
-
-      //   let newMonitorHistory = this.monitorHistoryRepository.create({
-      //     monitorId: newMonitor.id
-      //   });
-
-      //   let newStatus = "UNKNOWN";
-      //   let notifyType: "UP" | "DOWN" | null = null;
-
-      //   switch (newMonitor.type) {
-      //     case MonitorTypeEnum.HTTP:
-      //       try {
-      //         const response = await axios.get(newMonitor.address, {
-      //           timeout: 30000
-      //         });
-      //         newStatus = response.status.toString();
-      //       } catch (error) {
-      //         if (axios.isAxiosError(error)) {
-      //           if (error.response) {
-      //             newStatus = error.response.status.toString();
-      //           } else if (error.code == "ECONNABORTED") {
-      //             newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-      //           } else if (error.code == "ECONNREFUSED") {
-      //             newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-      //           }
-      //         }
-      //       } finally {
-      //         if (lastMonitorHistory) {
-      //           if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
-      //             notifyType = "DOWN";
-      //           } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
-      //             notifyType = "UP";
-      //           }
-      //         }
-      //       }
-      //       break;
-      //     case MonitorTypeEnum.PING:
-      //       // TODO
-      //       break;
-      //     default:
-      //     // TODO
-      //   }
-
-      //   newMonitorHistory.status = newStatus;
-      //   await this.monitorHistoryRepository.save(newMonitorHistory);
-
-      //   if (notifyType) {
-      //     // TODO: Notify user about the status change
-      //   }
-      // })
 
       return {
         message: "Monitor criado com sucesso."

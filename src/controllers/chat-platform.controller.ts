@@ -1,7 +1,7 @@
 import { BadRequestException, Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ChatPlatformEntity } from 'src/database/entities/ChatPlatformEntity';
-import removeAccents from 'src/utils/removeAccents';
+import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
+import removeAccents from '../utils/removeAccents';
 import { DataSource, Repository } from 'typeorm';
 import { AuthGuard } from '../guards/auth/auth.guard';
 

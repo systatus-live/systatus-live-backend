@@ -1,11 +1,11 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IntegrationService } from 'src/services/integration.service';
-import removeAccents from 'src/utils/removeAccents';
+import { IntegrationService } from '../services/integration.service';
+import removeAccents from '../utils/removeAccents';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
-import { ChatPlatformEnum } from 'src/enums/ChatPlatformEnum';
+import { ChatPlatformEnum } from '../enums/ChatPlatformEnum';
 
 @Controller({
   version: "1",
@@ -231,7 +231,7 @@ export class IntegrationController {
           await this.integrationService.sendDiscordWebhook(integration.url, title, msg, footer);
           break;
         default:
-          throw new BadRequestException(`Tipo de integração '${integration.chatPlatform.description}' inválido.`);
+          break;
       }
     } catch (error) {
       throw new InternalServerErrorException(`Falha ao validar a integração. Verifique a URL informada.`);
