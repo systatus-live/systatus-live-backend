@@ -16,9 +16,9 @@ export class MonitorHistoryEntity {
   @Column({ type: "varchar", length: 7, nullable: false })
   status: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: string;
 }

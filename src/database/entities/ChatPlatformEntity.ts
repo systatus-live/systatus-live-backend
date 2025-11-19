@@ -33,9 +33,9 @@ export class ChatPlatformEntity {
   @Column({ nullable: true })
   updatedUserId: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: string;
 }

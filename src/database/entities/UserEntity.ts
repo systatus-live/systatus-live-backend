@@ -26,9 +26,9 @@ export class UserEntity {
   @Column({ type: "varchar", length: 6, nullable: true })
   verificationCode: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: string;
 }

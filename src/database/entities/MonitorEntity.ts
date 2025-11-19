@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, ManyToMany, JoinTable, JoinColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { UserEntity } from './UserEntity';
 
 @Entity({ name: "monitors" })
@@ -18,7 +18,7 @@ export class MonitorEntity {
   @Column({ type: "boolean", nullable: false, default: true })
   active: boolean;
 
-  @Column({ type: "varchar", length: 10, nullable: false })    
+  @Column({ type: "varchar", length: 20, nullable: false })    
   cron: string
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
@@ -35,9 +35,9 @@ export class MonitorEntity {
   @Column()
   updatedUserId: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: string;
 }

@@ -1,4 +1,4 @@
-import { ChatPlatformEnum, ChatPlatformLabelEnum } from "src/enums/ChatPlatformEnum";
+import { ChatPlatformEnum } from "../../enums/ChatPlatformEnum";
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class UpdateTable1760664382420 implements MigrationInterface {
