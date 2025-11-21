@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MonitorIntegrationEntity } from 'src/database/entities/MonitorIntegrationEntity';
 import { DataSource, Not, Repository } from 'typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
-import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import removeAccents from '../utils/removeAccents';
+import formatDate from 'src/utils/formatDate';
 
 @Controller({
   version: "1",
@@ -14,7 +14,6 @@ import removeAccents from '../utils/removeAccents';
 @UseGuards(AuthGuard)
 export class MonitorController {
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>
-  @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
@@ -51,76 +50,6 @@ export class MonitorController {
       });
 
       await queryRunner.manager.save(MonitorIntegrationEntity, newMonitorIntegrationList);
-
-      // this.cronService.schedule(newMonitor.id, newMonitor.cron, async (_) => {
-      //   console.log(`Executing monitor check for monitor ID: ${newMonitor.id}`);
-
-      //   const lastMonitorHistory = await this.monitorHistoryRepository.findOne({
-      //     where: {
-      //       monitorId: newMonitor.id
-      //     },
-      //     order: {
-      //       createdAt: "DESC"
-      //     },
-      //   })
-
-      //   let newMonitorHistory = this.monitorHistoryRepository.create({
-      //     monitorId: newMonitor.id
-      //   });
-
-      //   let newStatus = "UNKNOWN";
-      //   let notifyType: "ONLINE" | "OFFLINE" | null = null;
-
-      //   switch (newMonitor.type) {
-      //     case MonitorTypeEnum.HTTP:
-      //       try {
-      //         const response = await axios.get(newMonitor.address, {
-      //           timeout: 10000
-      //         });
-      //         newStatus = response.status.toString();
-      //       } catch (error) {
-      //         if (axios.isAxiosError(error)) {
-      //           if (error.response) {
-      //             newStatus = error.response.status.toString();
-      //           } else if (error.code == "ECONNABORTED") {
-      //             newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-      //           } else if (error.code == "ECONNREFUSED") {
-      //             newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-      //           } else if (error.code == "ERR_BAD_RESPONSE") {
-      //             newStatus = HttpStatusCode.BAD_GATEWAY.toString();
-      //           }
-      //         }
-      //       } finally {
-      //         if (lastMonitorHistory) {
-      //           if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
-      //             notifyType = "OFFLINE";
-      //           } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
-      //             notifyType = "ONLINE";
-      //           }
-      //         }
-      //       }
-      //       break;
-      //     case MonitorTypeEnum.PING:
-      //       // TODO
-      //       break;
-      //     default:
-      //     // TODO
-      //   }
-
-      //   newMonitorHistory.status = newStatus;
-      //   await this.monitorHistoryRepository.save(newMonitorHistory);
-
-      //   console.log(`Monitor ID: ${newMonitor.id} checked. Status: ${newStatus}. NotifyType: ${notifyType}`);
-      //   if (notifyType) {
-      //     await this.integrationService.sendDiscordWebhook(
-      //       "https://discord.com/api/webhooks/1426565409255198732/9sD2RiGE-onXyxBa4KOzFEh0iiD7Ak9vofaRCjnXnokaLogHU-Y78n05LkGSRQ3gkhCp", 
-      //       "", 
-      //       `${newMonitor.name} (${newMonitor.address}) ficou ${notifyType == "ONLINE" ? "ONLINE" : "OFFLINE"}. Status: ${newStatus}`, 
-      //       "Systatus.Live (https://systatus.live)"
-      //     );
-      //   }
-      // })
-
       await queryRunner.commitTransaction();
 
       return {
@@ -155,7 +84,24 @@ export class MonitorController {
             join chat_platforms cha on cha.id = int."chatPlatformId" 
             where mon.id = t."monitorId"
           ) as "integrationList"
-          , 'ONLINE' as status
+          , (
+            select t.status 
+            from monitor_historical t 
+            where t."monitorId" = mon.id 
+            order by "createdAt" desc 
+            limit 1
+          ) as "lastStatus"
+          , (
+            with dates as (
+              select generate_series(current_date - interval '29 days', current_date,	'1 day'::interval)::date AS date
+            )
+            select array_agg(json_build_object(
+              'date', dat.date
+              , 'totalOnline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status like '2%')
+              , 'totalOffline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status not like '2%')
+            )) 
+            from dates dat
+          ) as "historical"
         from monitors mon
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.type))) like '%${search}%')` : ""}
@@ -170,8 +116,38 @@ export class MonitorController {
       `),
     ]);
 
+    const list = results[0];
+
+    // Monitor historical
+    for (let row of list) {
+      let totalPercentOnline = 0;
+
+      for (let day of row.historical) {
+        const total = day.totalOnline + day.totalOffline;
+        day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(0)) : 0;
+        day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(0)) : 0;
+
+        const formattedDate = formatDate(day.date, "DD/MM/YYYY");
+
+        if (total == 0) {
+          day["note"] = `${formattedDate}: Sem monitoramento`;
+        } else if (day.percentOnline == 100) {
+          day["note"] = `${formattedDate}: 100% online`;
+        } else if (day.percentOnline > 50) {
+          day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% online)`;
+        } else {
+          day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% online)`;
+        }
+
+        totalPercentOnline += day.percentOnline;
+      }
+
+      const totalDaysWithData = row.historical.filter(item => (item.percentOnline + item.percentOffline) > 0).length;
+      row["percentOnline"] = totalDaysWithData ? parseFloat((totalPercentOnline / (totalDaysWithData)).toFixed(0)) : 0;
+    }
+
     return {
-      data: results[0],
+      data: list,
       total: results[1][0].total
     }
   }

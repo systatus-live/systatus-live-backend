@@ -59,13 +59,27 @@ export class IntegrationService {
         {
           cardId: "systatus.live",
           card: {
-            header: {
-              title: title,
-              subtitle: description,
-              imageUrl: this.systatusAvatarUrl,
-              imageType: "CIRCLE"
-            },
+            // header: {
+            //   title: title,
+            //   subtitle: description,
+            //   imageUrl: this.systatusAvatarUrl,
+            //   imageType: "CIRCLE"
+            // },
             sections: [
+              {
+                widgets: [
+                  {
+                    textParagraph: {
+                      text: title
+                    }
+                  },
+                  {
+                    textParagraph: {
+                      text: description
+                    }
+                  }
+                ]
+              },
               {
                 widgets: [
                   {

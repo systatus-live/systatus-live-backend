@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { MainModule } from './modules/main.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { MainModule } from './modules/main.module';
       retryDelay: 10000,
       migrationsRun: true
     }),
+    ScheduleModule.forRoot(),
     MainModule,
   ],
   controllers: [AppController]
