@@ -15,6 +15,7 @@ import { MailService } from '../services/mail.service';
 import { IntegrationService } from 'src/services/integration.service';
 import { ChatPlatformController } from 'src/controllers/chat-platform.controller';
 import { ChatPlatformEntity } from 'src/database/entities/ChatPlatformEntity';
+import { MonitorIntegrationEntity } from 'src/database/entities/MonitorIntegrationEntity';
 
 const serviceList = [
   AuthService,
@@ -36,6 +37,7 @@ const serviceList = [
       IntegrationEntity,
       MonitorEntity,
       MonitorHistoryEntity,
+      MonitorIntegrationEntity,
       UserEntity,
       ChatPlatformEntity
     ]),
