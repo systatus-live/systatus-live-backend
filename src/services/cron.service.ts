@@ -4,13 +4,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CronJob } from 'cron';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
-import { Repository } from 'typeorm';
+import { Like, Not, Repository } from 'typeorm';
 import axios from "axios";
 import { HttpStatusCode } from '../enums/HttpStatusCode';
 import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
 import { MonitorEntity } from 'src/database/entities/MonitorEntity';
 import { IntegrationService } from './integration.service';
 import { ChatPlatformEnum } from 'src/enums/ChatPlatformEnum';
+import * as momentTz from "moment-timezone";
+import getCurrentDate from 'src/utils/getCurrenDate';
 
 @Injectable()
 export class CronService {
@@ -46,7 +48,7 @@ export class CronService {
       console.log(`Executing check for monitor ID: ${monitor.id}`);
 
       let newStatus = "UNKNOWN";
-      let notifyType: "ONLINE" | "OFFLINE" | null = null;
+      let notifyType: "OK" | "NOK" | null = null;
 
       const lastMonitorHistory = await this.monitorHistoryRepository.findOne({
         where: {
@@ -83,9 +85,9 @@ export class CronService {
           } finally {
             if (lastMonitorHistory) {
               if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
-                notifyType = "OFFLINE";
+                notifyType = "NOK";
               } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
-                notifyType = "ONLINE";
+                notifyType = "OK";
               }
             }
           }
@@ -96,7 +98,7 @@ export class CronService {
           break;
       }
 
-      await this.monitorHistoryRepository.save({
+      const savedMonitorHistory = await this.monitorHistoryRepository.save({
         monitorId: monitor.id,
         status: newStatus
       } as MonitorHistoryEntity);
@@ -111,8 +113,34 @@ export class CronService {
 
         for await (let { integration } of integrationList) {
           const title = "";
-          const description = `${monitor.name} (${monitor.address}) ficou ${notifyType == "ONLINE" ? "ONLINE" : "OFFLINE"}. Status: ${newStatus}`
-          const footer = "Systatus.Live";
+          let description = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} (${monitor.address}) ficou ${notifyType == "OK" ? "DISPONÍVEL" : "INDISPONÍVEL"}. Status: ${newStatus}.`;
+
+          if (notifyType == "OK") {
+            const lastOnlineMonitorHistory = await this.monitorHistoryRepository.findOne({
+              where: {
+                id: Not(savedMonitorHistory.id),
+                monitorId: monitor.id,
+                status: Like("2%"),
+              },
+              order: {
+                createdAt: "DESC"
+              },
+              select: ["createdAt"]
+            })
+
+            const now = momentTz().tz("America/Sao_Paulo");
+            const lastOnlineDate = momentTz(lastOnlineMonitorHistory!.createdAt).tz("America/Sao_Paulo");
+            const duration = momentTz.duration(now.diff(lastOnlineDate));
+            const hours = duration.hours();
+            const minutes = duration.minutes();
+            if (hours > 0) {
+              description += ` Indisponibilidade estimada: ${hours}h e ${minutes}min.`;
+            } else {
+              description += ` Indisponibilidade estimada: ${minutes}min.`;
+            }
+          }
+
+          const footer = `Systatus.Live - ${getCurrentDate("DD/MM/YYYY HH:mm:ss")}`;
 
           switch (integration.chatPlatform.name) {
             case ChatPlatformEnum.DISCORD:

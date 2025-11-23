@@ -1,7 +1,7 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MonitorIntegrationEntity } from 'src/database/entities/MonitorIntegrationEntity';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import removeAccents from '../utils/removeAccents';
@@ -124,26 +124,26 @@ export class MonitorController {
 
       for (let day of row.historical) {
         const total = day.totalOnline + day.totalOffline;
-        day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(0)) : 0;
-        day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(0)) : 0;
+        day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(2)) : 0;
+        day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(2)) : 0;
 
         const formattedDate = formatDate(day.date, "DD/MM/YYYY");
 
         if (total == 0) {
           day["note"] = `${formattedDate}: Sem monitoramento`;
         } else if (day.percentOnline == 100) {
-          day["note"] = `${formattedDate}: 100% online`;
+          day["note"] = `${formattedDate}: 100% disponível`;
         } else if (day.percentOnline > 50) {
-          day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% online)`;
+          day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% disponível)`;
         } else {
-          day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% online)`;
+          day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% disponível)`;
         }
 
         totalPercentOnline += day.percentOnline;
       }
 
       const totalDaysWithData = row.historical.filter(item => (item.percentOnline + item.percentOffline) > 0).length;
-      row["percentOnline"] = totalDaysWithData ? parseFloat((totalPercentOnline / (totalDaysWithData)).toFixed(0)) : 0;
+      row["percentOnline"] = totalDaysWithData ? parseFloat((totalPercentOnline / (totalDaysWithData)).toFixed(2)) : 0;
     }
 
     return {
@@ -208,6 +208,24 @@ export class MonitorController {
         type: body.type,
         updatedUserId: request["loggedUser"]
       });
+
+      // Delete monitor x integrations removed by user
+      await this.monitorIntegrationRepository.delete({
+        monitorId: monitor.id,
+        integrationId: Not(In(body.integrationList))
+      })
+
+      // Save monitor x integrations added by user
+      const integrationListToSave = body.integrationList.map(integrationId => {
+        return this.monitorIntegrationRepository.create({
+          monitorId: monitor.id,
+          integrationId: integrationId,
+          createdUserId: request["loggedUser"],
+          updatedUserId: request["loggedUser"]
+        })
+      })
+      await queryRunner.manager.save(MonitorIntegrationEntity, integrationListToSave);
+
       await queryRunner.commitTransaction();
 
       return {
