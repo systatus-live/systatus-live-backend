@@ -206,7 +206,8 @@ export class MonitorController {
         name: body.name,
         address: body.address,
         type: body.type,
-        updatedUserId: request["loggedUser"]
+        active: body.active,
+        updatedUserId: request["loggedUser"],
       });
 
       // Delete monitor x integrations removed by user
