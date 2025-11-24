@@ -13,6 +13,8 @@ import { IntegrationService } from './integration.service';
 import { ChatPlatformEnum } from 'src/enums/ChatPlatformEnum';
 import * as momentTz from "moment-timezone";
 import getCurrentDate from 'src/utils/getCurrenDate';
+import { MailService } from './mail.service';
+import { readFileSync } from 'fs';
 
 @Injectable()
 export class CronService {
@@ -22,7 +24,8 @@ export class CronService {
 
   constructor(
     private schedulerRegistry: SchedulerRegistry,
-    private integrationService: IntegrationService
+    private integrationService: IntegrationService,
+    private mailService: MailService
   ) { }
 
   public schedule(id: string, interval: string, callback: (params?: any) => void | Promise<void>) {
@@ -112,7 +115,7 @@ export class CronService {
         });
 
         for await (let { integration } of integrationList) {
-          const title = "";
+          const title = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} ficou ${notifyType == "OK" ? "DISPONÍVEL" : "INDISPONÍVEL"}`;
           let description = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} (${monitor.address}) ficou ${notifyType == "OK" ? "DISPONÍVEL" : "INDISPONÍVEL"}. Status: ${newStatus}.`;
 
           if (notifyType == "OK") {
@@ -144,13 +147,17 @@ export class CronService {
 
           switch (integration.chatPlatform.name) {
             case ChatPlatformEnum.DISCORD:
-              await this.integrationService.sendDiscordWebhook(integration.url, title, description, footer);
+              await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer);
               break;
             case ChatPlatformEnum.GOOGLE_CHAT:
-              await this.integrationService.sendGoogleChatWebhook(integration.url, title, description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`), footer);
+              await this.integrationService.sendGoogleChatWebhook(integration.address, "", description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`), footer);
               break;
             case ChatPlatformEnum.SLACK:
-              await this.integrationService.sendSlackWebhook(integration.url, title, description, footer);
+              await this.integrationService.sendSlackWebhook(integration.address, "", description, footer);
+              break;
+            case ChatPlatformEnum.EMAIL:
+              const emailBody = readFileSync(`${__dirname}/../assets/mail/Monitor.html`, "utf-8").replace(/{{MESSAGE}}/g, description).replace("🟢 ", "").replace("🔴 ", "");
+              await this.mailService.sendMail("Systatus.Live <system@systatus.live>", integration.address, title, emailBody);
               break;
             default:
               break;

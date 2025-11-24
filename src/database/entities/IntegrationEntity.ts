@@ -11,7 +11,7 @@ export class IntegrationEntity {
   name: string;
 
   @Column({ type: "varchar", length: 1024, nullable: false })
-  url: string;
+  address: string;
 
   @ManyToOne(() => ChatPlatformEntity, { nullable: false })
   @JoinColumn({ name: "chatPlatformId", referencedColumnName: "id" })

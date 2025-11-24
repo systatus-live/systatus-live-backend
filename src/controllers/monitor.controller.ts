@@ -127,7 +127,7 @@ export class MonitorController {
         day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(2)) : 0;
         day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(2)) : 0;
 
-        const formattedDate = formatDate(day.date, "DD/MM/YYYY");
+        const formattedDate = formatDate(day.date, "DD/MM/YYYY", "YYYY-MM-DD");
 
         if (total == 0) {
           day["note"] = `${formattedDate}: Sem monitoramento`;

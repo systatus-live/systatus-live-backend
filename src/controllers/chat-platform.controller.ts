@@ -35,7 +35,7 @@ export class ChatPlatformController {
         from chat_platforms cpl
         where 1 = 1
         ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
-        order by cpl.name asc
+        order by cpl."createdAt" desc
         limit ${this.querySize} offset ${this.querySize * page}
       `),
       this.dataSource.query(`
