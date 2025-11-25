@@ -84,13 +84,8 @@ export class MonitorController {
             join chat_platforms cha on cha.id = int."chatPlatformId" 
             where mon.id = t."monitorId"
           ) as "integrationList"
-          , (
-            select t.status 
-            from monitor_historical t 
-            where t."monitorId" = mon.id 
-            order by "createdAt" desc 
-            limit 1
-          ) as "lastStatus"
+          , (select t.status from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastStatus"
+          , (select t."createdAt" from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastDate"
           , (
             with dates as (
               select generate_series(current_date - interval '29 days', current_date,	'1 day'::interval)::date AS date
