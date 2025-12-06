@@ -76,7 +76,9 @@ export class MonitorController {
     const results = await Promise.all([
       this.dataSource.query(`
         select 
-          mon.*
+          (select t.status from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastStatus"
+          , (select t."createdAt" from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastDate"
+          , mon.*
           , (
             select array_agg(json_build_object('id', t."integrationId", 'name', int.name, 'chatPlatform', cha.description, 'chatPlatformIconUrl', cha."iconUrl")) 
             from monitor_integrations t 
@@ -84,8 +86,6 @@ export class MonitorController {
             join chat_platforms cha on cha.id = int."chatPlatformId" 
             where mon.id = t."monitorId"
           ) as "integrationList"
-          , (select t.status from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastStatus"
-          , (select t."createdAt" from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastDate"
           , (
             with dates as (
               select generate_series(current_date - interval '29 days', current_date,	'1 day'::interval)::date AS date
@@ -100,7 +100,7 @@ export class MonitorController {
         from monitors mon
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.type))) like '%${search}%')` : ""}
-        order by mon."createdAt" desc  
+        order by 1 desc, mon.active desc, mon."createdAt" desc -- show first: offline, active and most recent
         limit ${this.querySize} offset ${this.querySize * page}
       `),
       this.dataSource.query(`

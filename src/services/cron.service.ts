@@ -6,7 +6,7 @@ import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegratio
 import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
 import { Like, Not, Repository } from 'typeorm';
 import axios from "axios";
-import { HttpStatusCode } from '../enums/HttpStatusCode';
+import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../enums/HttpStatusCode';
 import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
 import { MonitorEntity } from 'src/database/entities/MonitorEntity';
 import { IntegrationService } from './integration.service';
@@ -115,8 +115,8 @@ export class CronService {
         });
 
         for await (let { integration } of integrationList) {
-          const title = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} ficou ${notifyType == "OK" ? "DISPONÍVEL" : "INDISPONÍVEL"}`;
-          let description = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} (${monitor.address}) ficou ${notifyType == "OK" ? "DISPONÍVEL" : "INDISPONÍVEL"}. Status: ${newStatus}.`;
+          const title = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} ficou ${notifyType == "OK" ? "disponível" : "indisponível"}`;
+          let description = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} (${monitor.address}) ficou ${notifyType == "OK" ? "disponível" : "indisponível"}. Status: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]} (${newStatus}).`;
 
           if (notifyType == "OK") {
             const lastOnlineMonitorHistory = await this.monitorHistoryRepository.findOne({
