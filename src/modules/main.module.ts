@@ -16,6 +16,8 @@ import { IntegrationService } from 'src/services/integration.service';
 import { ChatPlatformController } from 'src/controllers/chat-platform.controller';
 import { ChatPlatformEntity } from 'src/database/entities/ChatPlatformEntity';
 import { MonitorIntegrationEntity } from 'src/database/entities/MonitorIntegrationEntity';
+import { StatisticsController } from 'src/controllers/statistics.controller';
+import { MonitorIncidentEntity } from 'src/database/entities/MonitorIncidentEntity';
 
 const serviceList = [
   AuthService,
@@ -38,6 +40,7 @@ const serviceList = [
       MonitorEntity,
       MonitorHistoryEntity,
       MonitorIntegrationEntity,
+      MonitorIncidentEntity,
       UserEntity,
       ChatPlatformEntity
     ]),
@@ -49,7 +52,8 @@ const serviceList = [
     AuthController,
     IntegrationController,
     MonitorController,
-    ChatPlatformController
+    ChatPlatformController,
+    StatisticsController
   ],
   exports: [
     TypeOrmModule,

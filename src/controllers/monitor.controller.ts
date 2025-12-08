@@ -128,7 +128,7 @@ export class MonitorController {
           day["note"] = `${formattedDate}: Sem monitoramento`;
         } else if (day.percentOnline == 100) {
           day["note"] = `${formattedDate}: 100% disponível`;
-        } else if (day.percentOnline > 50) {
+        } else if (day.percentOnline >= 50) {
           day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% disponível)`;
         } else {
           day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% disponível)`;

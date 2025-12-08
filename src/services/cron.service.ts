@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CronJob } from 'cron';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
-import { Like, Not, Repository } from 'typeorm';
+import { DataSource, Like, Not, Repository } from 'typeorm';
 import axios from "axios";
 import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../enums/HttpStatusCode';
 import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
@@ -15,17 +15,20 @@ import * as momentTz from "moment-timezone";
 import getCurrentDate from 'src/utils/getCurrenDate';
 import { MailService } from './mail.service';
 import { readFileSync } from 'fs';
+import { MonitorIncidentEntity } from 'src/database/entities/MonitorIncidentEntity';
 
 @Injectable()
 export class CronService {
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
+  @InjectRepository(MonitorIncidentEntity) private monitorIncidentRepository: Repository<MonitorIncidentEntity>
 
   constructor(
     private schedulerRegistry: SchedulerRegistry,
     private integrationService: IntegrationService,
-    private mailService: MailService
+    private mailService: MailService,
+    private dataSource: DataSource
   ) { }
 
   public schedule(id: string, interval: string, callback: (params?: any) => void | Promise<void>) {
@@ -51,16 +54,6 @@ export class CronService {
       console.log(`Executing check for monitor ID: ${monitor.id}`);
 
       let newStatus = "UNKNOWN";
-      let notifyType: "OK" | "NOK" | null = null;
-
-      const lastMonitorHistory = await this.monitorHistoryRepository.findOne({
-        where: {
-          monitorId: monitor.id
-        },
-        order: {
-          createdAt: "DESC"
-        },
-      })
 
       switch (monitor.type) {
         case MonitorTypeEnum.HTTP:
@@ -85,14 +78,6 @@ export class CronService {
                 newStatus = error.code;
               }
             }
-          } finally {
-            if (lastMonitorHistory) {
-              if (lastMonitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) {
-                notifyType = "NOK";
-              } else if (!lastMonitorHistory.status.startsWith("2") && newStatus.startsWith("2")) {
-                notifyType = "OK";
-              }
-            }
           }
           break;
         case MonitorTypeEnum.PING:
@@ -101,10 +86,48 @@ export class CronService {
           break;
       }
 
+      let [monitorIncident, monitorHistory] = await Promise.all([
+        this.monitorIncidentRepository.findOne({
+          where: {
+            monitorId: monitor.id,
+            active: true
+          },
+        }),
+        this.monitorHistoryRepository.findOne({
+          where: {
+            monitorId: monitor.id
+          },
+          order: {
+            createdAt: "DESC"
+          }
+        })
+      ]);
+
+      let notifyType: "OK" | "FAILURE" | null = null;
+
+      if (monitorHistory) { // has previous check
+        if (monitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) { // went down
+          notifyType = "FAILURE";
+        } else if (!monitorHistory.status.startsWith("2") && newStatus.startsWith("2")) { // went up
+          notifyType = "OK";
+        }
+      } else if (!monitorHistory && !newStatus.startsWith("2")) { // first check and is down
+        notifyType = "FAILURE";
+      }
+
+      if (notifyType) {
+        monitorIncident = await this.monitorIncidentRepository.save({
+          id: monitorIncident?.id,
+          monitorId: monitor.id,
+          active: notifyType == "FAILURE" ? true : false
+        })
+      }
+
       const savedMonitorHistory = await this.monitorHistoryRepository.save({
         monitorId: monitor.id,
+        incidentId: monitorIncident?.id,
         status: newStatus
-      } as MonitorHistoryEntity);
+      });
 
       if (notifyType) {
         const integrationList = await this.monitorIntegrationRepository.find({
@@ -115,31 +138,38 @@ export class CronService {
         });
 
         for await (let { integration } of integrationList) {
-          const title = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} ficou ${notifyType == "OK" ? "disponível" : "indisponível"}`;
-          let description = `${notifyType == "OK" ? "🟢" : "🔴"} ${monitor.name} (${monitor.address}) ficou ${notifyType == "OK" ? "disponível" : "indisponível"}. Status: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]} (${newStatus}).`;
+          let title = `🟢 ${monitor.name} ficou disponível`;
+          let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível. Status: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]} (${newStatus}).`;
+
+          if (notifyType == "FAILURE") {
+            title = `🔴 ${monitor.name} ficou indisponível`;
+            description = `🔴 ${monitor.name} (${monitor.address}) ficou indisponível. Status: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]} (${newStatus}).`;
+          }
 
           if (notifyType == "OK") {
             const lastOnlineMonitorHistory = await this.monitorHistoryRepository.findOne({
               where: {
-                id: Not(savedMonitorHistory.id),
                 monitorId: monitor.id,
                 status: Like("2%"),
+                id: Not(savedMonitorHistory.id)
               },
               order: {
                 createdAt: "DESC"
-              },
-              select: ["createdAt"]
-            })
+              }
+            });
 
-            const now = momentTz().tz("America/Sao_Paulo");
-            const lastOnlineDate = momentTz(lastOnlineMonitorHistory!.createdAt).tz("America/Sao_Paulo");
-            const duration = momentTz.duration(now.diff(lastOnlineDate));
-            const hours = duration.hours();
-            const minutes = duration.minutes();
-            if (hours > 0) {
-              description += ` Indisponibilidade estimada: ${hours}h e ${minutes}min.`;
-            } else {
-              description += ` Indisponibilidade estimada: ${minutes}min.`;
+            if (lastOnlineMonitorHistory) {
+              const now = momentTz().tz("America/Sao_Paulo");
+              const lastOnlineDate = momentTz(lastOnlineMonitorHistory!.createdAt).tz("America/Sao_Paulo");
+
+              const duration = momentTz.duration(now.diff(lastOnlineDate));
+              const hours = duration.hours();
+              const minutes = duration.minutes();
+              if (hours > 0) {
+                description += ` Indisponibilidade estimada: ${hours}h e ${minutes}min.`;
+              } else {
+                description += ` Indisponibilidade estimada: ${minutes}min.`;
+              }
             }
           }
 

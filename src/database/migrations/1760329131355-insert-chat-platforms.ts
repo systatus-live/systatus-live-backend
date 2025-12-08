@@ -18,6 +18,11 @@ export class InsertChatPlatforms1760329131355 implements MigrationInterface {
       insert into "chat_platforms" (name, description, "iconUrl", "docUrl") 
       values ('${ChatPlatformEnum.DISCORD}', '${ChatPlatformLabelEnum.DISCORD}', 'https://systatus.live/logos/discord.svg', 'https://discord.com/developers/docs/resources/webhook')
     `);
+
+    await queryRunner.query(`
+      insert into "chat_platforms" (name, description, "iconUrl", "docUrl") 
+      values ('${ChatPlatformEnum.EMAIL}', '${ChatPlatformLabelEnum.EMAIL}', 'https://systatus.live/logos/mail.svg', '')
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
