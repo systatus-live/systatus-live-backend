@@ -16,6 +16,9 @@ export class MonitorIncidentEntity {
   @Column({ type: "bool", nullable: false })
   active: boolean;
 
+  @Column({ type: "timestamptz", nullable: true })
+  endedAt: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 

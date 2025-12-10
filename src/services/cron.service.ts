@@ -1,21 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, SchedulerRegistry } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CronJob } from 'cron';
-import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
-import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
-import { DataSource, Like, Not, Repository } from 'typeorm';
 import axios from "axios";
-import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../enums/HttpStatusCode';
-import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
-import { MonitorEntity } from 'src/database/entities/MonitorEntity';
-import { IntegrationService } from './integration.service';
-import { ChatPlatformEnum } from 'src/enums/ChatPlatformEnum';
-import * as momentTz from "moment-timezone";
-import getCurrentDate from 'src/utils/getCurrenDate';
-import { MailService } from './mail.service';
+import { CronJob } from 'cron';
 import { readFileSync } from 'fs';
+import { MonitorEntity } from 'src/database/entities/MonitorEntity';
+import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
 import { MonitorIncidentEntity } from 'src/database/entities/MonitorIncidentEntity';
+import { ChatPlatformEnum } from 'src/enums/ChatPlatformEnum';
+import formatSince from 'src/utils/formatSince';
+import getCurrentDate from 'src/utils/getCurrenDate';
+import { Repository } from 'typeorm';
+import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
+import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../enums/HttpStatusCode';
+import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
+import { IntegrationService } from './integration.service';
+import { MailService } from './mail.service';
 
 @Injectable()
 export class CronService {
@@ -28,7 +28,6 @@ export class CronService {
     private schedulerRegistry: SchedulerRegistry,
     private integrationService: IntegrationService,
     private mailService: MailService,
-    private dataSource: DataSource
   ) { }
 
   public schedule(id: string, interval: string, callback: (params?: any) => void | Promise<void>) {
@@ -56,7 +55,7 @@ export class CronService {
       let newStatus = "UNKNOWN";
 
       switch (monitor.type) {
-        case MonitorTypeEnum.HTTP:
+        case MonitorTypeEnum.GET:
           try {
             const response = await axios.get(monitor.address, {
               timeout: 10000
@@ -74,9 +73,15 @@ export class CronService {
                 newStatus = HttpStatusCode.BAD_GATEWAY.toString();
               } else if (error.code == "ENOTFOUND") {
                 newStatus = HttpStatusCode.NOT_FOUND.toString();
+              } else if (error.code == "ETIMEDOUT") {
+                newStatus == HttpStatusCode.GATEWAY_TIMEOUT.toString()
               } else if (error.code) {
                 newStatus = error.code;
               }
+            }
+
+            if (error.code == "ERR_INVALID_URL") {
+              newStatus = HttpStatusCode.NOT_FOUND.toString();
             }
           }
           break;
@@ -116,14 +121,22 @@ export class CronService {
       }
 
       if (notifyType) {
-        monitorIncident = await this.monitorIncidentRepository.save({
+        const incidentIsActive = notifyType == "FAILURE" ? true : false;
+
+        const payload: Partial<MonitorIncidentEntity> = {
           id: monitorIncident?.id,
           monitorId: monitor.id,
-          active: notifyType == "FAILURE" ? true : false
-        })
+          active: incidentIsActive
+        }
+
+        if (!incidentIsActive) {
+          payload.endedAt = getCurrentDate("YYYY-MM-DD HH:mm:ssZZ");
+        }
+
+        monitorIncident = await this.monitorIncidentRepository.save(payload);
       }
 
-      const savedMonitorHistory = await this.monitorHistoryRepository.save({
+      await this.monitorHistoryRepository.save({
         monitorId: monitor.id,
         incidentId: monitorIncident?.id,
         status: newStatus
@@ -147,50 +160,43 @@ export class CronService {
           }
 
           if (notifyType == "OK") {
-            const lastOnlineMonitorHistory = await this.monitorHistoryRepository.findOne({
+            const monitorIncident = await this.monitorIncidentRepository.findOne({
               where: {
                 monitorId: monitor.id,
-                status: Like("2%"),
-                id: Not(savedMonitorHistory.id)
+                active: false
               },
               order: {
                 createdAt: "DESC"
               }
             });
 
-            if (lastOnlineMonitorHistory) {
-              const now = momentTz().tz("America/Sao_Paulo");
-              const lastOnlineDate = momentTz(lastOnlineMonitorHistory!.createdAt).tz("America/Sao_Paulo");
-
-              const duration = momentTz.duration(now.diff(lastOnlineDate));
-              const hours = duration.hours();
-              const minutes = duration.minutes();
-              if (hours > 0) {
-                description += ` Indisponibilidade estimada: ${hours}h e ${minutes}min.`;
-              } else {
-                description += ` Indisponibilidade estimada: ${minutes}min.`;
-              }
+            if (monitorIncident) {
+              description += ` Downtime: ${formatSince(monitorIncident.createdAt, "YYYY-MM-DD HH:mm:ssZ")}.`;
             }
           }
 
           const footer = `Systatus.Live - ${getCurrentDate("DD/MM/YYYY HH:mm:ss")}`;
 
-          switch (integration.chatPlatform.name) {
-            case ChatPlatformEnum.DISCORD:
-              await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer);
-              break;
-            case ChatPlatformEnum.GOOGLE_CHAT:
-              await this.integrationService.sendGoogleChatWebhook(integration.address, "", description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`), footer);
-              break;
-            case ChatPlatformEnum.SLACK:
-              await this.integrationService.sendSlackWebhook(integration.address, "", description, footer);
-              break;
-            case ChatPlatformEnum.EMAIL:
-              const emailBody = readFileSync(`${__dirname}/../assets/mail/Monitor.html`, "utf-8").replace(/{{MESSAGE}}/g, description).replace("🟢 ", "").replace("🔴 ", "");
-              await this.mailService.sendMail("Systatus.Live <system@systatus.live>", integration.address, title, emailBody);
-              break;
-            default:
-              break;
+          try {
+            switch (integration.chatPlatform.name) {
+              case ChatPlatformEnum.DISCORD:
+                await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer);
+                break;
+              case ChatPlatformEnum.GOOGLE_CHAT:
+                await this.integrationService.sendGoogleChatWebhook(integration.address, "", description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`), footer);
+                break;
+              case ChatPlatformEnum.SLACK:
+                await this.integrationService.sendSlackWebhook(integration.address, "", description, footer);
+                break;
+              case ChatPlatformEnum.EMAIL:
+                const emailBody = readFileSync(`${__dirname}/../assets/mail/Monitor.html`, "utf-8").replace(/{{MESSAGE}}/g, description).replace("🟢 ", "").replace("🔴 ", "");
+                await this.mailService.sendMail("Systatus.Live <system@systatus.live>", integration.address, title, emailBody);
+                break;
+              default:
+                break;
+            }
+          } catch (error) {
+            console.log(`Error sending notification for monitor ID: ${monitor.id} via integration ID: ${integration.id}: ${error.message}`);
           }
         }
       }

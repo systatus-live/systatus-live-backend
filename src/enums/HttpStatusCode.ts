@@ -61,7 +61,8 @@ export enum HttpStatusCode {
   INSUFFICIENT_STORAGE = 507,
   LOOP_DETECTED = 508,
   NOT_EXTENDED = 510,
-  NETWORK_AUTHENTICATION_REQUIRED = 511
+  NETWORK_AUTHENTICATION_REQUIRED = 511,
+  UNKNOWN = "UNKNOWN"
 }
 
 export enum HttpStatusCodeLabel {
@@ -127,7 +128,8 @@ export enum HttpStatusCodeLabel {
   INSUFFICIENT_STORAGE = "Insufficient Storage",
   LOOP_DETECTED = "Loop Detected",
   NOT_EXTENDED = "Not Extended",
-  NETWORK_AUTHENTICATION_REQUIRED = "Network Authentication Required"
+  NETWORK_AUTHENTICATION_REQUIRED = "Network Authentication Required",
+  UNKNOWN = "Desconhecido"
 }
 
 export function getHttpStatusKey(code: string) {

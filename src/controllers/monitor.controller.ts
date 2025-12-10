@@ -1,11 +1,12 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MonitorIntegrationEntity } from 'src/database/entities/MonitorIntegrationEntity';
+import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import removeAccents from '../utils/removeAccents';
-import formatDate from 'src/utils/formatDate';
+import formatDate from '../utils/formatDate';
+import formatSince from '../utils/formatSince';
 
 @Controller({
   version: "1",
@@ -76,8 +77,27 @@ export class MonitorController {
     const results = await Promise.all([
       this.dataSource.query(`
         select 
-          (select t.status from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastStatus"
-          , (select t."createdAt" from monitor_historical t where t."monitorId" = mon.id order by "createdAt" desc limit 1) as "lastDate"
+          (
+            select t.status 
+            from monitor_historical t 
+            where t."monitorId" = mon.id 
+            order by "createdAt" desc 
+            limit 1
+          ) as "lastStatus"
+          , (
+            select t."createdAt" 
+            from monitor_historical t 
+            where t."monitorId" = mon.id 
+            order by "createdAt" desc 
+            limit 1
+          ) as "lastDate"
+          , coalesce(((
+            select coalesce(t."endedAt", t."createdAt") 
+            from monitor_incidents t  
+            where t."monitorId" = mon.id 
+            order by t."createdAt" 
+            desc limit 1
+          )), mon."createdAt") as "lastIncident"
           , mon.*
           , (
             select array_agg(json_build_object('id', t."integrationId", 'name', int.name, 'chatPlatform', cha.description, 'chatPlatformIconUrl', cha."iconUrl")) 
@@ -139,6 +159,10 @@ export class MonitorController {
 
       const totalDaysWithData = row.historical.filter(item => (item.percentOnline + item.percentOffline) > 0).length;
       row["percentOnline"] = totalDaysWithData ? parseFloat((totalPercentOnline / (totalDaysWithData)).toFixed(2)) : 0;
+
+      if (row.lastIncident) {
+        row.lastIncident = formatSince(row.lastIncident, "YYYY-MM-DD HH:mm:ssZ");
+      }
     }
 
     return {

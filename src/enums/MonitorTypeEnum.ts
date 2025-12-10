@@ -1,4 +1,4 @@
 export enum MonitorTypeEnum {
-  HTTP = "HTTP",
+  GET = "GET",
   PING = "PING"
 }
