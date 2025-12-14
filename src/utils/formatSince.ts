@@ -1,8 +1,14 @@
 import * as momentTz from "moment-timezone";
 import "moment-duration-format";
 
-export default function formatSince(dateInput: string, inputFormat: string): string {
-  const diffSec = momentTz().diff(momentTz(dateInput, inputFormat), "seconds");
+export default function formatSince(finalDate: string, inputFormat: string, initialDate: momentTz.Moment | null = null): string {
+  let diffSec = 0;
+  if (initialDate) {
+    diffSec = initialDate.diff(momentTz(finalDate, inputFormat), "seconds");
+  } else {
+    diffSec = momentTz().diff(momentTz(finalDate, inputFormat), "seconds");
+  }
+  
   if (diffSec <= 0) return "0s";
 
   const d = momentTz.duration(diffSec, "seconds");
