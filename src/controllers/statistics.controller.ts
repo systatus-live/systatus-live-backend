@@ -2,7 +2,6 @@ import { Controller, Get, Request, UseGuards } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { AuthGuard } from "../guards/auth/auth.guard";
 import formatSince from "src/utils/formatSince";
-import * as momentTz from "moment-timezone";
 
 @Controller({
   version: "1",
@@ -16,13 +15,7 @@ export class StatisticsController {
 
   @Get("/panels")
   async getPanelStatistics(@Request() request: Request) {
-    const [totals] = await this.dataSource.query(`
-      select 
-        (select count(1) from monitors where "createdUserId" = '${request["loggedUser"]}') as "monitors"
-	    , (select count(1) from integrations where "createdUserId" = '${request["loggedUser"]}') as "integrations"
-    `);
-
-    const currentIncidentList = await this.dataSource.query(`
+    const activeIncidentList = await this.dataSource.query(`
       select 
         mon.name
         , mon.address
@@ -33,34 +26,27 @@ export class StatisticsController {
       where "createdUserId" = '${request["loggedUser"]}'
       and inc.active = true
       and mon.active = true
-      order by inc."createdAt" desc
+      order by inc."createdAt" asc
     `);
 
-    currentIncidentList.forEach(row => {
+    activeIncidentList.forEach(row => {
       row.duration = formatSince(row.createdAt, "YYYY-MM-DD HH:mm:ssZ");
     })
 
-    const lastIncidentList = await this.dataSource.query(`
-      select 
-        mon.name
-        , mon.address
-        , inc."createdAt" 
-        , inc."endedAt" 
-      from monitor_incidents inc
-      join monitors mon on mon.id = inc."monitorId"
-      where "createdUserId" = '${request["loggedUser"]}'
-      and mon.active = true
-      order by inc."createdAt" desc
+    const monthIncidentList = await this.dataSource.query(`
+      with days as (
+        select generate_series(current_date - interval '30 days', current_date, interval '1 day')::date as day
+      )
+      select to_char(d.day, 'dd/mm') as date, count(mi.id) as total
+      from days d
+      left join monitor_incidents mi on (mi."createdAt"::timestamptz)::date = d.day
+      group by d.day
+      order by d.day asc
     `);
 
-    lastIncidentList.forEach(row => {
-      row.duration = formatSince(row.createdAt, "YYYY-MM-DD HH:mm:ssZ", momentTz(row.endedAt, "YYYY-MM-DD HH:mm:ssZ"));
-    })
-
     return {
-      totals: totals,
-      currentIncidentList: currentIncidentList,
-      lastIncidentList: lastIncidentList
+      activeIncidentList: activeIncidentList,
+      monthIncidentList: monthIncidentList
     }
   }
 }
