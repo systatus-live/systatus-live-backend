@@ -7,7 +7,7 @@ import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
-import { AuthGuard } from 'src/guards/auth/auth.guard';
+import { AuthGuard } from '../guards/auth/auth.guard';
 
 @Controller({
   version: "1",

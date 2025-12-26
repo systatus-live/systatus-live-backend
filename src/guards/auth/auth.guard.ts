@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../services/auth.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserEntity } from 'src/database/entities/UserEntity';
+import { UserEntity } from '../../database/entities/UserEntity';
 import { Repository } from 'typeorm';
 
 @Injectable()

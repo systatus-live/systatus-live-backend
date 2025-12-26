@@ -1,7 +1,7 @@
 import { Controller, Get, Request, UseGuards } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { AuthGuard } from "../guards/auth/auth.guard";
-import formatSince from "src/utils/formatSince";
+import formatSince from "../utils/formatSince";
 
 @Controller({
   version: "1",

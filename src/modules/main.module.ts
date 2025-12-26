@@ -12,12 +12,12 @@ import { UserEntity } from '../database/entities/UserEntity';
 import { AuthService } from '../services/auth.service';
 import { CronService } from '../services/cron.service';
 import { MailService } from '../services/mail.service';
-import { IntegrationService } from 'src/services/integration.service';
-import { ChatPlatformController } from 'src/controllers/chat-platform.controller';
-import { ChatPlatformEntity } from 'src/database/entities/ChatPlatformEntity';
-import { MonitorIntegrationEntity } from 'src/database/entities/MonitorIntegrationEntity';
-import { StatisticsController } from 'src/controllers/statistics.controller';
-import { MonitorIncidentEntity } from 'src/database/entities/MonitorIncidentEntity';
+import { IntegrationService } from '../services/integration.service';
+import { ChatPlatformController } from '../controllers/chat-platform.controller';
+import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
+import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
+import { StatisticsController } from '../controllers/statistics.controller';
+import { MonitorIncidentEntity } from '../database/entities/MonitorIncidentEntity';
 
 const serviceList = [
   AuthService,
