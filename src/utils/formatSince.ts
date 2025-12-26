@@ -1,4 +1,4 @@
-import * as momentTz from "moment-timezone";
+import momentTz from "moment-timezone";
 import "moment-duration-format";
 
 export default function formatSince(finalDate: string, inputFormat: string, initialDate: momentTz.Moment | null = null): string {

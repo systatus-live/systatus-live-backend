@@ -1,4 +1,4 @@
-import * as momentTz from "moment-timezone";
+import momentTz from "moment-timezone";
 
 export default function formatDate(date: string, outputFormat: string, inputFormat: string | null = null) {
   if (inputFormat) {
