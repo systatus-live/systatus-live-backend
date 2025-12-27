@@ -16,6 +16,7 @@ import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../enums/
 import { MonitorTypeEnum } from '../enums/MonitorTypeEnum';
 import { IntegrationService } from './integration.service';
 import { MailService } from './mail.service';
+import ping from "ping";
 
 @Injectable()
 export class CronService {
@@ -86,6 +87,20 @@ export class CronService {
           }
           break;
         case MonitorTypeEnum.PING:
+          try {
+            const response = await ping.promise.probe(monitor.address, {
+              timeout: 10
+            });
+            if (response.alive) {
+              newStatus = HttpStatusCode.OK.toString();
+            } else if (response.output.includes("Destination Host Unreachable")) {
+              newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+            } else if (parseFloat(response.packetLoss) == 100) {
+              newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString()
+            }
+          } catch (error) {
+            newStatus = "0";
+          }
           break;
         default:
           break;
@@ -121,7 +136,7 @@ export class CronService {
       }
 
       if (notifyType) {
-        const incidentIsActive = notifyType == "FAILURE" ? true : false;
+        const incidentIsActive = notifyType == "FAILURE";
 
         const payload: Partial<MonitorIncidentEntity> = {
           id: monitorIncident?.id,
@@ -152,11 +167,11 @@ export class CronService {
 
         for await (let { integration } of integrationList) {
           let title = `🟢 ${monitor.name} ficou disponível`;
-          let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível. Status: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]} (${newStatus}).`;
+          let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível..`;
 
           if (notifyType == "FAILURE") {
             title = `🔴 ${monitor.name} ficou indisponível`;
-            description = `🔴 ${monitor.name} (${monitor.address}) ficou indisponível. Status: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]} (${newStatus}).`;
+            description = `🔴 ${monitor.name} (${monitor.address}) ficou indisponível: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}.`;
           }
 
           if (notifyType == "OK") {

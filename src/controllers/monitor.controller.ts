@@ -84,13 +84,6 @@ export class MonitorController {
             order by "createdAt" desc 
             limit 1
           ) as "lastStatus"
-          , (
-            select t."createdAt" 
-            from monitor_historical t 
-            where t."monitorId" = mon.id 
-            order by "createdAt" desc 
-            limit 1
-          ) as "lastDate"
           , coalesce(((
             select coalesce(t."endedAt", t."createdAt") 
             from monitor_incidents t  

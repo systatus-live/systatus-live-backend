@@ -1,12 +1,12 @@
 import momentTz from "moment-timezone";
 import "moment-duration-format";
 
-export default function formatSince(finalDate: string, inputFormat: string, initialDate: momentTz.Moment | null = null): string {
+export default function formatSince(startDate: string, inputFormat: string, endDate: momentTz.Moment | null = null): string {
   let diffSec = 0;
-  if (initialDate) {
-    diffSec = initialDate.diff(momentTz(finalDate, inputFormat), "seconds");
+  if (endDate) {
+    diffSec = endDate.diff(momentTz(startDate, inputFormat), "seconds");
   } else {
-    diffSec = momentTz().diff(momentTz(finalDate, inputFormat), "seconds");
+    diffSec = momentTz().diff(momentTz(startDate, inputFormat), "seconds");
   }
   
   if (diffSec <= 0) return "0s";
