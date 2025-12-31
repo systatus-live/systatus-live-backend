@@ -167,7 +167,7 @@ export class CronService {
 
         for await (let { integration } of integrationList) {
           let title = `🟢 ${monitor.name} ficou disponível`;
-          let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível..`;
+          let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível.`;
 
           if (notifyType == "FAILURE") {
             title = `🔴 ${monitor.name} ficou indisponível`;
