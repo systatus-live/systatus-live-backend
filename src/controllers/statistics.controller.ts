@@ -39,9 +39,7 @@ export class StatisticsController {
       )
       select to_char(d.day, 'dd/mm') as date, count(mi.id) as total
       from days d
-      left join monitor_incidents mi on (mi."createdAt"::timestamptz)::date = d.day
-      left join monitors mon on mon.id = min.monitorId
-      where "min.createdUserId" = '${request["loggedUser"]}'
+      left join monitor_incidents mi on (mi."createdAt"::timestamptz)::date = d.day and mi."monitorId" in (select t.id from monitors t where t."createdUserId" = '${request["loggedUser"]}')
       group by d.day
       order by d.day asc
     `);
@@ -49,9 +47,9 @@ export class StatisticsController {
     const total = await this.dataSource.query(`
       select t.*
       from (
-        select 1 as index, 'Monitores' as label, count(1) as value from monitors
+        select 1 as index, 'Monitores' as label, (select count(1) from monitors where "createdUserId" = '${request["loggedUser"]}') as value
         union
-        select 2 as index, 'Integrações' as label, count(1) as value from integrations
+        select 2 as index, 'Integrações' as label, (select count(1) from integrations where "createdUserId" = '${request["loggedUser"]}') as value
       ) t
       order by t.index asc
     `);
