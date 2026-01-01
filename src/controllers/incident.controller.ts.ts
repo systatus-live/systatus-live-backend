@@ -40,7 +40,7 @@ export class IncidentController {
         join monitors mon on mon.id = inc."monitorId" 
         where "createdUserId" = '${request["loggedUser"]}'
         ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}
-        order by 6 desc, inc.id desc
+        order by 6 desc, inc."createdAt" desc
         limit ${this.querySize} offset ${this.querySize * page}
       `),
       this.dataSource.query(`
