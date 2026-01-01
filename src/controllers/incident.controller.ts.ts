@@ -36,7 +36,7 @@ export class IncidentController {
           , inc."createdAt" 
           , inc."endedAt"
           , (select t.status from monitor_historical t where t."monitorId" = mon.id and t."incidentId" = inc.id order by "createdAt" desc limit 1) as "lastStatus"
-        from monitor_incidents inc
+        from incidents inc
         join monitors mon on mon.id = inc."monitorId" 
         where "createdUserId" = '${request["loggedUser"]}'
         ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}
@@ -45,7 +45,7 @@ export class IncidentController {
       `),
       this.dataSource.query(`
         select count(1) as total
-        from monitor_incidents inc
+        from incidents inc
         join monitors mon on mon.id = inc."monitorId" 
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}

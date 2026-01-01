@@ -17,7 +17,7 @@ import { ChatPlatformController } from '../controllers/chat-platform.controller'
 import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { StatisticsController } from '../controllers/statistics.controller';
-import { MonitorIncidentEntity } from '../database/entities/MonitorIncidentEntity';
+import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { IncidentController } from '../controllers/incident.controller.ts';
 
 const serviceList = [
@@ -41,7 +41,7 @@ const serviceList = [
       MonitorEntity,
       MonitorHistoryEntity,
       MonitorIntegrationEntity,
-      MonitorIncidentEntity,
+      IncidentEntity,
       UserEntity,
       ChatPlatformEntity
     ]),

@@ -6,7 +6,7 @@ import { CronJob } from 'cron';
 import { readFileSync } from 'fs';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
-import { MonitorIncidentEntity } from '../database/entities/MonitorIncidentEntity';
+import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { ChatPlatformEnum } from '../enums/ChatPlatformEnum';
 import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
@@ -23,7 +23,7 @@ export class CronService {
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
-  @InjectRepository(MonitorIncidentEntity) private monitorIncidentRepository: Repository<MonitorIncidentEntity>
+  @InjectRepository(IncidentEntity) private monitorIncidentRepository: Repository<IncidentEntity>
 
   constructor(
     private schedulerRegistry: SchedulerRegistry,
@@ -138,7 +138,7 @@ export class CronService {
       if (notifyType) {
         const incidentIsActive = notifyType == "FAILURE";
 
-        const payload: Partial<MonitorIncidentEntity> = {
+        const payload: Partial<IncidentEntity> = {
           id: monitorIncident?.id,
           monitorId: monitor.id,
           active: incidentIsActive

@@ -21,7 +21,7 @@ export class StatisticsController {
         , mon.address
         , inc."createdAt" 
         , (select t.status from monitor_historical t where t."monitorId" = mon.id and t."incidentId" = inc.id and t.status not like '2%' order by "createdAt" desc limit 1) as "lastStatus"
-      from monitor_incidents inc
+      from incidents inc
       join monitors mon on mon.id = inc."monitorId" 
       where "createdUserId" = '${request["loggedUser"]}'
       and inc.active = true
@@ -39,7 +39,7 @@ export class StatisticsController {
       )
       select to_char(d.day, 'dd/mm') as date, count(mi.id) as total
       from days d
-      left join monitor_incidents mi on (mi."createdAt"::timestamptz)::date = d.day and mi."monitorId" in (select t.id from monitors t where t."createdUserId" = '${request["loggedUser"]}')
+      left join incidents mi on (mi."createdAt"::timestamptz)::date = d.day and mi."monitorId" in (select t.id from monitors t where t."createdUserId" = '${request["loggedUser"]}')
       group by d.day
       order by d.day asc
     `);

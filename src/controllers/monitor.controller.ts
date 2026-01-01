@@ -86,7 +86,7 @@ export class MonitorController {
           ) as "lastStatus"
           , coalesce(((
             select coalesce(t."endedAt", t."createdAt") 
-            from monitor_incidents t  
+            from incidents t  
             where t."monitorId" = mon.id 
             order by t."createdAt" 
             desc limit 1

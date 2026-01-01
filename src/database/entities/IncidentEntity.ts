@@ -1,8 +1,8 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { MonitorEntity } from './MonitorEntity';
 
-@Entity({ name: "monitor_incidents" })
-export class MonitorIncidentEntity {
+@Entity({ name: "incidents" })
+export class IncidentEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 

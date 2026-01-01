@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { MonitorIncidentEntity } from './MonitorIncidentEntity';
+import { IncidentEntity } from './IncidentEntity';
 import { MonitorEntity } from './MonitorEntity';
 
 @Entity({ name: "monitor_historical" })
@@ -14,9 +14,9 @@ export class MonitorHistoryEntity {
   @Column({ nullable: false })
   monitorId: string;
 
-  @ManyToOne(() => MonitorIncidentEntity, { onDelete: "CASCADE" })
+  @ManyToOne(() => IncidentEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "incidentId", referencedColumnName: "id" })
-  incident: MonitorIncidentEntity;
+  incident: IncidentEntity;
 
   @Column({ nullable: true})
   incidentId: string;
