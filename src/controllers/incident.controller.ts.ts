@@ -35,12 +35,20 @@ export class IncidentController {
           , mon.address
           , inc."createdAt" 
           , inc."endedAt"
-          , (select t.status from monitor_historical t where t."monitorId" = mon.id and t."incidentId" = inc.id order by "createdAt" desc limit 1) as "lastStatus"
+          , (
+            select t.status 
+            from monitor_historical t 
+            where t."monitorId" = mon.id 
+            and t."incidentId" = inc.id
+            and t.status not like '2%'
+            order by "createdAt" desc 
+            limit 1
+          ) as "lastError"
         from incidents inc
         join monitors mon on mon.id = inc."monitorId" 
         where "createdUserId" = '${request["loggedUser"]}'
         ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}
-        order by 6 desc, inc."createdAt" desc
+        order by inc."endedAt" desc
         limit ${this.querySize} offset ${this.querySize * page}
       `),
       this.dataSource.query(`
