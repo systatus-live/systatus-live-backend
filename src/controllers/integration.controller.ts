@@ -78,7 +78,7 @@ export class IntegrationController {
     }
 
     if (search) {
-      search = removeAccents(search);
+      search = removeAccents(search).toLowerCase();
     }
 
     const results = await Promise.all([
@@ -95,7 +95,7 @@ export class IntegrationController {
         from integrations itg
         join chat_platforms cpl on cpl.id = itg."chatPlatformId"
         where itg."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
+        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.address))) like '%${search}%')` : ""}
         order by itg."createdAt" desc  
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
@@ -104,7 +104,7 @@ export class IntegrationController {
         from integrations itg
         join chat_platforms cpl on cpl.id = itg."chatPlatformId"
         where itg."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
+        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.address))) like '%${search}%')` : ""}
       `),
     ]);
 

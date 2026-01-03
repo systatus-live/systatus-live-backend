@@ -112,7 +112,7 @@ export class MonitorController {
           ) as "historical"
         from monitors mon
         where mon."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.type))) like '%${search}%')` : ""}
+        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
         order by 1 desc, mon.active desc, mon."createdAt" desc -- show first: offline, active and most recent
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
@@ -120,7 +120,7 @@ export class MonitorController {
         select count(1) as total
         from monitors mon
         where mon."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.type))) like '%${search}%')` : ""}
+        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
       `),
     ]);
 

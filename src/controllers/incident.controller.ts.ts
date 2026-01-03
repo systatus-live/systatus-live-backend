@@ -47,7 +47,7 @@ export class IncidentController {
         from incidents inc
         join monitors mon on mon.id = inc."monitorId" 
         where "createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}
+        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
         order by inc."endedAt" desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
@@ -56,7 +56,7 @@ export class IncidentController {
         from incidents inc
         join monitors mon on mon.id = inc."monitorId" 
         where mon."createdUserId" = '${request["loggedUser"]}'
-        ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}
+        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
       `),
     ]);
 
