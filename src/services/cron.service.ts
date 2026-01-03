@@ -53,7 +53,7 @@ export class CronService {
     for await (let monitor of monitorList) {
       console.log(`Executing check for monitor ID: ${monitor.id}`);
 
-      let newStatus = "UNKNOWN";
+      let newStatus = HttpStatusCode.UNKNOWN.toString();
 
       switch (monitor.type) {
         case MonitorTypeEnum.GET:
@@ -99,9 +99,11 @@ export class CronService {
               newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
             } else if (parseFloat(response.packetLoss) == 100) {
               newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString()
+            } else if (response.output.includes("Name or service not known")) {
+              newStatus = HttpStatusCode.NOT_FOUND.toString()
             }
           } catch (error) {
-            newStatus = "0";
+            newStatus = HttpStatusCode.UNKNOWN.toString();
           }
           break;
         default:
@@ -200,7 +202,10 @@ export class CronService {
                 await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer);
                 break;
               case ChatPlatformEnum.GOOGLE_CHAT:
-                await this.integrationService.sendGoogleChatWebhook(integration.address, "", description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`), footer);
+                if (monitor.address.startsWith("http")) {
+                  description = description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`);
+                }
+                await this.integrationService.sendGoogleChatWebhook(integration.address, "", description, footer);
                 break;
               case ChatPlatformEnum.SLACK:
                 await this.integrationService.sendSlackWebhook(integration.address, "", description, footer);
