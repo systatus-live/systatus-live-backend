@@ -18,8 +18,8 @@ export class IncidentController {
   ) { }
 
   @Get("/")
-  async getIncidentList(@Request() request: Request, @Query("page") page: number, @Query("search") search: string) {
-    if (page == null || isNaN(page) || page < 0) {
+  async getIncidentList(@Request() request: Request, @Query("page") page: string, @Query("search") search: string) {
+    if (page == null || isNaN(parseInt(page)) || parseInt(page) < 0) {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
 
@@ -49,7 +49,7 @@ export class IncidentController {
         where "createdUserId" = '${request["loggedUser"]}'
         ${search ? `and lower(trim(unaccent(mon.name))) like '%${search}%'` : ""}
         order by inc."endedAt" desc
-        limit ${this.querySize} offset ${this.querySize * page}
+        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
@@ -71,7 +71,10 @@ export class IncidentController {
 
     return {
       data: results[0],
-      total: results[1][0].total
+      pagination: {
+        rows: this.querySize,
+        total: parseInt(results[1][0].total)
+      }
     }
   }
 }

@@ -13,3 +13,9 @@ export enum ChatPlatformLabelEnum {
   EMAIL = "E-mail",
   WHATSAPP = "WhatsApp",
 }
+
+export enum ChatPlatformTypeEnum {
+  WEBHOOK = "WEBHOOK",
+  EMAIL = "EMAIL",
+  PHONE = "PHONE"
+}

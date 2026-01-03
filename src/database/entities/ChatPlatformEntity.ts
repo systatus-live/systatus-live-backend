@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { UserEntity } from './UserEntity';
-import { ChatPlatformEnum } from '../../enums/ChatPlatformEnum';
+import { ChatPlatformEnum, ChatPlatformTypeEnum } from '../../enums/ChatPlatformEnum';
 
 @Entity({ name: "chat_platforms" })
 export class ChatPlatformEntity {
@@ -18,6 +18,9 @@ export class ChatPlatformEntity {
 
   @Column({ type: "varchar", length: 1024, nullable: false })
   docUrl: string;
+
+  @Column({ type: "varchar", length: 255, nullable: false })
+  type: ChatPlatformTypeEnum;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "createdUserId", referencedColumnName: "id" })

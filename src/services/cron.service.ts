@@ -75,7 +75,9 @@ export class CronService {
               } else if (error.code == "ENOTFOUND") {
                 newStatus = HttpStatusCode.NOT_FOUND.toString();
               } else if (error.code == "ETIMEDOUT") {
-                newStatus == HttpStatusCode.GATEWAY_TIMEOUT.toString()
+                newStatus == HttpStatusCode.GATEWAY_TIMEOUT.toString();
+              } else if (error.code == "EPROTO") {
+                newStatus = HttpStatusCode.BAD_GATEWAY.toString();
               } else if (error.code) {
                 newStatus = error.code;
               }

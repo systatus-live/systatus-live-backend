@@ -31,7 +31,14 @@ export class ChatPlatformController {
 
     const results = await Promise.all([
       this.dataSource.query(`
-        select cpl.id, cpl.name, cpl.description, cpl."iconUrl", cpl."docUrl", cpl."createdAt", cpl."updatedAt"
+        select cpl.id
+          , cpl.name
+          , cpl.description
+          , cpl."iconUrl"
+          , cpl."docUrl"
+          , cpl."createdAt"
+          , cpl."updatedAt"
+          , cpl.type
         from chat_platforms cpl
         where 1 = 1
         ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
