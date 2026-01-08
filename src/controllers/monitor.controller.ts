@@ -34,7 +34,7 @@ export class MonitorController {
         type: body.type,
         address: body.address,
         active: body.active,
-        cron: "*/5 * * * *",
+        intervalId: body.intervalId,
         createdUserId: request["loggedUser"],
         updatedUserId: request["loggedUser"]
       });
@@ -110,7 +110,10 @@ export class MonitorController {
             )) 
             from dates dat
           ) as "historical"
+          , ite.name as interval
+          , ite.cron
         from monitors mon
+        join intervals ite on ite.id = mon."intervalId"
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
         order by 1 desc, mon.active desc, mon."createdAt" desc -- show first: offline, active and most recent
@@ -119,6 +122,7 @@ export class MonitorController {
       this.dataSource.query(`
         select count(1) as total
         from monitors mon
+        join intervals ite on ite.id = mon."intervalId"
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
       `),
@@ -174,7 +178,7 @@ export class MonitorController {
         createdUserId: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "type", "createdAt", "updatedAt"]
+      select: ["id", "name", "type", "intervalId", "createdAt", "updatedAt"]
     })
 
     if (!monitor) {
@@ -222,7 +226,8 @@ export class MonitorController {
         address: body.address,
         type: body.type,
         active: body.active,
-        updatedUserId: request["loggedUser"],
+        intervalId: body.intervalId,
+        updatedUserId: request["loggedUser"]
       });
 
       // Delete monitor x integrations removed by user

@@ -19,7 +19,9 @@ import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegratio
 import { StatisticsController } from '../controllers/statistics.controller';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { IncidentController } from '../controllers/incident.controller.ts';
-import { UserController } from 'src/controllers/user.controller';
+import { UserController } from '../controllers/user.controller';
+import { IntervalEntity } from 'src/database/entities/IntervalEntity';
+import { IntervalController } from 'src/controllers/interval.controller';
 
 const serviceList = [
   AuthService,
@@ -33,8 +35,8 @@ const serviceList = [
     JwtModule.register({
       global: true,
       secret: process.env.JWT_KEY,
-      signOptions: { 
-        expiresIn: "3d" 
+      signOptions: {
+        expiresIn: "3d"
       }
     }),
     TypeOrmModule.forFeature([
@@ -44,7 +46,8 @@ const serviceList = [
       MonitorIntegrationEntity,
       IncidentEntity,
       UserEntity,
-      ChatPlatformEntity
+      ChatPlatformEntity,
+      IntervalEntity
     ]),
   ],
   providers: [
@@ -57,7 +60,8 @@ const serviceList = [
     ChatPlatformController,
     StatisticsController,
     IncidentController,
-    UserController
+    UserController,
+    IntervalController
   ],
   exports: [
     TypeOrmModule,

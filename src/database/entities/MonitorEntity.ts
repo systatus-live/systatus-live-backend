@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { UserEntity } from './UserEntity';
+import { IntervalEntity } from './IntervalEntity';
 
 @Entity({ name: "monitors" })
 export class MonitorEntity {
@@ -18,8 +19,12 @@ export class MonitorEntity {
   @Column({ type: "boolean", nullable: false, default: true })
   active: boolean;
 
-  @Column({ type: "varchar", length: 20, nullable: false })    
-  cron: string
+  @ManyToOne(() => IntervalEntity)
+  @JoinColumn({ name: "intervalId", referencedColumnName: "id" })
+  interval: IntervalEntity;
+
+  @Column()
+  intervalId: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
   @JoinColumn({ name: "createdUserId", referencedColumnName: "id" })

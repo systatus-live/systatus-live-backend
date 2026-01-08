@@ -1,4 +1,4 @@
-import { ChatPlatformEnum, ChatPlatformTypeEnum } from "src/enums/ChatPlatformEnum";
+import { ChatPlatformEnum, ChatPlatformTypeEnum } from "../../enums/ChatPlatformEnum";
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AlterChatPlatform1767439924079 implements MigrationInterface {
