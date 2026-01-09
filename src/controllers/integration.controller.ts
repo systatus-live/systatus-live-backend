@@ -5,7 +5,7 @@ import removeAccents from '../utils/removeAccents';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
-import { ChatPlatformEnum } from '../enums/ChatPlatformEnum';
+import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
 import { MailService } from '../services/mail.service';
 import { readFileSync } from 'fs';
 import { UserEntity } from '../database/entities/UserEntity';

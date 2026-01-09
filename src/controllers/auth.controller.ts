@@ -2,12 +2,13 @@ import { Body, ConflictException, Controller, ForbiddenException, Get, InternalS
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { UserEntity } from '../database/entities/UserEntity';
-import { SigninTypeEnum } from '../enums/SigninTypeEnum';
+import { SignInTypeEnum } from '../types/SignInTypeEnum';
 import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
 import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
 import { AuthGuard } from '../guards/auth/auth.guard';
+import { SignInOptionsDTO } from 'src/types/SignInOptionsDTO';
 
 @Controller({
   version: "1",
@@ -128,19 +129,19 @@ export class AuthController {
   }
 
   @Post("/signin")
-  async signin(@Body() body) {
+  async signin(@Body() body: SignInOptionsDTO) {
     let findUser: UserEntity | null = null;
     let defaultMsg = "Senha incorreta ou usuário não existe.";
 
     switch (body.type) {
-      case SigninTypeEnum.EMAIL_PASSWORD:
+      case SignInTypeEnum.EMAIL_PASSWORD:
         findUser = await this.userRepository.findOne({
           where: {
             email: body.email
           }
         })
 
-        if (!findUser || !this.authService.bcryptCompareSync(findUser.password, body.password)) {
+        if (!findUser || !this.authService.bcryptCompareSync(findUser.password, body.password!)) {
           throw new UnauthorizedException(defaultMsg);
         }
 
@@ -159,18 +160,20 @@ export class AuthController {
         }
 
         break;
-      case SigninTypeEnum.GOOGLE:
+      case SignInTypeEnum.GOOGLE:
         try {
           const oAuth2Client = new OAuth2Client();
 
           const decodedGoogleToken = await oAuth2Client.verifyIdToken({
-            idToken: body.credential,
+            idToken: body.google?.credential!,
             audience: process.env.GOOGLE_CLIENT_ID
           });
 
+          const googleAccount = decodedGoogleToken.getPayload();
+
           findUser = await this.userRepository.findOne({
             where: {
-              email: decodedGoogleToken.getPayload()?.email!
+              email: googleAccount?.email!
             }
           })
 
@@ -188,7 +191,7 @@ export class AuthController {
             })
           }
         } catch (error) {
-          throw new UnauthorizedException(defaultMsg);
+          throw new UnauthorizedException(error.message);
         }
 
         break;
@@ -208,6 +211,7 @@ export class AuthController {
         name: findUser!.name,
         email: findUser!.email,
         verified: true,
+        avatar: findUser!.avatar
       }
     }
   }
@@ -295,6 +299,7 @@ export class AuthController {
         verified: findUser?.verified,
         createdAt: findUser?.createdAt,
         updatedAt: findUser?.updatedAt,
+        avatar: findUser?.avatar
       }
     }
   }
