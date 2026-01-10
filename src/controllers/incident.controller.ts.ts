@@ -77,4 +77,22 @@ export class IncidentController {
       }
     }
   }
+
+  @Get("/historical")
+    async getHistorical(@Request() request: Request) {
+      const monthIncidentList = await this.dataSource.query(`
+        with days as (
+          select generate_series(current_date - interval '30 days', current_date, interval '1 day')::date as day
+        )
+        select to_char(d.day, 'dd/mm') as date, count(mi.id) as total
+        from days d
+        left join incidents mi on (mi."createdAt"::timestamptz)::date = d.day and mi."monitorId" in (select t.id from monitors t where t."createdUserId" = '${request["loggedUser"]}')
+        group by d.day
+        order by d.day asc
+      `);
+  
+      return {
+        data: monthIncidentList,
+      }
+    }
 }

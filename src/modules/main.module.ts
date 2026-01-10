@@ -16,7 +16,6 @@ import { IntegrationService } from '../services/integration.service';
 import { ChatPlatformController } from '../controllers/chat-platform.controller';
 import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
-import { StatisticsController } from '../controllers/statistics.controller';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { IncidentController } from '../controllers/incident.controller.ts';
 import { UserController } from '../controllers/user.controller';
@@ -58,7 +57,6 @@ const serviceList = [
     IntegrationController,
     MonitorController,
     ChatPlatformController,
-    StatisticsController,
     IncidentController,
     UserController,
     IntervalController
