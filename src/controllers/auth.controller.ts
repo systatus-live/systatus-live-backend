@@ -10,6 +10,7 @@ import { OAuth2Client } from "google-auth-library";
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { SignInOptionsDTO } from 'src/types/SignInOptionsDTO';
 import axios from "axios";
+import { CaptchaReasonEnum } from 'src/types/CaptchaReasonEnum';
 
 @Controller({
   version: "1",
@@ -46,9 +47,11 @@ export class AuthController {
       }).catch(_ => {
         throw new ForbiddenException("Falha ao validar o reCAPTCHA. Contate o suporte.");
       })
-      
-      if (!data.tokenProperties.valid) {
-        throw new ForbiddenException("reCAPTCHA inválido. Tente novamente.");
+
+      if (data.tokenProperties.invalidReason != CaptchaReasonEnum.DUPE) {
+        if (!data.tokenProperties.valid) {
+          throw new ForbiddenException("reCAPTCHA inválido. Tente novamente.");
+        }
       }
     } catch (error) {
       throw new ForbiddenException(error.message);
@@ -79,7 +82,8 @@ export class AuthController {
         acceptedTerms: body.acceptTerms,
         discovery: body.discovery,
         verified: false,
-        verificationCode: verificationCode
+        verificationCode: verificationCode,
+        avatar: `https://ui-avatars.com/api?name=${body.name}&background=random&color=fff`
       });
 
       await queryRunner.manager.save(UserEntity, savedUser);
@@ -235,12 +239,7 @@ export class AuthController {
     return {
       message: "Autorizado",
       data: {
-        access_token: accessToken,
-        id: findUser!.id,
-        name: findUser!.name,
-        email: findUser!.email,
-        verified: true,
-        avatar: findUser!.avatar
+        access_token: accessToken
       }
     }
   }
@@ -258,7 +257,6 @@ export class AuthController {
       message: "Autorizado",
       data: {
         id: findUser?.id,
-        name: findUser?.name,
         email: findUser?.email,
         verified: findUser?.verified
       }

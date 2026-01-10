@@ -1,0 +1,27 @@
+services:
+  api:
+    container_name: systatus-live-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4000:3000"
+    environment:
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+      TYPEORM_ENTITIES: ${TYPEORM_ENTITIES}
+      TYPEORM_MIGRATIONS: ${TYPEORM_MIGRATIONS}
+      QUERY_SIZE: ${QUERY_SIZE}
+      JWT_KEY: ${JWT_KEY}
+      ENCRYPT_KEY: ${ENCRYPT_KEY}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_CAPTCHA_CLIENT_ID: ${GOOGLE_CAPTCHA_CLIENT_ID}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      RESEND_API_URL: ${RESEND_API_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      ENV: ${ENV}
+      WEB_URL: ${WEB_URL}
+    restart: unless-stopped
