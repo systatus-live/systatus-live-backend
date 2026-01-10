@@ -9,6 +9,7 @@ import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client } from "google-auth-library";
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { SignInOptionsDTO } from 'src/types/SignInOptionsDTO';
+import axios from "axios";
 
 @Controller({
   version: "1",
@@ -24,7 +25,35 @@ export class AuthController {
   ) { }
 
   @Post("/signup")
-  async signup(@Body() body: any) {
+  async signup(@Request() request: Request, @Body() body: any) {
+    const captcha = request.headers["captcha"];
+
+    if (!captcha) {
+      throw new ForbiddenException("reCAPTCHA não foi informado.");
+    }
+
+    try {
+      const { data } = await axios.post(`https://recaptchaenterprise.googleapis.com/v1/projects/systatus-live/assessments?key=${process.env.GOOGLE_API_KEY}`, {
+        event: {
+          token: captcha,
+          expectedAction: "login",
+          siteKey: process.env.GOOGLE_CAPTCHA_CLIENT_ID
+        }
+      }, {
+        headers: {
+          Referer: process.env.WEB_URL
+        }
+      }).catch(_ => {
+        throw new ForbiddenException("Falha ao validar o reCAPTCHA. Contate o suporte.");
+      })
+      
+      if (!data.tokenProperties.valid) {
+        throw new ForbiddenException("reCAPTCHA inválido. Tente novamente.");
+      }
+    } catch (error) {
+      throw new ForbiddenException(error.message);
+    }
+
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email
@@ -166,7 +195,7 @@ export class AuthController {
 
           const decodedGoogleToken = await oAuth2Client.verifyIdToken({
             idToken: body.google?.credential!,
-            audience: process.env.GOOGLE_CLIENT_ID
+            audience: process.env.GOOGLE_OAUTH_CLIENT_ID
           });
 
           const googleAccount = decodedGoogleToken.getPayload();
@@ -281,7 +310,7 @@ export class AuthController {
       throw new InternalServerErrorException("Falha ao atualizar a senha.");
     }
   }
-  
+
   @Get("/me")
   @UseGuards(AuthGuard)
   async me(@Request() request: Request) {

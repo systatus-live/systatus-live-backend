@@ -1,6 +1,4 @@
-import { BadRequestException, Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
+import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
 import removeAccents from '../utils/removeAccents';
 import { DataSource, Repository } from 'typeorm';
 import { AuthGuard } from '../guards/auth/auth.guard';
@@ -11,8 +9,6 @@ import { AuthGuard } from '../guards/auth/auth.guard';
 })
 @UseGuards(AuthGuard)
 export class ChatPlatformController {
-  @InjectRepository(ChatPlatformEntity) private chatPlatformRepository: Repository<ChatPlatformEntity>
-
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
   constructor(
@@ -20,7 +16,7 @@ export class ChatPlatformController {
   ) { }
 
   @Get("/")
-  async getChatPlatformList(@Request() request: Request, @Query("page") page: number, @Query("search") search: string) {
+  async getChatPlatformList(@Query("page") page: number, @Query("search") search: string) {
     if (page == null || isNaN(page) || page < 0) {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
