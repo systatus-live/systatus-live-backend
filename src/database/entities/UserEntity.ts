@@ -26,8 +26,8 @@ export class UserEntity {
   @Column({ type: "varchar", length: 6, nullable: true })
   verificationCode: string | null;
 
-  @Column({ type: "text", nullable: false })
-  avatar: string;
+  @Column({ type: "text", nullable: true })
+  avatar: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;

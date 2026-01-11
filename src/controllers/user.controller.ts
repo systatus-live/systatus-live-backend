@@ -1,5 +1,11 @@
-import { Body, ConflictException, Controller, ForbiddenException, InternalServerErrorException, Patch, Request, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, InternalServerErrorException, Patch, Request, UnprocessableEntityException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
+import { put, del } from '@vercel/blob';
+import { randomUUID } from 'crypto';
+import fs from "fs";
+import { diskStorage } from 'multer';
+import path, { extname } from "path";
 import { Not, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
@@ -9,6 +15,7 @@ import { AuthService } from '../services/auth.service';
   version: "1",
   path: "/users"
 })
+@UseGuards(AuthGuard)
 export class UserController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
 
@@ -16,10 +23,26 @@ export class UserController {
     private authService: AuthService
   ) { }
 
-
   @Patch("/details")
-  @UseGuards(AuthGuard)
-  async updateUserDetails(@Request() request: Request, @Body() body: any) {
+  @UseInterceptors(FileInterceptor("avatar", {
+    limits: {
+      fileSize: 1024 * 1024, // 1MB
+    },
+    fileFilter: (_, file, cb) => {
+      const acceptedFormats = [".jpg", ".jpeg", ".png"];
+      if (!acceptedFormats.includes(extname(file.originalname))) {
+        cb(new Error(`Formato inválido. Envie ${acceptedFormats.join(", ")}.`), false);
+      }
+      cb(null, true);
+    },
+    storage: diskStorage({
+      destination: path.join(process.cwd(), "tmp", "avatars"),
+      filename: (_, file, cb) => {
+        cb(null, `${randomUUID()}${extname(file.originalname)}`)
+      }
+    })
+  }))
+  async updateDetails(@Request() request: Request, @Body() body: any, @UploadedFile() avatarFile?: Express.Multer.File) {
     const findEmail = await this.userRepository.findOne({
       where: {
         id: Not(request["loggedUser"]),
@@ -31,14 +54,63 @@ export class UserController {
       throw new ConflictException("E-mail já está registrado e não pode ser usado.");
     }
 
+    const findUser = await this.userRepository.findOne({
+      where: {
+        id: request["loggedUser"]
+      }
+    })
+
+    let savedUser: Partial<UserEntity> = {
+      id: request["loggedUser"],
+      name: body.name,
+      email: body.email,
+      avatar: findUser?.avatar
+    }
+
+    if (avatarFile) {
+      try {
+        if (findUser?.avatar) {
+          await del(findUser!.avatar, {
+            token: process.env.VERCEL_BLOB_READ_WRITE_TOKEN
+          }).catch(_ => {
+            throw new Error("Não foi possível atualizar a imagem.");
+          });
+        }
+
+        const blob = await put(`/${process.env.ENV!.toLowerCase()}/users/${request["loggedUser"]}/avatar/${avatarFile.filename}`, fs.readFileSync(avatarFile.path), {
+          access: "public",
+          allowOverwrite: true,
+          token: process.env.VERCEL_BLOB_READ_WRITE_TOKEN,
+          addRandomSuffix: false
+        }).catch(_ => {
+          throw new Error("Não foi possível armazenar a imagem.");
+        })
+
+        savedUser.avatar = blob.url;
+      } catch (error) {
+        throw new UnprocessableEntityException(error.message);
+      } finally {
+        fs.unlinkSync(avatarFile.path);
+      }
+    } else if (body.rmAvatar == "1" && findUser?.avatar) {
+      await del(findUser!.avatar, {
+        token: process.env.VERCEL_BLOB_READ_WRITE_TOKEN
+      }).catch(_ => {
+        throw new InternalServerErrorException("Não foi possível excluir a imagem.");
+      });
+      savedUser.avatar = null;
+    }
+
     try {
-      await this.userRepository.update(request["loggedUser"], {
-        name: body.name,
-        email: body.email
-      })
+      await this.userRepository.save(savedUser);
 
       return {
-        message: "Usuário atualizado com sucesso."
+        message: "Usuário atualizado com sucesso.",
+        data: {
+          name: savedUser.name,
+          email: savedUser.email,
+          avatar: savedUser.avatar
+        }
       }
     } catch (error) {
       throw new InternalServerErrorException("Falha ao atualizar o usuário.");
@@ -46,8 +118,7 @@ export class UserController {
   }
 
   @Patch("/passwords")
-  @UseGuards(AuthGuard)
-  async resetPassword(@Request() request: Request, @Body() body: any) {
+  async updatePassword(@Request() request: Request, @Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         id: request["loggedUser"]
