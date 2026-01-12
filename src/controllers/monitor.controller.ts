@@ -1,12 +1,12 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
+import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
-import removeAccents from '../utils/removeAccents';
 import formatDate from '../utils/formatDate';
 import formatSince from '../utils/formatSince';
+import removeAccents from '../utils/removeAccents';
 
 @Controller({
   version: "1",

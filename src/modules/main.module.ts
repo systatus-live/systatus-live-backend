@@ -21,6 +21,7 @@ import { IncidentController } from '../controllers/incident.controller.ts';
 import { UserController } from '../controllers/user.controller';
 import { IntervalEntity } from 'src/database/entities/IntervalEntity';
 import { IntervalController } from 'src/controllers/interval.controller';
+import { AuthFlowEntity } from 'src/database/entities/AuthFlowEntity';
 
 const serviceList = [
   AuthService,
@@ -46,7 +47,8 @@ const serviceList = [
       IncidentEntity,
       UserEntity,
       ChatPlatformEntity,
-      IntervalEntity
+      IntervalEntity,
+      AuthFlowEntity
     ]),
   ],
   providers: [

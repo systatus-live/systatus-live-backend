@@ -1,15 +1,15 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Post, Put, Query, Request, UnprocessableEntityException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IntegrationService } from '../services/integration.service';
-import removeAccents from '../utils/removeAccents';
+import { readFileSync } from 'fs';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
-import { AuthGuard } from '../guards/auth/auth.guard';
-import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
-import { MailService } from '../services/mail.service';
-import { readFileSync } from 'fs';
 import { UserEntity } from '../database/entities/UserEntity';
+import { AuthGuard } from '../guards/auth/auth.guard';
+import { IntegrationService } from '../services/integration.service';
+import { MailService } from '../services/mail.service';
+import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
 import getCurrentDate from '../utils/getCurrenDate';
+import removeAccents from '../utils/removeAccents';
 
 @Controller({
   version: "1",

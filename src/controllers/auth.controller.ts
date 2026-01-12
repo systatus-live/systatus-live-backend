@@ -1,16 +1,17 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotImplementedException, Patch, Post, UnauthorizedException, UseGuards, Request } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import axios from "axios";
 import { readFileSync } from 'fs';
+import { OAuth2Client } from "google-auth-library";
+import { AuthFlowEntity } from 'src/database/entities/AuthFlowEntity';
+import { CaptchaReasonEnum } from 'src/types/CaptchaReasonEnum';
+import { SignInOptionsDTO } from 'src/types/SignInOptionsDTO';
+import { DataSource, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
-import { SignInTypeEnum } from '../types/SignInTypeEnum';
+import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
-import { DataSource, Repository } from 'typeorm';
-import { OAuth2Client } from "google-auth-library";
-import { AuthGuard } from '../guards/auth/auth.guard';
-import { SignInOptionsDTO } from 'src/types/SignInOptionsDTO';
-import axios from "axios";
-import { CaptchaReasonEnum } from 'src/types/CaptchaReasonEnum';
+import { SignInTypeEnum } from '../types/SignInTypeEnum';
 
 @Controller({
   version: "1",
@@ -18,6 +19,7 @@ import { CaptchaReasonEnum } from 'src/types/CaptchaReasonEnum';
 })
 export class AuthController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+  @InjectRepository(AuthFlowEntity) private authFlowRepository: Repository<AuthFlowEntity>
 
   constructor(
     private authService: AuthService,
@@ -77,17 +79,13 @@ export class AuthController {
       const savedUser = this.userRepository.create({
         name: body.name,
         email: body.email,
-        password: null,
+        password: body.password ? this.authService.bcryptHashSync(body.password) : null,
         acceptedTerms: body.acceptTerms,
         discovery: body.discovery,
         verified: false,
         verificationCode: verificationCode,
         avatar: null
       });
-
-      if (body.password) {
-        savedUser.password = this.authService.bcryptHashSync(body.password);
-      }
 
       await queryRunner.manager.save(UserEntity, savedUser);
 
@@ -221,12 +219,18 @@ export class AuthController {
           })
 
           if (!findUser) {
+            const authFlow = await this.authFlowRepository.save({
+              object: JSON.stringify({
+                name: googleAccount?.name,
+                email: googleAccount?.email,
+                signUpSignInFlow: true
+              })
+            })
             return {
-              message: "",
+              message: "Cadastro necessário.",
               data: {
                 signUpSignInFlow: true, // O "signUpSignInFlow" direcionará (web) o usuário para o signUp ao fazer o signIn com alguma rede social sem estar cadastrado
-                name: googleAccount?.name,
-                email: googleAccount?.email
+                authFlowId: authFlow.id
               }
             }
           }
@@ -337,5 +341,20 @@ export class AuthController {
         signinType: findUser?.password ? SignInTypeEnum.EMAIL_PASSWORD : SignInTypeEnum.SOCIAL
       }
     }
+  }
+
+  @Get("/flows/:id")
+  async getFlowId(@Param("id") flowId: string) {
+    const findAuthFlow = await this.authFlowRepository.findOne({
+      where: {
+        id: flowId
+      }
+    })
+
+    if (!findAuthFlow) {
+      throw new NotFoundException("Flow não encontrado.");
+    }
+
+    return JSON.parse(findAuthFlow.object);
   }
 }
