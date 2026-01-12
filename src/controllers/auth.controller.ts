@@ -73,18 +73,21 @@ export class AuthController {
 
     try {
       const verificationCode = Array.from({ length: 6 }, () => Math.floor(Math.random() * 9) + 1).join("");
-      const password = this.authService.bcryptHashSync(body.password);
 
       const savedUser = this.userRepository.create({
         name: body.name,
         email: body.email,
-        password: password,
+        password: null,
         acceptedTerms: body.acceptTerms,
         discovery: body.discovery,
         verified: false,
         verificationCode: verificationCode,
-        avatar: `https://ui-avatars.com/api?name=${body.name}&background=random&color=fff`
+        avatar: null
       });
+
+      if (body.password) {
+        savedUser.password = this.authService.bcryptHashSync(body.password);
+      }
 
       await queryRunner.manager.save(UserEntity, savedUser);
 
@@ -126,8 +129,15 @@ export class AuthController {
       verificationCode: null
     })
 
+    const accessToken = this.authService.generateJWT({
+      user: findUser.id
+    });
+
     return {
-      message: "Código validado com sucesso."
+      message: "Código validado com sucesso.",
+      data: {
+        access_token: accessToken
+      }
     }
   }
 
@@ -174,7 +184,7 @@ export class AuthController {
           }
         })
 
-        if (!findUser || !this.authService.bcryptCompareSync(findUser.password, body.password!)) {
+        if (!findUser || !findUser.password || !this.authService.bcryptCompareSync(findUser.password, body.password!)) {
           throw new UnauthorizedException(defaultMsg);
         }
 
@@ -211,17 +221,14 @@ export class AuthController {
           })
 
           if (!findUser) {
-            throw new UnauthorizedException(defaultMsg);
-          }
-
-          if (!findUser.verified) {
-            const userRepository = this.dataSource.getRepository(UserEntity);
-
-            findUser = await userRepository.save({
-              id: findUser.id,
-              verified: true,
-              verificationCode: null
-            })
+            return {
+              message: "",
+              data: {
+                signUpSignInFlow: true, // O "signUpSignInFlow" direcionará (web) o usuário para o signUp ao fazer o signIn com alguma rede social sem estar cadastrado
+                name: googleAccount?.name,
+                email: googleAccount?.email
+              }
+            }
           }
         } catch (error) {
           throw new UnauthorizedException(error.message);
@@ -326,7 +333,8 @@ export class AuthController {
         verified: findUser?.verified,
         createdAt: findUser?.createdAt,
         updatedAt: findUser?.updatedAt,
-        avatar: findUser?.avatar
+        avatar: findUser?.avatar,
+        signinType: findUser?.password ? SignInTypeEnum.EMAIL_PASSWORD : SignInTypeEnum.SOCIAL
       }
     }
   }

@@ -125,7 +125,7 @@ export class UserController {
       }
     })
 
-    if (!this.authService.bcryptCompareSync(findUser!.password!, body.currentPassword)) {
+    if (findUser?.password && !this.authService.bcryptCompareSync(findUser.password, body.currentPassword)) {
       throw new ForbiddenException("Senha atual está incorreta.");
     }
 

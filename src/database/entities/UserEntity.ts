@@ -11,8 +11,8 @@ export class UserEntity {
   @Column({ type: "varchar", unique: true, length: 1024, nullable: false })
   email: string;
 
-  @Column({ type: "text", nullable: false })
-  password: string;
+  @Column({ type: "text", nullable: true })
+  password: string | null;
 
   @Column({ type: "boolean", nullable: false, default: false })
   acceptedTerms: boolean;
