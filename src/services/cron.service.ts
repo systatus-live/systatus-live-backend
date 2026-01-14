@@ -10,13 +10,14 @@ import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
 import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../types/HttpStatusCode';
 import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
 import { IntegrationService } from './integration.service';
 import { MailService } from './mail.service';
 import ping from "ping";
+import { CronIntervalEnum } from 'src/types/CronIntervalEnum';
 
 @Injectable()
 export class CronService {
@@ -29,6 +30,7 @@ export class CronService {
     private schedulerRegistry: SchedulerRegistry,
     private integrationService: IntegrationService,
     private mailService: MailService,
+    private dataSource: DataSource
   ) { }
 
   public schedule(id: string, interval: string, callback: (params?: any) => void | Promise<void>) {
@@ -36,23 +38,59 @@ export class CronService {
     this.schedulerRegistry.addCronJob(id, job);
   }
 
-  @Cron("*/5 * * * *", {
-    name: "notifications",
-    timeZone: "America/Sao_Paulo",
+  @Cron(CronIntervalEnum.EVERY_5_MINUTES, {
+    name: `monitor-5-minutes`,
+    timeZone: "America/Sao_Paulo"
   })
-  async triggerNotifications() {
-    const monitorList = await this.monitorRepository.find({
-      order: {
-        createdAt: "ASC"
-      },
-      where: {
-        active: true
-      }
-    })
+  schedule5MinutesMonitor() {
+    this.checkMonitors(CronIntervalEnum.EVERY_5_MINUTES);
+  }
+
+  @Cron(CronIntervalEnum.EVERY_30_MINUTES, {
+    name: `monitor-30-minutes`,
+    timeZone: "America/Sao_Paulo"
+  })
+  schedule30MinutesMonitor() {
+    this.checkMonitors(CronIntervalEnum.EVERY_30_MINUTES);
+  }
+
+  @Cron(CronIntervalEnum.EVERY_1_HOUR, {
+    name: `monitor-1-hour`,
+    timeZone: "America/Sao_Paulo"
+  })
+  schedule1HourMonitor() {
+    this.checkMonitors(CronIntervalEnum.EVERY_1_HOUR);
+  }
+
+  @Cron(CronIntervalEnum.EVERY_12_HOURS, {
+    name: `monitor-12-hours`,
+    timeZone: "America/Sao_Paulo"
+  })
+  schedule12HoursMonitor() {
+    this.checkMonitors(CronIntervalEnum.EVERY_12_HOURS);
+  }
+
+  @Cron(CronIntervalEnum.EVERY_24_HOURS, {
+    name: `monitor-24-hours`,
+    timeZone: "America/Sao_Paulo"
+  })
+  schedule24HoursMonitor() {
+    this.checkMonitors(CronIntervalEnum.EVERY_24_HOURS);
+  }
+
+  private async checkMonitors(cron: CronIntervalEnum) {
+    const monitorList = await this.dataSource.query(`
+      select mon.*
+      from monitors mon
+      join intervals val on val.id = mon."intervalId"  
+      where mon.active = true
+      and val.cron = '${cron}'
+      order by mon."createdAt" asc
+    `);
+
+    console.log(`[Monitor] ${cron} started for ${monitorList.length} monitors.`);
 
     for await (let monitor of monitorList) {
-      console.log(`Executing check for monitor ID: ${monitor.id}`);
-
       let newStatus = HttpStatusCode.UNKNOWN.toString();
 
       switch (monitor.type) {
