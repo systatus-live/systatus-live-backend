@@ -125,6 +125,8 @@ export class IntegrationController {
         id: id
       },
       select: ["id", "name", "address", "chatPlatformId", "createdAt", "updatedAt"]
+    }).catch(_ => {
+      throw new NotFoundException("Integração não encontrada.");
     })
 
     if (!integration) {

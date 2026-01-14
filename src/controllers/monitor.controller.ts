@@ -54,7 +54,10 @@ export class MonitorController {
       await queryRunner.commitTransaction();
 
       return {
-        message: "Monitor criado com sucesso."
+        message: "Monitor criado com sucesso.",
+        data: {
+          id: newMonitor.id
+        }
       }
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -92,13 +95,6 @@ export class MonitorController {
             desc limit 1
           )), mon."createdAt") as "lastIncident"
           , mon.*
-          , (
-            select array_agg(json_build_object('id', t."integrationId", 'name', int.name, 'chatPlatform', cha.description, 'chatPlatformIconUrl', cha."iconUrl")) 
-            from monitor_integrations t 
-            join integrations int on int.id = t."integrationId"
-            join chat_platforms cha on cha.id = int."chatPlatformId" 
-            where mon.id = t."monitorId"
-          ) as "integrationList"
           , (
             with dates as (
               select generate_series(current_date - interval '29 days', current_date,	'1 day'::interval)::date AS date
@@ -178,12 +174,22 @@ export class MonitorController {
         createdUserId: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "type", "intervalId", "createdAt", "updatedAt"]
+      select: ["id", "name", "type", "intervalId", "address", "active", "createdAt", "updatedAt"]
+    }).catch(_ => {
+      throw new NotFoundException("Monitor não encontrado.");
     })
 
     if (!monitor) {
       throw new NotFoundException("Monitor não encontrado.");
     }
+
+    monitor["integrationList"] = await this.dataSource.query(`
+      select int.id, int.name, cha.description as "chatPlatform", cha."iconUrl" as "chatPlatformIconUrl"
+      from monitor_integrations min
+      join integrations int on int.id = min."integrationId"
+      join chat_platforms cha on cha.id = int."chatPlatformId" 
+      where min."monitorId" = '${monitor.id}'
+    `);
 
     return monitor
   }
