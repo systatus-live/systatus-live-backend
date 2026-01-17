@@ -19,9 +19,10 @@ import { MailService } from './mail.service';
 import ping from "ping";
 import { CronIntervalEnum } from 'src/types/CronIntervalEnum';
 
+
+
 @Injectable()
 export class CronService {
-  @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
   @InjectRepository(IncidentEntity) private monitorIncidentRepository: Repository<IncidentEntity>
@@ -91,15 +92,32 @@ export class CronService {
     console.log(`[Monitor] ${cron} started for ${monitorList.length} monitors.`);
 
     for await (let monitor of monitorList) {
-      let newStatus = HttpStatusCode.UNKNOWN.toString();
+      let newStatus: string = HttpStatusCode.UNKNOWN.toString();
+      let durationMs: number | null = null;
+
+      const axiosInstance = axios.create()
+
+      axiosInstance.interceptors.request.use((config) => {
+        config.headers["request-startTime"] = new Date().getTime();
+        return config;
+      })
+
+      axiosInstance.interceptors.response.use((response) => {
+        const currentTime = new Date().getTime()
+        const startTime = response.config.headers["request-startTime"];
+        response.headers["request-duration"] = currentTime - startTime;
+        return response;
+      })
 
       switch (monitor.type) {
         case MonitorTypeEnum.GET:
           try {
-            const response = await axios.get(monitor.address, {
+            const httpResponse = await axiosInstance.get(monitor.address, {
               timeout: 10000
             });
-            newStatus = response.status.toString();
+
+            newStatus = httpResponse.status.toString();
+            durationMs = httpResponse.headers["request-duration"];
           } catch (error) {
             if (axios.isAxiosError(error)) {
               if (error.response) {
@@ -116,6 +134,8 @@ export class CronService {
                 newStatus == HttpStatusCode.GATEWAY_TIMEOUT.toString();
               } else if (error.code == "EPROTO") {
                 newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+              } else if (error.code == "ERR_BAD_REQUEST") {
+                newStatus = HttpStatusCode.BAD_REQUEST.toString();
               } else if (error.code) {
                 newStatus = error.code;
               }
@@ -124,21 +144,29 @@ export class CronService {
             if (error.code == "ERR_INVALID_URL") {
               newStatus = HttpStatusCode.NOT_FOUND.toString();
             }
+
+            if (error.response) {
+              durationMs = error.response.headers["request-duration"];
+            }
           }
           break;
         case MonitorTypeEnum.PING:
           try {
-            const response = await ping.promise.probe(monitor.address, {
+            const pingResponse = await ping.promise.probe(monitor.address, {
               timeout: 10
             });
-            if (response.alive) {
+            if (pingResponse.alive) {
               newStatus = HttpStatusCode.OK.toString();
-            } else if (response.output.includes("Destination Host Unreachable")) {
+            } else if (pingResponse.output.includes("Destination Host Unreachable")) {
               newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-            } else if (parseFloat(response.packetLoss) == 100) {
+            } else if (parseFloat(pingResponse.packetLoss) == 100) {
               newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString()
-            } else if (response.output.includes("Name or service not known")) {
+            } else if (pingResponse.output.includes("Name or service not known")) {
               newStatus = HttpStatusCode.NOT_FOUND.toString()
+            }
+
+            if (pingResponse.time != "unknown") {
+              durationMs = pingResponse.time;
             }
           } catch (error) {
             newStatus = HttpStatusCode.UNKNOWN.toString();
@@ -196,7 +224,8 @@ export class CronService {
       await this.monitorHistoryRepository.save({
         monitorId: monitor.id,
         incidentId: monitorIncident?.id,
-        status: newStatus
+        status: newStatus,
+        duration: durationMs
       });
 
       if (notifyType) {

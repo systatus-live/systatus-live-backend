@@ -80,45 +80,37 @@ export class MonitorController {
     const results = await Promise.all([
       this.dataSource.query(`
         select 
-          (
-            select t.status 
-            from monitor_historical t 
-            where t."monitorId" = mon.id 
-            order by "createdAt" desc 
-            limit 1
-          ) as "lastStatus"
-          , coalesce(((
-            select coalesce(t."endedAt", t."createdAt") 
-            from incidents t  
-            where t."monitorId" = mon.id 
-            order by t."createdAt" 
-            desc limit 1
-          )), mon."createdAt") as "lastIncident"
-          , mon.*
+          mon.*
           , (
-            with dates as (
-              select generate_series(current_date - interval '29 days', current_date,	'1 day'::interval)::date AS date
-            )
-            select array_agg(json_build_object(
-              'date', dat.date
-              , 'totalOnline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status like '2%')
-              , 'totalOffline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status not like '2%')
-            )) 
+              with dates as (
+                select generate_series(current_date - interval '29 days', current_date,	'1 day'::interval)::date AS date
+              )
+              select array_agg(json_build_object(
+                'date', dat.date
+                , 'totalOnline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status like '2%')
+                , 'totalOffline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status not like '2%')
+              )
+            ) 
             from dates dat
           ) as "historical"
           , ite.name as interval
           , ite.cron
+          , his.status as "lastStatus"
+          , his.duration as "lastDuration"
+          , coalesce(((select coalesce(t."endedAt", t."createdAt") from incidents t  where t."monitorId" = mon.id order by t."createdAt" desc limit 1)), mon."createdAt") as "lastIncident"
         from monitors mon
         join intervals ite on ite.id = mon."intervalId"
+        left join monitor_historical his on his."monitorId" = mon.id and his."createdAt" = (select max(t."createdAt") from monitor_historical t where t."monitorId" = mon.id)
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
-        order by 1 desc, mon.active desc, mon."createdAt" desc -- show first: offline, active and most recent
+        order by mon.active desc, (case when status is null then 1 when status not like '2%%' then 0 else -1 end) desc, mon."createdAt" desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
         from monitors mon
         join intervals ite on ite.id = mon."intervalId"
+        left join monitor_historical his on his."monitorId" = mon.id and his."createdAt" = (select max(t."createdAt") from monitor_historical t where t."monitorId" = mon.id)
         where mon."createdUserId" = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
       `),
