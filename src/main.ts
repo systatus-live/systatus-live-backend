@@ -7,7 +7,10 @@ import { GlobalHttpExceptionFilter } from './http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  app.enableCors({
+    origin: process.env.WEB_URL as string,
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE"
+  });
   app.use(helmet());
   app.enableVersioning({
     type: VersioningType.URI
