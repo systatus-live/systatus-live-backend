@@ -40,9 +40,8 @@ export class AuthService {
   }
 
   public async authLog(userId: string, request: Request) {
-    const ip = request.headers["x-forwarded-for"];
-    console.log("Ip", ip);
-
+    const ip = request["clientIp"];
+    const userAgent = request.headers["x-user-agent"] || request.headers["user-agent"] || "Desconhecido";
     let locationJson: string | null = null;
 
     if (ip) {
@@ -60,15 +59,16 @@ export class AuthService {
             source: "Geoapify",
           })
         }
-      } catch (error) { 
+      } catch (error) {
         console.log(`[Auth log error]: ${error.message}`)
       }
     }
 
+
     await this.authSessionRepository.save({
       userId: userId,
-      ip: "ip",
-      userAgent: request.headers["user-agent"],
+      ip: ip,
+      userAgent: userAgent,
       locationJson: locationJson
     })
   }
