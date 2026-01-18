@@ -40,13 +40,15 @@ export class AuthService {
   }
 
   public async authLog(userId: string, request: Request) {
-    const ip = request["clientIp"];
+    const ip = request.headers["x-forwarded-for"];
+    console.log("Ip", ip);
+
     let locationJson: string | null = null;
 
     if (ip) {
       try {
         const { data } = await axios.get(`https://api.geoapify.com/v1/ipinfo?ip=${ip}&apiKey=${process.env.GEOAPIFY_API_KEY}`);
-        if (!data.isPrivate) {
+        if (data.city) {
           locationJson = JSON.stringify({
             city: data.city.name,
             continent: data.continent.names["pt-BR"],
@@ -65,7 +67,7 @@ export class AuthService {
 
     await this.authSessionRepository.save({
       userId: userId,
-      ip: ip,
+      ip: "ip",
       userAgent: request.headers["user-agent"],
       locationJson: locationJson
     })
