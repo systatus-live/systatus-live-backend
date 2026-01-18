@@ -1,16 +1,16 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, Ip, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from "axios";
 import { readFileSync } from 'fs';
 import { OAuth2Client } from "google-auth-library";
-import { AuthFlowEntity } from 'src/database/entities/AuthFlowEntity';
-import { CaptchaReasonEnum } from 'src/types/CaptchaReasonEnum';
-import { SignInOptionsDTO } from 'src/types/SignInOptionsDTO';
 import { DataSource, Repository } from 'typeorm';
+import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
+import { CaptchaReasonEnum } from '../types/CaptchaReasonEnum';
+import { SignInOptionsDTO } from '../types/SignInOptionsDTO';
 import { SignInTypeEnum } from '../types/SignInTypeEnum';
 
 @Controller({
@@ -170,7 +170,7 @@ export class AuthController {
   }
 
   @Post("/signin")
-  async signin(@Body() body: SignInOptionsDTO) {
+  async signin(@Request() request: Request, @Body() body: SignInOptionsDTO) {
     let findUser: UserEntity | null = null;
     let defaultMsg = "Senha incorreta ou usuário não existe.";
 
@@ -246,6 +246,8 @@ export class AuthController {
     const accessToken = this.authService.generateJWT({
       user: findUser!.id
     });
+
+    await this.authService.authLog(findUser.id, request).catch(error => console.log(`[Auth log error]: ${error.message}`));
 
     return {
       message: "Autorizado",

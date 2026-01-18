@@ -5,10 +5,10 @@ export class UserEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ type: "varchar", length: 1024, nullable: false })
+  @Column({ type: "varchar", length: 50, nullable: false })
   name: string;
 
-  @Column({ type: "varchar", unique: true, length: 1024, nullable: false })
+  @Column({ type: "varchar", unique: true, length: 255, nullable: false })
   email: string;
 
   @Column({ type: "text", nullable: true })

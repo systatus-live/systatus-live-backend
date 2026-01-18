@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, ForbiddenException, InternalServerErrorException, Patch, Request, UnprocessableEntityException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, Patch, Query, Request, UnprocessableEntityException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { del, put } from '@vercel/blob';
@@ -6,10 +6,11 @@ import { randomUUID } from 'crypto';
 import fs from "fs";
 import { diskStorage } from 'multer';
 import path, { extname } from "path";
-import { Not, Repository } from 'typeorm';
+import { DataSource, Not, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
+import { AuthHistoryEntity } from 'src/database/entities/AuthHistoryEntity';
 
 @Controller({
   version: "1",
@@ -18,9 +19,13 @@ import { AuthService } from '../services/auth.service';
 @UseGuards(AuthGuard)
 export class UserController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+  @InjectRepository(AuthHistoryEntity) private authSessionRepository: Repository<AuthHistoryEntity>
+
+  private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
   constructor(
-    private authService: AuthService
+    private authService: AuthService,
+    private dataSource: DataSource
   ) { }
 
   @Patch("/details")
@@ -139,6 +144,43 @@ export class UserController {
       }
     } catch (error) {
       throw new InternalServerErrorException("Falha ao atualizar a senha.");
+    }
+  }
+
+  @Get("/auth-history")
+  async getAuthHistory(@Request() request: Request, @Query("page") page: string) {
+    if (page == null || isNaN(parseInt(page)) || parseInt(page) < 0) {
+      throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
+    }
+
+    const results = await Promise.all([
+      this.dataSource.query(`
+        select his.*
+        from auth_historical his
+        where his."userId" = '${request["loggedUser"]}'
+        order by his."createdAt" desc  
+        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+      `),
+      this.dataSource.query(`
+        select count(1) as total
+        from auth_historical his
+        where his."userId" = '${request["loggedUser"]}'
+      `),
+    ]);
+
+    const list = results[0];
+    list.forEach(row => {
+      if (row.locationJson) {
+        row.locationJson = JSON.parse(row.locationJson);
+      }
+    })
+
+    return {
+      data: list,
+      pagination: {
+        rows: this.querySize,
+        total: parseInt(results[1][0].total)
+      }
     }
   }
 }
