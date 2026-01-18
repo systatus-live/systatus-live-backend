@@ -6,7 +6,7 @@ export class AuthHistoryEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(() => UserEntity)
+  @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId", referencedColumnName: "id" })
   interval: UserEntity;
 

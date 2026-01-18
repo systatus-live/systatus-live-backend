@@ -29,35 +29,9 @@ export class AuthController {
 
   @Post("/signup")
   async signup(@Request() request: Request, @Body() body: any) {
-    const captcha = request.headers["captcha"];
-
-    if (!captcha) {
-      throw new ForbiddenException("reCAPTCHA não foi informado.");
-    }
-
-    try {
-      const { data } = await axios.post(`https://recaptchaenterprise.googleapis.com/v1/projects/systatus-live/assessments?key=${process.env.GOOGLE_API_KEY}`, {
-        event: {
-          token: captcha,
-          expectedAction: "login",
-          siteKey: process.env.GOOGLE_CAPTCHA_CLIENT_ID
-        }
-      }, {
-        headers: {
-          Referer: process.env.WEB_URL
-        }
-      }).catch(_ => {
-        throw new ForbiddenException("Falha ao validar o reCAPTCHA. Contate o suporte.");
-      })
-
-      if (data.tokenProperties.invalidReason != CaptchaReasonEnum.DUPE) {
-        if (!data.tokenProperties.valid) {
-          throw new ForbiddenException("reCAPTCHA inválido. Tente novamente.");
-        }
-      }
-    } catch (error) {
+    await this.authService.verifyCaptcha(request.headers["captcha"]).catch(error => {
       throw new ForbiddenException(error.message);
-    }
+    })
 
     const findUser = await this.userRepository.findOne({
       where: {
@@ -176,6 +150,10 @@ export class AuthController {
 
     switch (body.type) {
       case SignInTypeEnum.EMAIL_PASSWORD:
+        await this.authService.verifyCaptcha(request.headers["captcha"]).catch(error => {
+          throw new ForbiddenException(error.message);
+        })
+
         findUser = await this.userRepository.findOne({
           where: {
             email: body.email
@@ -208,6 +186,8 @@ export class AuthController {
           const decodedGoogleToken = await oAuth2Client.verifyIdToken({
             idToken: body.google?.credential!,
             audience: process.env.GOOGLE_OAUTH_CLIENT_ID
+          }).catch(_ => {
+            throw new Error("Falha ao validar a conta. Contate o suporte.");
           });
 
           const googleAccount = decodedGoogleToken.getPayload();
