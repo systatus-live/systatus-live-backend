@@ -6,11 +6,12 @@ import { randomUUID } from 'crypto';
 import fs from "fs";
 import { diskStorage } from 'multer';
 import path, { extname } from "path";
-import { PlanService } from 'src/services/plan.service';
+import { PlanService } from '../services/plan.service';
 import { DataSource, Not, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
+import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 
 @Controller({
   version: "1",
@@ -19,6 +20,7 @@ import { AuthService } from '../services/auth.service';
 @UseGuards(AuthGuard)
 export class UserController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+  @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
@@ -186,14 +188,18 @@ export class UserController {
 
   @Get("/plans")
   @UseGuards(AuthGuard)
-  async getPlanById() {
-    const plan = await this.planService.getPlanById("407cd9ea-bba7-4c47-b6b3-d0f999c32d13");
+  async getPlanById(@Request() request: Request) {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: {
+        id: request["loggedSubscription"]
+      },
+      relations: ["plan"]
+    })
 
-    if (!plan) {
-      throw new NotFoundException("Plano não encontrado.");
-    }
+    const plan = await this.planService.getPlanById(subscription!.plan!.id);
 
     plan["nextBilling"] = "N/A";
+    plan.price = subscription!.price!;
 
     return plan;
   }

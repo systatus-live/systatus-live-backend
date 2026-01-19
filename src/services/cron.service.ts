@@ -4,20 +4,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import axios from "axios";
 import { CronJob } from 'cron';
 import { readFileSync } from 'fs';
-import { MonitorEntity } from '../database/entities/MonitorEntity';
-import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
-import { IncidentEntity } from '../database/entities/IncidentEntity';
-import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
-import formatSince from '../utils/formatSince';
-import getCurrentDate from '../utils/getCurrenDate';
+import ping from "ping";
 import { DataSource, Repository } from 'typeorm';
+import { IncidentEntity } from '../database/entities/IncidentEntity';
+import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
+import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
+import { CronIntervalEnum } from '../types/CronIntervalEnum';
 import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../types/HttpStatusCode';
 import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
+import formatSince from '../utils/formatSince';
+import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
 import { MailService } from './mail.service';
-import ping from "ping";
-import { CronIntervalEnum } from 'src/types/CronIntervalEnum';
 
 
 

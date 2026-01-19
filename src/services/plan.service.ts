@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { PlanEntity } from 'src/database/entities/PlanEntity';
+import { PlanEntity } from '../database/entities/PlanEntity';
+import { PlanEnum } from '../types/PlanEnum';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -33,22 +34,22 @@ export class PlanService {
     const publicList = planList.map((plan) => {
       const obj = {
         name: plan.name,
-        price: plan.price == 0 ? "Grátis" : `R$ ${plan.price}`,
-        period: plan.name == "Andorinha" ? "" : "/mês",
+        price: plan.price,
+        period: plan.name == PlanEnum.ANDORINHA ? "" : "/mês",
         description: plan.description,
         bta: "Assinar",
         btaLink: "/auth/signup",
         mostPopular: false,
         features: {
-          [`${["Coruja", "Águia"].includes(plan.name) ? "🆙 " : ""}${plan.monitorQty} monitores`]: true,
-          [`${["Coruja", "Águia"].includes(plan.name) ? "🆙 " : ""}Monitoramento a cada ${["Coruja", "Águia"].includes(plan.name) ? "60 segundos" : "5 minutos"}`]: true,
-          [`${["Águia"].includes(plan.name) ? "🆙 " : ""}Notificações no WhatsApp`]: plan.whatsapp,
+          [`${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}${plan.monitorQty} monitores`]: true,
+          [`${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}Monitoramento a cada ${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "60 segundos" : "5 minutos"}`]: true,
+          [`${[PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}Notificações no WhatsApp`]: plan.whatsapp,
           "Notificações no Slack": plan.slack,
           "Notificações no Google Chat": plan.googleChat,
           "Notificações no E-mail": plan.email,
           "Notificações no Discord": plan.discord,
-          [`${["Águia"].includes(plan.name) ? "🆙 " : ""}Mensagens personalizáveis`]: plan.customNotification,
-          [`${["Coruja", "Águia"].includes(plan.name) ? "🆙 " : ""}Página de status pública`]: plan.statusPage
+          [`${[PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}Mensagens personalizáveis`]: plan.customNotification,
+          [`${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}Página de status pública`]: plan.statusPage
         },
         image: plan.image
       }

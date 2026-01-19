@@ -1,3 +1,4 @@
+import { PlanEnum } from "../../types/PlanEnum";
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class Insert1768781733400 implements MigrationInterface {
@@ -21,7 +22,7 @@ export class Insert1768781733400 implements MigrationInterface {
       , email
       , discord
     ) values (
-      'Andorinha'
+      '${PlanEnum.ANDORINHA}'
       , 0
       , 'Comece a monitorar em minutos e sem cartão de crédito.'
       , 0
@@ -51,7 +52,7 @@ export class Insert1768781733400 implements MigrationInterface {
       , email
       , discord
     ) values (
-      'Coruja'
+      '${PlanEnum.CORUJA}' 
       , 1
       , 'Perfeito para expandir a cobertura de monitoramento.'
       , 89.90
@@ -81,7 +82,7 @@ export class Insert1768781733400 implements MigrationInterface {
       , email
       , discord
     ) values (
-      'Águia'
+      '${PlanEnum.AGUIA}' 
       , 2
       , 'Mais monitoramento, mensagens personalizadas e alertas no WhatsApp.'
       , 149.90

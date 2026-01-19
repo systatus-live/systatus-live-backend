@@ -24,7 +24,7 @@ export class MonitorHistoryEntity {
   @Column({ type: "varchar", length: 7, nullable: false })
   status: string;
 
-  @Column({ type: "decimal", nullable: true })
+  @Column({ type: "double precision", nullable: true })
   duration: number | null;
 
   @CreateDateColumn({ type: "timestamptz" })

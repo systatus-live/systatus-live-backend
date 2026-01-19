@@ -19,13 +19,14 @@ import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegratio
 import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { IncidentController } from '../controllers/incident.controller.ts';
 import { UserController } from '../controllers/user.controller';
-import { IntervalEntity } from 'src/database/entities/IntervalEntity';
-import { IntervalController } from 'src/controllers/interval.controller';
-import { AuthFlowEntity } from 'src/database/entities/AuthFlowEntity';
-import { AuthHistoryEntity } from 'src/database/entities/AuthHistoryEntity';
-import { PlanEntity } from 'src/database/entities/PlanEntity';
-import { PlanController } from 'src/controllers/plan.controller';
-import { PlanService } from 'src/services/plan.service';
+import { IntervalEntity } from '../database/entities/IntervalEntity';
+import { IntervalController } from '../controllers/interval.controller';
+import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
+import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
+import { PlanEntity } from '../database/entities/PlanEntity';
+import { PlanController } from '../controllers/plan.controller';
+import { PlanService } from '../services/plan.service';
+import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 
 const serviceList = [
   AuthService,
@@ -55,7 +56,8 @@ const serviceList = [
       IntervalEntity,
       AuthFlowEntity,
       AuthHistoryEntity,
-      PlanEntity
+      PlanEntity,
+      SubscriptionEntity
     ]),
   ],
   providers: [

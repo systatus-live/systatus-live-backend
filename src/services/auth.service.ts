@@ -4,8 +4,8 @@ import * as bcrypt from "bcrypt";
 import { Repository } from 'typeorm';
 import axios from "axios";
 import { InjectRepository } from '@nestjs/typeorm';
-import { AuthHistoryEntity } from 'src/database/entities/AuthHistoryEntity';
-import { CaptchaReasonEnum } from 'src/types/CaptchaReasonEnum';
+import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
+import { CaptchaReasonEnum } from '../types/CaptchaReasonEnum';
 
 @Injectable()
 export class AuthService {

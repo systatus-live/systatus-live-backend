@@ -14,7 +14,7 @@ export class PlanEntity {
   @Column({ type: "varchar", length: 500, nullable: false })
   description: string;
 
-  @Column({ type: "decimal", nullable: false })
+  @Column({ type: "double precision", nullable: false })
   price: number;
 
   @Column({ type: "varchar", length: 100, nullable: false })

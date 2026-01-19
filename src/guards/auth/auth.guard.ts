@@ -1,12 +1,14 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../services/auth.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from '../../database/entities/UserEntity';
 import { Repository } from 'typeorm';
+import { SubscriptionEntity } from '../../database/entities/SubscriptionEntity';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
+  @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>
 
   constructor(
     private authService: AuthService,
@@ -20,22 +22,40 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException("Não autorizado.");
     }
 
+    let jwtData: any = null;
+
     try {
-      const payload = await this.authService.verifyJWT(token);
-      request["loggedUser"] = payload.user;
+      jwtData = await this.authService.verifyJWT(token);
     } catch (error) {
       throw new UnauthorizedException("Não autorizado.");
     }
 
-    const findUser = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: {
         id: request["loggedUser"]
-      }
+      },
+      select: ["id"]
     })
 
-    if (!findUser) {
-      throw new UnauthorizedException("Não autorizado.");
+    if (!user) {
+      throw new UnauthorizedException("Usuário não encontrado ou não existe mais. Contate o suporte.");
     }
+
+    const subscription = await this.subscriptionRepository.findOne({
+      where: {
+        userId: user.id,
+        active: true
+      },
+      select: ["id", "planId"]
+    })
+
+    if (!subscription) {
+      throw new ForbiddenException("Assinatura não encontrada. Contate o suporte.")
+    }
+
+    request["loggedUser"] = jwtData.user;
+    request["loggedSubscription"] = subscription.id;
+    request["loggedPlan"] = subscription.planId;
 
     return true;
   }

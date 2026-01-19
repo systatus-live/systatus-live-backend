@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { PlanService } from 'src/services/plan.service';
+import { PlanService } from '../services/plan.service';
 
 @Controller({
   version: "1",

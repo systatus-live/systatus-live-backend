@@ -1,15 +1,17 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, Ip, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import axios from "axios";
 import { readFileSync } from 'fs';
 import { OAuth2Client } from "google-auth-library";
+import { PlanEntity } from '../database/entities/PlanEntity';
+import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
+import { PlanEnum } from '../types/PlanEnum';
+import { PlanPeriodEnum } from '../types/PlanPeriodEnum';
 import { DataSource, Repository } from 'typeorm';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
-import { CaptchaReasonEnum } from '../types/CaptchaReasonEnum';
 import { SignInOptionsDTO } from '../types/SignInOptionsDTO';
 import { SignInTypeEnum } from '../types/SignInTypeEnum';
 
@@ -20,6 +22,8 @@ import { SignInTypeEnum } from '../types/SignInTypeEnum';
 export class AuthController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
   @InjectRepository(AuthFlowEntity) private authFlowRepository: Repository<AuthFlowEntity>
+  @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>
+  @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>
 
   constructor(
     private authService: AuthService,
@@ -60,8 +64,24 @@ export class AuthController {
         verificationCode: verificationCode,
         avatar: null
       });
-
       await queryRunner.manager.save(UserEntity, savedUser);
+
+      const plan = await this.planRepository.findOne({
+        where: {
+          name: PlanEnum.ANDORINHA
+        }
+      })
+      if (!plan) {
+        throw new NotFoundException("Plano não encontrado. Contate o suporte.");
+      }
+
+      await queryRunner.manager.save(SubscriptionEntity, this.subscriptionRepository.create({
+        userId: savedUser.id,
+        planId: plan.id,
+        price: plan.price,
+        period: PlanPeriodEnum.MONTH,
+        active: true
+      }));
 
       const emailBody = readFileSync(`${__dirname}/../assets/mail/NewUserEmail.html`, "utf-8")
         .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])
