@@ -23,12 +23,16 @@ import { IntervalEntity } from 'src/database/entities/IntervalEntity';
 import { IntervalController } from 'src/controllers/interval.controller';
 import { AuthFlowEntity } from 'src/database/entities/AuthFlowEntity';
 import { AuthHistoryEntity } from 'src/database/entities/AuthHistoryEntity';
+import { PlanEntity } from 'src/database/entities/PlanEntity';
+import { PlanController } from 'src/controllers/plan.controller';
+import { PlanService } from 'src/services/plan.service';
 
 const serviceList = [
   AuthService,
   MailService,
   CronService,
-  IntegrationService
+  IntegrationService,
+  PlanService
 ]
 
 @Module({
@@ -50,7 +54,8 @@ const serviceList = [
       ChatPlatformEntity,
       IntervalEntity,
       AuthFlowEntity,
-      AuthHistoryEntity
+      AuthHistoryEntity,
+      PlanEntity
     ]),
   ],
   providers: [
@@ -63,7 +68,8 @@ const serviceList = [
     ChatPlatformController,
     IncidentController,
     UserController,
-    IntervalController
+    IntervalController,
+    PlanController
   ],
   exports: [
     TypeOrmModule,

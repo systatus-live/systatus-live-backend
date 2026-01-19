@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, Patch, Query, Request, UnprocessableEntityException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, Param, Patch, Query, Request, UnprocessableEntityException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { del, put } from '@vercel/blob';
@@ -6,11 +6,11 @@ import { randomUUID } from 'crypto';
 import fs from "fs";
 import { diskStorage } from 'multer';
 import path, { extname } from "path";
+import { PlanService } from 'src/services/plan.service';
 import { DataSource, Not, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
-import { AuthHistoryEntity } from 'src/database/entities/AuthHistoryEntity';
 
 @Controller({
   version: "1",
@@ -19,13 +19,13 @@ import { AuthHistoryEntity } from 'src/database/entities/AuthHistoryEntity';
 @UseGuards(AuthGuard)
 export class UserController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
-  @InjectRepository(AuthHistoryEntity) private authSessionRepository: Repository<AuthHistoryEntity>
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
   constructor(
     private authService: AuthService,
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    private planService: PlanService
   ) { }
 
   @Patch("/details")
@@ -182,5 +182,19 @@ export class UserController {
         total: parseInt(results[1][0].total)
       }
     }
+  }
+
+  @Get("/plans")
+  @UseGuards(AuthGuard)
+  async getPlanById() {
+    const plan = await this.planService.getPlanById("407cd9ea-bba7-4c47-b6b3-d0f999c32d13");
+
+    if (!plan) {
+      throw new NotFoundException("Plano não encontrado.");
+    }
+
+    plan["nextBilling"] = "N/A";
+
+    return plan;
   }
 }
