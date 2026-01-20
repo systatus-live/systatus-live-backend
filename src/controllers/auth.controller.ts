@@ -102,7 +102,7 @@ export class AuthController {
   }
 
   @Patch("/codes")
-  async verifyCode(@Body() body: any) {
+  async verifyCode(@Request() request: Request, @Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         verified: false,
@@ -124,6 +124,8 @@ export class AuthController {
     const accessToken = this.authService.generateJWT({
       user: findUser.id
     });
+
+    await this.authService.authLog(findUser.id, request).catch(error => console.log(`[Auth log error]: ${error.message}`));
 
     return {
       message: "Código validado com sucesso.",
