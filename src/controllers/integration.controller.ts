@@ -10,6 +10,7 @@ import { MailService } from '../services/mail.service';
 import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
 import getCurrentDate from '../utils/getCurrenDate';
 import removeAccents from '../utils/removeAccents';
+import formatDate from 'src/utils/formatDate';
 
 @Controller({
   version: "1",
@@ -229,7 +230,7 @@ export class IntegrationController {
     try {
       const title = "Teste de Integração";
       const msg = `A integração '${integration.name}' está funcionando corretamente.`;
-      const footer = `Systatus.Live - ${getCurrentDate("DD/MM/YYYY HH:mm:ss")}`;
+      const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
 
       switch (integration.chatPlatform.name) {
         case ChatPlatformEnum.SLACK:

@@ -10,7 +10,6 @@ import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthService } from '../services/auth.service';
-import { CronService } from '../services/cron.service';
 import { MailService } from '../services/mail.service';
 import { IntegrationService } from '../services/integration.service';
 import { ChatPlatformController } from '../controllers/chat-platform.controller';
@@ -27,13 +26,21 @@ import { PlanEntity } from '../database/entities/PlanEntity';
 import { PlanController } from '../controllers/plan.controller';
 import { PlanService } from '../services/plan.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
+import { MonitorService } from 'src/services/monitor.service';
+import { SubscriptionService } from 'src/services/subscription.service';
+import { InvoiceEntity } from 'src/database/entities/InvoiceEntity';
+import { PaymentEntity } from 'src/database/entities/PaymentEntity';
+import { InvoiceController } from 'src/controllers/invoice.controller';
+import { PdfService } from 'src/services/pdf.service';
 
 const serviceList = [
   AuthService,
   MailService,
-  CronService,
+  MonitorService,
+  SubscriptionService,
   IntegrationService,
-  PlanService
+  PlanService,
+  PdfService
 ]
 
 @Module({
@@ -57,7 +64,9 @@ const serviceList = [
       AuthFlowEntity,
       AuthHistoryEntity,
       PlanEntity,
-      SubscriptionEntity
+      SubscriptionEntity,
+      InvoiceEntity,
+      PaymentEntity
     ]),
   ],
   providers: [
@@ -71,7 +80,8 @@ const serviceList = [
     IncidentController,
     UserController,
     IntervalController,
-    PlanController
+    PlanController,
+    InvoiceController
   ],
   exports: [
     TypeOrmModule,

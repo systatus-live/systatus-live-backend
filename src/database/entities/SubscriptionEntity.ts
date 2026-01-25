@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { UserEntity } from './UserEntity';
 import { PlanEntity } from './PlanEntity';
-import { PlanPeriodEnum } from '../../types/PlanPeriodEnum';
+import { UserEntity } from './UserEntity';
+import { SubscriptionStatusEnum } from '../../types/SubscriptionStatusEnum';
 
 @Entity({ name: "subscriptions" })
 export class SubscriptionEntity {
@@ -22,14 +22,14 @@ export class SubscriptionEntity {
   @Column()
   planId: string;
 
-  @Column({ type: "double precision", nullable: false })
-  price: number;
+  @Column({ type: "timestamptz", nullable: false })
+  startDate: string;
 
-  @Column({ type: "varchar", length: 10, nullable: false })
-  period: PlanPeriodEnum;
+  @Column({ type: "timestamptz", nullable: false })
+  endDate: string;
 
-  @Column({ type: "boolean", nullable: false, default: true })
-  active: boolean;
+  @Column({ type: "enum", enum: SubscriptionStatusEnum, nullable: false })
+  status: SubscriptionStatusEnum;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;

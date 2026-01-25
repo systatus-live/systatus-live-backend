@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Cron, SchedulerRegistry } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from "axios";
-import { CronJob } from 'cron';
 import { readFileSync } from 'fs';
 import ping from "ping";
 import { DataSource, Repository } from 'typeorm';
@@ -17,26 +16,19 @@ import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
 import { MailService } from './mail.service';
-
-
+import formatDate from 'src/utils/formatDate';
 
 @Injectable()
-export class CronService {
+export class MonitorService {
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
   @InjectRepository(IncidentEntity) private monitorIncidentRepository: Repository<IncidentEntity>
 
   constructor(
-    private schedulerRegistry: SchedulerRegistry,
     private integrationService: IntegrationService,
     private mailService: MailService,
     private dataSource: DataSource
   ) { }
-
-  public schedule(id: string, interval: string, callback: (params?: any) => void | Promise<void>) {
-    const job = new CronJob(interval, callback);
-    this.schedulerRegistry.addCronJob(id, job);
-  }
 
   @Cron(CronIntervalEnum.EVERY_5_MINUTES, {
     name: `monitor-5-minutes`,
@@ -214,7 +206,7 @@ export class CronService {
         }
 
         if (!incidentIsActive) {
-          payload.endedAt = getCurrentDate("YYYY-MM-DD HH:mm:ssZZ");
+          payload.endedAt = formatDate(getCurrentDate(), "YYYY-MM-DD HH:mm:ssZZ");
         }
 
         monitorIncident = await this.monitorIncidentRepository.save(payload);
@@ -260,7 +252,7 @@ export class CronService {
             }
           }
 
-          const footer = `Systatus.Live - ${getCurrentDate("DD/MM/YYYY HH:mm:ss")}`;
+          const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
 
           try {
             switch (integration.chatPlatform.name) {

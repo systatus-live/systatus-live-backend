@@ -5,7 +5,6 @@ import { OAuth2Client } from "google-auth-library";
 import { PlanEntity } from '../database/entities/PlanEntity';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import { PlanEnum } from '../types/PlanEnum';
-import { PlanPeriodEnum } from '../types/PlanPeriodEnum';
 import { DataSource, Repository } from 'typeorm';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { UserEntity } from '../database/entities/UserEntity';
@@ -14,6 +13,8 @@ import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
 import { SignInOptionsDTO } from '../types/SignInOptionsDTO';
 import { SignInTypeEnum } from '../types/SignInTypeEnum';
+import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
+import { SubscriptionService } from 'src/services/subscription.service';
 
 @Controller({
   version: "1",
@@ -28,7 +29,8 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private dataSource: DataSource,
-    private mailService: MailService
+    private mailService: MailService,
+    private subscriptionService: SubscriptionService
   ) { }
 
   @Post("/signup")
@@ -71,17 +73,12 @@ export class AuthController {
           name: PlanEnum.ANDORINHA
         }
       })
+
       if (!plan) {
-        throw new NotFoundException("Plano não encontrado. Contate o suporte.");
+        throw new Error("Plano não encontrado. Contate o suporte.");
       }
 
-      await queryRunner.manager.save(SubscriptionEntity, this.subscriptionRepository.create({
-        userId: savedUser.id,
-        planId: plan.id,
-        price: plan.price,
-        period: PlanPeriodEnum.MONTH,
-        active: true
-      }));
+      await this.subscriptionService.createSubscription(queryRunner, savedUser.id, plan.id);
 
       const emailBody = readFileSync(`${__dirname}/../assets/mail/NewUserEmail.html`, "utf-8")
         .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])

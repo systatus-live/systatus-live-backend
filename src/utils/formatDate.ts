@@ -1,8 +1,14 @@
-import momentTz from "moment-timezone";
+import momentTz, { Moment } from "moment-timezone";
 
-export default function formatDate(date: string, outputFormat: string, inputFormat: string | null = null) {
-  if (inputFormat) {
-    return momentTz(date, inputFormat).format(outputFormat);
+export default function formatDate(date: Moment | string, outputFormat: string, inputFormat: string | null = null) {
+  momentTz.locale("pt-br");
+
+  let d = date;
+  if (typeof d == "string") {
+    d = momentTz(d).tz("America/Sao_Paulo");
   }
-  return momentTz(new Date(date), false).format(outputFormat);
+  if (inputFormat) {
+    return momentTz(d, inputFormat).tz("America/Sao_Paulo").format(outputFormat);
+  }
+  return momentTz(d, false).tz("America/Sao_Paulo").format(outputFormat);
 }

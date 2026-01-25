@@ -12,6 +12,8 @@ import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
+import formatDate from 'src/utils/formatDate';
+import momentTz from "moment-timezone";
 
 @Controller({
   version: "1",
@@ -186,7 +188,7 @@ export class UserController {
     }
   }
 
-  @Get("/plans")
+  @Get("/subscriptions")
   @UseGuards(AuthGuard)
   async getPlanById(@Request() request: Request) {
     const subscription = await this.subscriptionRepository.findOne({
@@ -198,8 +200,8 @@ export class UserController {
 
     const plan = await this.planService.getPlanById(subscription!.plan!.id);
 
-    plan["nextBilling"] = "N/A";
-    plan.price = subscription!.price!;
+    momentTz.locale("pt-br");
+    plan["nextBilling"] = formatDate(momentTz(subscription!.endDate!).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY");
 
     return plan;
   }

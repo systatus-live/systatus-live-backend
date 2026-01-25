@@ -75,28 +75,28 @@ export class AuthService {
   }
 
   async verifyCaptcha(captcha: string) {
-    // if (!captcha) {
-    //   throw new Error("reCAPTCHA não foi informado.");
-    // }
+    if (!captcha) {
+      throw new Error("reCAPTCHA não foi informado.");
+    }
 
-    // const { data } = await axios.post(`https://recaptchaenterprise.googleapis.com/v1/projects/systatus-live/assessments?key=${process.env.GOOGLE_API_KEY}`, {
-    //   event: {
-    //     token: captcha,
-    //     expectedAction: "login",
-    //     siteKey: process.env.GOOGLE_CAPTCHA_CLIENT_ID
-    //   }
-    // }, {
-    //   headers: {
-    //     Referer: process.env.WEB_URL
-    //   }
-    // }).catch(_ => {
-    //   throw new Error("Falha ao validar o reCAPTCHA. Contate o suporte.");
-    // })
+    const { data } = await axios.post(`https://recaptchaenterprise.googleapis.com/v1/projects/systatus-live/assessments?key=${process.env.GOOGLE_API_KEY}`, {
+      event: {
+        token: captcha,
+        expectedAction: "login",
+        siteKey: process.env.GOOGLE_CAPTCHA_CLIENT_ID
+      }
+    }, {
+      headers: {
+        Referer: process.env.WEB_URL
+      }
+    }).catch(_ => {
+      throw new Error("Falha ao validar o reCAPTCHA. Contate o suporte.");
+    })
 
-    // if (data.tokenProperties.invalidReason != CaptchaReasonEnum.DUPE) {
-    //   if (!data.tokenProperties.valid) {
-    //     throw new Error("reCAPTCHA inválido. Tente novamente.");
-    //   }
-    // }
+    if (data.tokenProperties.invalidReason != CaptchaReasonEnum.DUPE) {
+      if (!data.tokenProperties.valid) {
+        throw new Error("reCAPTCHA inválido. Tente novamente.");
+      }
+    }
   }
 }

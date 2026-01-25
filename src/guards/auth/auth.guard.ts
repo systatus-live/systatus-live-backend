@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from '../../database/entities/UserEntity';
 import { Repository } from 'typeorm';
 import { SubscriptionEntity } from '../../database/entities/SubscriptionEntity';
+import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -44,7 +45,7 @@ export class AuthGuard implements CanActivate {
     const subscription = await this.subscriptionRepository.findOne({
       where: {
         userId: user.id,
-        active: true
+        status: SubscriptionStatusEnum.ACTIVE
       },
       select: ["id", "planId"]
     })

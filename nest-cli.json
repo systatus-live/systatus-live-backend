@@ -9,6 +9,10 @@
         "include": "assets/mail/**/*",
         "outDir": "dist"
       },
+      {
+        "include": "assets/fonts/**/*",
+        "outDir": "dist"
+      },
       { 
         "include": "i18n/**/*", 
         "watchAssets": true,
