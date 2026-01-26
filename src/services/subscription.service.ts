@@ -19,7 +19,7 @@ export class SubscriptionService {
     private dataSource: DataSource
   ) { }
 
-  @Cron("0 1 * * *", {
+  @Cron("1 0 * * *", {
     name: "invoices-job",
     timeZone: "America/Sao_Paulo"
   })
@@ -49,7 +49,7 @@ export class SubscriptionService {
     }
   }
 
-  @Cron("0 2 * * *", {
+  @Cron("30 0 * * *", {
     name: "payments-job",
     timeZone: "America/Sao_Paulo"
   })
