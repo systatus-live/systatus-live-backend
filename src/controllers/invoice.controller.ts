@@ -7,6 +7,7 @@ import { InvoiceStatusEnum, InvoiceStatusLabelEnum } from "src/types/InvoiceStat
 import formatDate from "src/utils/formatDate";
 import { PaymentStatusEnum } from "src/types/PaymentStatusEnum";
 import axios from "axios";
+import { PlanEnum } from "src/types/PlanEnum";
 
 @Controller({
   version: "1",
@@ -73,7 +74,7 @@ export class InvoiceController {
       join subscriptions sub on sub.id = inv."subscriptionId"
       join plans pla on pla.id = sub."planId"
       join users usu on usu.id = sub."userId"
-      join payments pay on pay."invoiceId" = inv.id and pay.status = '${PaymentStatusEnum.PAID}'
+      left join payments pay on pay."invoiceId" = inv.id and pay.status = '${PaymentStatusEnum.PAID}'
       where sub."userId" = '${request["loggedUser"]}'
       and inv.id = '${id}'
     `);
@@ -84,8 +85,8 @@ export class InvoiceController {
 
     const invoice = {
       invoiceNumber: rootData.id,
-      issueDate: rootData.issueDate,
-      dueDate: rootData.dueDate,
+      issueDate: formatDate(rootData.issueDate, "D [de] MMMM [de] YYYY"),
+      dueDate: formatDate(rootData.dueDate, "D [de] MMMM [de] YYYY"),
       amount: rootData.amount,
       status: rootData.status,
       description: `Assinatura do plano "${rootData.plan}"`,
@@ -97,9 +98,9 @@ export class InvoiceController {
       customerZipCode: "-",
       customerCountry: "-",
       customerTaxId: "-",
-      paymentMethod: "Gratuito",
-      paymentDate: rootData.paymentDate,
-      transactionId: rootData.paymentId
+      paymentMethod: rootData.plan == PlanEnum.ANDORINHA ? "Cortesia" : "-",
+      paymentDate: rootData.paymentDate == null ? "-" : formatDate(rootData.paymentDate, "DD/MM/YYYY HH:mm:ss"),
+      transactionId: rootData.paymentId || "-"
     };
 
     const statusColor = {
@@ -160,9 +161,9 @@ export class InvoiceController {
                     body: [
                       [
                         {
-                          text: InvoiceStatusLabelEnum[rootData.status],
+                          text: InvoiceStatusLabelEnum[invoice.status],
                           color: "#FFF",
-                          fillColor: statusColor[rootData.status],
+                          fillColor: statusColor[invoice.status],
                           bold: true,
                           alignment: "center",
                           margin: [8, 4]
@@ -188,9 +189,9 @@ export class InvoiceController {
               width: "50%",
               stack: [
                 { text: "Data Fatura", style: "label" },
-                { text: formatDate(invoice.issueDate, "D [de] MMMM [de] YYYY"), style: "value" },
+                { text: invoice.issueDate, style: "value" },
                 { text: "Data Vencimento", style: "label", margin: [0, 8, 0, 0] },
-                { text: formatDate(invoice.dueDate, "D [de] MMMM [de] YYYY"), style: "value" },
+                { text: invoice.dueDate, style: "value" },
               ]
             },
             {
@@ -267,11 +268,11 @@ export class InvoiceController {
               width: "50%",
               stack: [
                 { text: "Método", style: "label" },
-                { text: "Gratuito", style: "value" },
+                { text: invoice.paymentMethod, style: "value" },
                 { text: "Transação", style: "label", margin: [0, 8, 0, 0] },
-                { text: rootData.paymentId, style: "value" },
-                { text: "Data", style: "label", margin: [0, 8, 0, 0] },
-                { text: formatDate(rootData.paymentDate, "DD/MM/YYYY HH:mm:ss"), style: "value" },
+                { text: invoice.transactionId, style: "value" },
+                { text: "Data Pagamento", style: "label", margin: [0, 8, 0, 0] },
+                { text: invoice.paymentDate, style: "value" },
               ]
             },
           ]
@@ -341,7 +342,7 @@ export class InvoiceController {
     const pdf = await this.pdfService.generatePDF(dd);
     response.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename=systatuslive-fatura-${formatDate(rootData.dueDate, "DDMMYYYY")}.pdf`,
+      "Content-Disposition": `inline; filename=systatuslive-fatura-${formatDate(rootData.dueDate, "YYYY-DD-MM")}.pdf`,
       "Content-Length": pdf.length,
       "Access-Control-Expose-Headers": "Content-Disposition"
     });
