@@ -160,6 +160,7 @@ export class MonitorService {
               durationMs = pingResponse.time;
             }
           } catch (error) {
+            console.log(monitor.address, error.toString())
             newStatus = HttpStatusCode.UNKNOWN.toString();
           }
           break;
