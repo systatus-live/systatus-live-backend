@@ -83,32 +83,21 @@ export class MonitorService {
     console.log(`[Monitor] ${cron} started for ${monitorList.length} monitors.`);
 
     for await (let monitor of monitorList) {
+      console.log(`[Monitor] Checking ${monitor.name} (${monitor.id})`);
+
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
       let durationMs: number | null = null;
 
-      const axiosInstance = axios.create()
-
-      axiosInstance.interceptors.request.use((config) => {
-        config.headers["request-startTime"] = new Date().getTime();
-        return config;
-      })
-
-      axiosInstance.interceptors.response.use((response) => {
-        const currentTime = new Date().getTime()
-        const startTime = response.config.headers["request-startTime"];
-        response.headers["request-duration"] = currentTime - startTime;
-        return response;
-      })
+      const startTime = new Date().getTime();
 
       switch (monitor.type) {
         case MonitorTypeEnum.GET:
           try {
-            const httpResponse = await axiosInstance.get(monitor.address, {
+            const httpResponse = await axios.get(monitor.address, {
               timeout: 10000
             });
 
             newStatus = httpResponse.status.toString();
-            durationMs = httpResponse.headers["request-duration"];
           } catch (error) {
             if (axios.isAxiosError(error)) {
               if (error.response) {
@@ -135,10 +124,8 @@ export class MonitorService {
             if (error.code == "ERR_INVALID_URL") {
               newStatus = HttpStatusCode.NOT_FOUND.toString();
             }
-
-            if (error.response) {
-              durationMs = error.response.headers["request-duration"];
-            }
+          } finally {
+            durationMs = new Date().getTime() - startTime;
           }
           break;
         case MonitorTypeEnum.PING:
@@ -160,8 +147,9 @@ export class MonitorService {
               durationMs = pingResponse.time;
             }
           } catch (error) {
-            console.log(monitor.address, error.toString())
             newStatus = HttpStatusCode.UNKNOWN.toString();
+          } finally {
+            durationMs = new Date().getTime() - startTime;
           }
           break;
         default:
