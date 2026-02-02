@@ -130,7 +130,9 @@ export class SubscriptionService {
       amount: subscription.plan.price,
       issueDate: formatDate(currentDate, dateFormat),
       dueDate: formatDate(dueDate, dateFormat),
-      status: InvoiceStatusEnum.PENDING
+      status: InvoiceStatusEnum.PENDING,
+      subscriptionStartDate: subscription.startDate,
+      subscriptionEndDate: subscription.endDate
     });
 
     return invoice;

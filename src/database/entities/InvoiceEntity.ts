@@ -26,6 +26,12 @@ export class InvoiceEntity {
   @Column({ type: "enum", enum: InvoiceStatusEnum, nullable: false })
   status: InvoiceStatusEnum;
 
+  @Column({ type: "timestamptz", nullable: false })
+  subscriptionStartDate: string;
+
+  @Column({ type: "timestamptz", nullable: false })
+  subscriptionEndDate: string;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 

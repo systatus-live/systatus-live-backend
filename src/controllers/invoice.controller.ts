@@ -65,6 +65,8 @@ export class InvoiceController {
         , inv."dueDate"
         , inv.amount
         , inv.status
+        , inv."subscriptionStartDate"
+        , inv."subscriptionEndDate"
         , usu.name as user
         , usu.email
         , pla.name as plan
@@ -100,7 +102,8 @@ export class InvoiceController {
       customerTaxId: "-",
       paymentMethod: rootData.plan == PlanEnum.ANDORINHA ? "Cortesia" : "-",
       paymentDate: rootData.paymentDate == null ? "-" : formatDate(rootData.paymentDate, "DD/MM/YYYY HH:mm:ss"),
-      transactionId: rootData.paymentId || "-"
+      transactionId: rootData.paymentId || "-",
+      period: `${formatDate(rootData.subscriptionStartDate, "DD/MM/YYYY")} a ${formatDate(rootData.subscriptionEndDate, "DD/MM/YYYY")}`
     };
 
     const statusColor = {
@@ -218,16 +221,16 @@ export class InvoiceController {
 
         {
           table: {
-            widths: ["*", 30, 70],
+            widths: ["*", "*", 70],
             body: [
               [
-                { text: "Descrição", style: "tableHeader" },
-                { text: "Qtd.", style: "tableHeader", alignment: "right" },
+                { text: "Item", style: "tableHeader" },
+                { text: "Período Assinatura", style: "tableHeader", alignment: "right" },
                 { text: "Valor", style: "tableHeader", alignment: "right" }
               ],
               [
                 invoice.description,
-                { text: "1", alignment: "right" },
+                { text: invoice.period, alignment: "right" },
                 { text: `R$ ${invoice.amount.toFixed(2)}`, alignment: "right" }
               ]
             ]
