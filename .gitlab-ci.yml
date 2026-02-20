@@ -1,0 +1,14 @@
+stages:
+  - deploy-systatus-api
+
+deploy-systatus-api:
+  stage: deploy-systatus-api
+  tags:
+    - systatus-runner
+  script:
+    - docker compose build --no-cache
+    - docker compose down
+    - docker compose up -d
+    - docker image prune -f
+  only:
+    - master

@@ -86,7 +86,7 @@ export class UserController {
           });
         }
 
-        const blob = await put(`/${process.env.ENV!.toLowerCase()}/users/${request["loggedUser"]}/avatar/${avatarFile.filename}`, fs.readFileSync(avatarFile.path), {
+        const blob = await put(`/${process.env.NODE_ENV}/users/${request["loggedUser"]}/avatar/${avatarFile.filename}`, fs.readFileSync(avatarFile.path), {
           access: "public",
           allowOverwrite: true,
           token: process.env.VERCEL_BLOB_READ_WRITE_TOKEN,

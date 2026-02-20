@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:24.13.1-alpine AS base
 
 FROM base AS deps
 WORKDIR /app
@@ -26,6 +26,10 @@ ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY package.json ./
+
+RUN mkdir -p /app/tmp/avatars
+
+RUN chown -R node:node /app
 
 USER node
 

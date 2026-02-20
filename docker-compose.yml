@@ -1,11 +1,12 @@
 services:
   api:
+    image: systatus.live-api:latest
     container_name: systatus-live-api
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "4000:3000"
+      - "4003:3000"
     environment:
       DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_PORT: ${DATABASE_PORT}
@@ -23,6 +24,6 @@ services:
       RESEND_API_URL: ${RESEND_API_URL}
       RESEND_API_KEY: ${RESEND_API_KEY}
       VERCEL_BLOB_READ_WRITE_TOKEN: ${VERCEL_BLOB_READ_WRITE_TOKEN}
-      ENV: ${ENV}
+      NODE_ENV: ${NODE_ENV}
       WEB_URL: ${WEB_URL}
     restart: unless-stopped

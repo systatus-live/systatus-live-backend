@@ -19,7 +19,7 @@ export class AuthService {
     return this.jwtService.sign(data, {
       secret: process.env.JWT_KEY,
       expiresIn: expiresIn
-    })
+    } as any);
   }
 
   public verifyJWT(jwt: string) {
