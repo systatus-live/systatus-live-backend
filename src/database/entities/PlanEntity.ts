@@ -44,6 +44,9 @@ export class PlanEntity {
   @Column({ type: "boolean", nullable: false })
   statusPage: boolean;
 
+  @Column({ type: "jsonb", nullable: false, default: "[]" })
+  displayFeatures: { label: string; included: boolean; }[];
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt: string;
 

@@ -4,6 +4,7 @@ import { DataSource, In, Not, Repository } from 'typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
+import { PlanService } from '../services/plan.service';
 import formatDate from '../utils/formatDate';
 import formatSince from '../utils/formatSince';
 import removeAccents from '../utils/removeAccents';
@@ -20,11 +21,14 @@ export class MonitorController {
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
   constructor(
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    private planService: PlanService
   ) { }
 
   @Post("/")
   async createMonitor(@Request() request: Request, @Body() body: any) {
+    await this.planService.assertMonitorLimit(request["loggedPlan"], request["loggedUser"]);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 

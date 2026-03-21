@@ -7,6 +7,7 @@ import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { IntegrationService } from '../services/integration.service';
 import { MailService } from '../services/mail.service';
+import { PlanService } from '../services/plan.service';
 import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
 import getCurrentDate from '../utils/getCurrenDate';
 import removeAccents from '../utils/removeAccents';
@@ -26,7 +27,8 @@ export class IntegrationController {
   constructor(
     private dataSource: DataSource,
     private integrationService: IntegrationService,
-    private mailService: MailService
+    private mailService: MailService,
+    private planService: PlanService
   ) { }
 
   @Post("/")
@@ -42,6 +44,8 @@ export class IntegrationController {
     if (integrationWithSameAddress) {
       throw new ConflictException(`Já existe a integração '${integrationWithSameAddress.name}' com este endereço`)
     }
+
+    await this.planService.assertIntegrationAllowed(request["loggedPlan"], body.chatPlatformId);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
