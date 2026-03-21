@@ -39,7 +39,7 @@ export class PlanService {
         description: plan.description,
         bta: "Assinar",
         btaLink: "/auth/signup",
-        mostPopular: false,
+        mostPopular: plan.name == PlanEnum.CORUJA,
         features: {
           [`${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}${plan.monitorQty} monitores`]: true,
           [`${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "🆙 " : ""}Monitoramento a cada ${[PlanEnum.CORUJA, PlanEnum.AGUIA].includes(plan.name as PlanEnum) ? "60 segundos" : "5 minutos"}`]: true,

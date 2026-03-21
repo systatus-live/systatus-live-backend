@@ -1,20 +1,19 @@
 import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { OAuth2Client } from "google-auth-library";
-import { PlanEntity } from '../database/entities/PlanEntity';
-import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
-import { PlanEnum } from '../types/PlanEnum';
+import { SubscriptionService } from 'src/services/subscription.service';
 import { DataSource, Repository } from 'typeorm';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
+import { PlanEntity } from '../database/entities/PlanEntity';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
+import { PlanEnum } from '../types/PlanEnum';
 import { SignInOptionsDTO } from '../types/SignInOptionsDTO';
 import { SignInTypeEnum } from '../types/SignInTypeEnum';
-import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
-import { SubscriptionService } from 'src/services/subscription.service';
 
 @Controller({
   version: "1",
@@ -24,7 +23,6 @@ export class AuthController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
   @InjectRepository(AuthFlowEntity) private authFlowRepository: Repository<AuthFlowEntity>
   @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>
-  @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>
 
   constructor(
     private authService: AuthService,
@@ -34,6 +32,7 @@ export class AuthController {
   ) { }
 
   @Post("/signup")
+  @Throttle({})
   async signup(@Request() request: Request, @Body() body: any) {
     await this.authService.verifyCaptcha(request.headers["captcha"]).catch(error => {
       throw new ForbiddenException(error.message);
@@ -99,6 +98,7 @@ export class AuthController {
   }
 
   @Patch("/codes")
+  @Throttle({})
   async verifyCode(@Request() request: Request, @Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -133,6 +133,7 @@ export class AuthController {
   }
 
   @Post("/codes")
+  @Throttle({})
   async sendCode(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -163,6 +164,7 @@ export class AuthController {
   }
 
   @Post("/signin")
+  @Throttle({})
   async signin(@Request() request: Request, @Body() body: SignInOptionsDTO) {
     let findUser: UserEntity | null = null;
     let defaultMsg = "Senha incorreta ou usuário não existe.";
@@ -258,6 +260,7 @@ export class AuthController {
 
   @Get("/verify")
   @UseGuards(AuthGuard)
+  @Throttle({})
   async verifyToken(@Request() request: Request) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -276,6 +279,7 @@ export class AuthController {
   }
 
   @Post("/forgot-passwords")
+  @Throttle({})
   async forgetPassword(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -307,6 +311,7 @@ export class AuthController {
 
   @Patch("/reset-passwords")
   @UseGuards(AuthGuard)
+  @Throttle({})
   async resetPassword(@Request() request: Request, @Body() body: any) {
     try {
       await this.userRepository.update(request["loggedUser"], {
@@ -323,6 +328,7 @@ export class AuthController {
 
   @Get("/me")
   @UseGuards(AuthGuard)
+  @Throttle({})
   async me(@Request() request: Request) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -345,6 +351,7 @@ export class AuthController {
   }
 
   @Get("/flows/:id")
+  @Throttle({})
   async getFlowId(@Param("id") flowId: string) {
     const findAuthFlow = await this.authFlowRepository.findOne({
       where: {

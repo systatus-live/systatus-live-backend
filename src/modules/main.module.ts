@@ -32,8 +32,10 @@ import { InvoiceEntity } from 'src/database/entities/InvoiceEntity';
 import { PaymentEntity } from 'src/database/entities/PaymentEntity';
 import { InvoiceController } from 'src/controllers/invoice.controller';
 import { PdfService } from 'src/services/pdf.service';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
-const serviceList = [
+const providerList = [
   AuthService,
   MailService,
   MonitorService,
@@ -70,7 +72,11 @@ const serviceList = [
     ]),
   ],
   providers: [
-    ...serviceList
+    ...providerList,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
   controllers: [
     AuthController,
@@ -85,7 +91,7 @@ const serviceList = [
   ],
   exports: [
     TypeOrmModule,
-    ...serviceList
+    ...providerList
   ],
 })
 export class MainModule { }
