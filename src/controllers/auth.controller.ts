@@ -260,7 +260,6 @@ export class AuthController {
 
   @Get("/verify")
   @UseGuards(AuthGuard)
-  @Throttle({})
   async verifyToken(@Request() request: Request) {
     const findUser = await this.userRepository.findOne({
       where: {
@@ -328,7 +327,6 @@ export class AuthController {
 
   @Get("/me")
   @UseGuards(AuthGuard)
-  @Throttle({})
   async me(@Request() request: Request) {
     const findUser = await this.userRepository.findOne({
       where: {
