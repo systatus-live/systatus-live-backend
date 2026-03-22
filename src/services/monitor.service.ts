@@ -246,7 +246,7 @@ export class MonitorService {
           try {
             switch (integration.chatPlatform.name) {
               case ChatPlatformEnum.DISCORD:
-                await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer);
+                await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
                 break;
               case ChatPlatformEnum.GOOGLE_CHAT:
                 if (monitor.address.startsWith("http")) {
@@ -255,7 +255,7 @@ export class MonitorService {
                 await this.integrationService.sendGoogleChatWebhook(integration.address, "", description, footer);
                 break;
               case ChatPlatformEnum.SLACK:
-                await this.integrationService.sendSlackWebhook(integration.address, "", description, footer);
+                await this.integrationService.sendSlackWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
                 break;
               case ChatPlatformEnum.EMAIL:
                 const emailBody = readFileSync(`${__dirname}/../assets/mail/Monitor.html`, "utf-8").replace(/{{MESSAGE}}/g, description).replace("🟢 ", "").replace("🔴 ", "");

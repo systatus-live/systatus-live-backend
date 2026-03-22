@@ -238,13 +238,13 @@ export class IntegrationController {
 
       switch (integration.chatPlatform.name) {
         case ChatPlatformEnum.SLACK:
-          await this.integrationService.sendSlackWebhook(integration.address, title, msg, footer);
+          await this.integrationService.sendSlackWebhook(integration.address, title, msg, footer, "#999999");
           break;
         case ChatPlatformEnum.GOOGLE_CHAT:
           await this.integrationService.sendGoogleChatWebhook(integration.address, title, msg, footer);
           break;
         case ChatPlatformEnum.DISCORD:
-          await this.integrationService.sendDiscordWebhook(integration.address, title, msg, footer);
+          await this.integrationService.sendDiscordWebhook(integration.address, title, msg, footer, "#999999");
           break;
         case ChatPlatformEnum.EMAIL:
           const loggedUser = await this.userRepository.findOne({

@@ -5,11 +5,11 @@ import axios from "axios";
 export class IntegrationService {
   private systatusAvatarUrl: string = "https://systatus.live/logos/systatus-live.png";
 
-  public async sendSlackWebhook(url: string, title: string, description: string, footer: string) {
+  public async sendSlackWebhook(url: string, title: string, description: string, footer: string, border: string) {
     const template = {
       attachments: [
         {
-          color: "#113355",
+          color: border,
           title: title,
           text: description,
           footer: footer,
@@ -26,14 +26,14 @@ export class IntegrationService {
     }
   }
 
-  public async sendDiscordWebhook(url: string, title: string, description: string, footer: string) {
+  public async sendDiscordWebhook(url: string, title: string, description: string, footer: string, border: string) {
     const template = {
       content: null,
       embeds: [
         {
           title: title,
           description: description,
-          color: 1127509,
+          color: parseInt(border.replace(/^#/, ""), 16),
           footer: {
             text: footer,
             icon_url: this.systatusAvatarUrl
@@ -49,7 +49,7 @@ export class IntegrationService {
       const { data } = await axios.post(url, template);
       return data;
     } catch (error) {
-      throw new Error(error.response.data.message);
+      throw new Error(error.response.statusText);
     }
   }
 
