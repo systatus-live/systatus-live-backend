@@ -47,7 +47,7 @@ export class AuthService {
 
     if (ip) {
       try {
-        const { data } = await axios.get(`https://api.geoapify.com/v1/ipinfo?ip=${ip}&apiKey=1${process.env.GEOAPIFY_API_KEY}`);
+        const { data } = await axios.get(`https://api.geoapify.com/v1/ipinfo?ip=${ip}&apiKey=${process.env.GEOAPIFY_API_KEY}`);
         if (data.city) {
           locationJson = JSON.stringify({
             city: data.city.name,

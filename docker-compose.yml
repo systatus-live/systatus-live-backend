@@ -26,4 +26,5 @@ services:
       VERCEL_BLOB_READ_WRITE_TOKEN: ${VERCEL_BLOB_READ_WRITE_TOKEN}
       NODE_ENV: ${NODE_ENV}
       WEB_URL: ${WEB_URL}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
     restart: unless-stopped
