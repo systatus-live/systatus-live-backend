@@ -35,14 +35,14 @@ export class IntegrationController {
   async createIntegration(@Request() request: Request, @Body() body: any) {
     const integrationWithSameAddress = await this.integrationRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         address: body.address
       },
       select: ["id", "name"]
     })
 
     if (integrationWithSameAddress) {
-      throw new ConflictException(`Já existe a integração '${integrationWithSameAddress.name}' com este endereço`)
+      throw new ConflictException(`Já existe a integração '${integrationWithSameAddress.name}' com este endereço.`)
     }
 
     await this.planService.assertIntegrationAllowed(request["loggedPlan"], body.chatPlatformId);
@@ -54,9 +54,9 @@ export class IntegrationController {
       const newIntegration = this.integrationRepository.create({
         address: body.address,
         name: body.name,
-        chatPlatformId: body.chatPlatformId,
-        createdUserId: request["loggedUser"],
-        updatedUserId: request["loggedUser"]
+        chat_platform_id: body.chatPlatformId,
+        created_user_id: request["loggedUser"],
+        updated_user_id: request["loggedUser"]
       });
 
       await queryRunner.manager.save(IntegrationEntity, newIntegration);
@@ -92,23 +92,23 @@ export class IntegrationController {
           itg.id
           , itg.name
           , itg.address
-          , itg."chatPlatformId"
+          , itg.chat_platform_id
           , cpl.description as "chatPlatform"
-          , cpl."iconUrl" as "chatPlatformIconUrl"
-          , itg."createdAt"
-          , itg."updatedAt"
+          , cpl.icon_url as "chatPlatformIconUrl"
+          , itg.created_at
+          , itg.updated_at
         from integrations itg
-        join chat_platforms cpl on cpl.id = itg."chatPlatformId"
-        where itg."createdUserId" = '${request["loggedUser"]}'
+        join chat_platforms cpl on cpl.id = itg.chat_platform_id
+        where itg.created_user_id = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.address))) like '%${search}%')` : ""}
-        order by itg."createdAt" desc  
+        order by itg.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
         from integrations itg
-        join chat_platforms cpl on cpl.id = itg."chatPlatformId"
-        where itg."createdUserId" = '${request["loggedUser"]}'
+        join chat_platforms cpl on cpl.id = itg.chat_platform_id
+        where itg.created_user_id = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.address))) like '%${search}%')` : ""}
       `),
     ]);
@@ -126,10 +126,10 @@ export class IntegrationController {
   async getIntegrationById(@Request() request: Request, @Param("id") id: string) {
     const integration = await this.integrationRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "address", "chatPlatformId", "createdAt", "updatedAt"]
+      select: ["id", "name", "address", "chat_platform_id", "created_at", "updated_at"]
     }).catch(_ => {
       throw new NotFoundException("Integração não encontrada.");
     })
@@ -145,7 +145,7 @@ export class IntegrationController {
   async updateIntegration(@Request() request: Request, @Body() body: any, @Param("id") id: string) {
     const integration = await this.integrationRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
       select: ["id"]
@@ -157,7 +157,7 @@ export class IntegrationController {
 
     const integrationWithSameAddress = await this.integrationRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         address: body.address,
         id: Not(integration.id)
       },
@@ -177,8 +177,8 @@ export class IntegrationController {
       }, {
         address: body.address,
         name: body.name,
-        chatPlatformId: body.chatPlatformId,
-        updatedUserId: request["loggedUser"]
+        chat_platform_id: body.chatPlatformId,
+        updated_user_id: request["loggedUser"]
       });
       await queryRunner.commitTransaction();
 
@@ -197,7 +197,7 @@ export class IntegrationController {
   async deleteIntegrationById(@Request() request: Request, @Param("id") id: string) {
     const integration = await this.integrationRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
       select: ["id"]
@@ -220,10 +220,10 @@ export class IntegrationController {
   async validateIntegration(@Request() request: Request, @Body("id") id: string) {
     const integration = await this.integrationRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "address", "chatPlatformId", "createdAt", "updatedAt"],
+      select: ["id", "name", "address", "chat_platform_id", "created_at", "updated_at"],
       relations: ["chatPlatform"]
     })
 

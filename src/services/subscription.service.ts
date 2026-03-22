@@ -25,9 +25,9 @@ export class SubscriptionService {
   })
   async invoiceJob() {
     const subscriptionList = await this.dataSource.query(`
-      select sub.id, (select t.status from invoices t where t."subscriptionId" = sub.id order by t."createdAt" desc limit 1) as "lastInvoiceStatus"
+      select sub.id, (select t.status from invoices t where t.subscription_id = sub.id order by t.created_at desc limit 1) as "lastInvoiceStatus"
       from subscriptions sub
-      where sub."endDate"::date <= now()::date
+      where sub.end_date::date <= now()::date
       and sub.status = '${SubscriptionStatusEnum.ACTIVE}'
     `);
 
@@ -57,8 +57,8 @@ export class SubscriptionService {
     const invoiceList = await this.dataSource.query(`
       select inv.id, pla.name as "planName", pla.price as "planPrice"
       from subscriptions sub
-      join invoices inv on inv."subscriptionId" = sub.id
-      join plans pla on pla.id = sub."planId"
+      join invoices inv on inv.subscription_id = sub.id
+      join plans pla on pla.id = sub.plan_id
       where sub.status = '${SubscriptionStatusEnum.ACTIVE}'
       and inv.status = '${InvoiceStatusEnum.PENDING}'
     `);
@@ -99,11 +99,11 @@ export class SubscriptionService {
     const endDate = momentTz(currentDate).add(1, "month");
 
     const subscription = queryRunner.manager.save(SubscriptionEntity, {
-      userId: userId,
-      planId: planId,
+      user_id: userId,
+      plan_id: planId,
       status: SubscriptionStatusEnum.ACTIVE,
-      startDate: formatDate(currentDate, dateFormat),
-      endDate: formatDate(endDate, dateFormat)
+      start_date: formatDate(currentDate, dateFormat),
+      end_date: formatDate(endDate, dateFormat)
     });
 
     return subscription;
@@ -126,13 +126,13 @@ export class SubscriptionService {
     const dueDate = momentTz(currentDate).add(1, "week");
 
     const invoice = await queryRunner.manager.save(InvoiceEntity, {
-      subscriptionId: subscription.id,
+      subscription_id: subscription.id,
       amount: subscription.plan.price,
-      issueDate: formatDate(currentDate, dateFormat),
-      dueDate: formatDate(dueDate, dateFormat),
+      issue_date: formatDate(currentDate, dateFormat),
+      due_date: formatDate(dueDate, dateFormat),
       status: InvoiceStatusEnum.PENDING,
-      subscriptionStartDate: subscription.startDate,
-      subscriptionEndDate: subscription.endDate
+      subscription_start_date: subscription.start_date,
+      subscription_end_date: subscription.end_date
     });
 
     return invoice;
@@ -155,9 +155,9 @@ export class SubscriptionService {
 
     // Insert payment
     const payment = queryRunner.manager.create(PaymentEntity, {
-      invoiceId: invoice.id,
+      invoice_id: invoice.id,
       amount: amount,
-      paidDate: formatDate(currentDate, dateFormat),
+      paid_date: formatDate(currentDate, dateFormat),
       status: PaymentStatusEnum.PAID
     });
     await queryRunner.manager.save(payment);
@@ -171,8 +171,8 @@ export class SubscriptionService {
     // Update subscription dates
     await queryRunner.manager.save(SubscriptionEntity, {
       id: invoice.subscription.id,
-      startDate: momentTz(currentDate).hour(0).minute(0).second(0).format(dateFormat),
-      endDate: momentTz(currentDate).add(1, "month").hour(0).minute(0).second(0).format(dateFormat)
+      start_date: momentTz(currentDate).hour(0).minute(0).second(0).format(dateFormat),
+      end_date: momentTz(currentDate).add(1, "month").hour(0).minute(0).second(0).format(dateFormat)
     });
 
     return payment;

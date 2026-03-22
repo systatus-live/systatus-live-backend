@@ -30,15 +30,15 @@ export class ChatPlatformController {
         select cpl.id
           , cpl.name
           , cpl.description
-          , cpl."iconUrl"
-          , cpl."docUrl"
-          , cpl."createdAt"
-          , cpl."updatedAt"
+          , cpl.icon_url
+          , cpl.doc_url
+          , cpl.created_at
+          , cpl.updated_at
           , cpl.type
         from chat_platforms cpl
         where 1 = 1
         ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
-        order by cpl."createdAt" desc
+        order by cpl.created_at desc
         limit ${this.querySize} offset ${this.querySize * page}
       `),
       this.dataSource.query(`

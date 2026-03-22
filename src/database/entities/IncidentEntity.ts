@@ -7,21 +7,21 @@ export class IncidentEntity {
   id: string;
 
   @ManyToOne(() => MonitorEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "monitorId", referencedColumnName: "id" })
+  @JoinColumn({ name: "monitor_id", referencedColumnName: "id" })
   monitor: MonitorEntity;
 
   @Column()
-  monitorId: string;
+  monitor_id: string;
 
   @Column({ type: "bool", nullable: false })
   active: boolean;
 
   @Column({ type: "timestamptz", nullable: true })
-  endedAt: string | null;
+  ended_at: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

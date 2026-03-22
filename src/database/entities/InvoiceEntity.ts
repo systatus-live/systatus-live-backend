@@ -8,33 +8,33 @@ export class InvoiceEntity {
   id: string;
 
   @ManyToOne(() => SubscriptionEntity)
-  @JoinColumn({ name: "subscriptionId", referencedColumnName: "id" })
+  @JoinColumn({ name: "subscription_id", referencedColumnName: "id" })
   subscription: SubscriptionEntity;
 
   @Column({ nullable: false })
-  subscriptionId: string;
+  subscription_id: string;
 
   @Column({ type: "int", nullable: false })
   amount: number;
 
   @Column({ type: "timestamptz", nullable: false })
-  dueDate: string;
+  due_date: string;
 
   @Column({ type: "timestamptz", nullable: false })
-  issueDate: string;
+  issue_date: string;
 
   @Column({ type: "enum", enum: InvoiceStatusEnum, nullable: false })
   status: InvoiceStatusEnum;
 
   @Column({ type: "timestamptz", nullable: false })
-  subscriptionStartDate: string;
+  subscription_start_date: string;
 
   @Column({ type: "timestamptz", nullable: false })
-  subscriptionEndDate: string;
+  subscription_end_date: string;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

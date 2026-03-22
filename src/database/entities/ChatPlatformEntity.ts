@@ -13,17 +13,17 @@ export class ChatPlatformEntity {
   description: string;
 
   @Column({ type: "varchar", length: 1024, nullable: false })
-  iconUrl: string;
+  icon_url: string;
 
   @Column({ type: "varchar", length: 1024, nullable: false })
-  docUrl: string;
+  doc_url: string;
 
   @Column({ type: "varchar", length: 255, nullable: false })
   type: ChatPlatformTypeEnum;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

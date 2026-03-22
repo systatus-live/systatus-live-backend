@@ -8,18 +8,18 @@ export class MonitorHistoryEntity {
   id: string;
 
   @ManyToOne(() => MonitorEntity, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "monitorId", referencedColumnName: "id" })
+  @JoinColumn({ name: "monitor_id", referencedColumnName: "id" })
   monitor: MonitorEntity;
 
   @Column({ nullable: false })
-  monitorId: string;
+  monitor_id: string;
 
   @ManyToOne(() => IncidentEntity, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "incidentId", referencedColumnName: "id" })
+  @JoinColumn({ name: "incident_id", referencedColumnName: "id" })
   incident: IncidentEntity;
 
   @Column({ nullable: true})
-  incidentId: string;
+  incident_id: string;
 
   @Column({ type: "varchar", length: 7, nullable: false })
   status: string;
@@ -28,8 +28,8 @@ export class MonitorHistoryEntity {
   duration: number | null;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

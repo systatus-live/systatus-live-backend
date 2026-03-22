@@ -161,21 +161,21 @@ export class UserController {
       this.dataSource.query(`
         select his.*
         from auth_historical his
-        where his."userId" = '${request["loggedUser"]}'
-        order by his."createdAt" desc  
+        where his.user_id = '${request["loggedUser"]}'
+        order by his.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
         from auth_historical his
-        where his."userId" = '${request["loggedUser"]}'
+        where his.user_id = '${request["loggedUser"]}'
       `),
     ]);
 
     const list = results[0];
     list.forEach(row => {
-      if (row.locationJson) {
-        row.locationJson = JSON.parse(row.locationJson);
+      if (row.location_json) {
+        row.location_json = JSON.parse(row.location_json);
       }
     })
 
@@ -201,7 +201,7 @@ export class UserController {
     const plan = await this.planService.getPlanById(subscription!.plan!.id);
 
     momentTz.locale("pt-br");
-    plan["nextBilling"] = formatDate(momentTz(subscription!.endDate!).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY");
+    plan["nextBilling"] = formatDate(momentTz(subscription!.end_date!).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY");
 
     return plan;
   }

@@ -9,31 +9,31 @@ export class SubscriptionEntity {
   id: string;
 
   @ManyToOne(() => UserEntity, { nullable: false })
-  @JoinColumn({ name: "userId", referencedColumnName: "id" })
+  @JoinColumn({ name: "user_id", referencedColumnName: "id" })
   user: UserEntity;
 
   @Column()
-  userId: string;
+  user_id: string;
 
   @ManyToOne(() => PlanEntity, { nullable: false })
-  @JoinColumn({ name: "planId", referencedColumnName: "id" })
+  @JoinColumn({ name: "plan_id", referencedColumnName: "id" })
   plan: PlanEntity;
 
   @Column()
-  planId: string;
+  plan_id: string;
 
   @Column({ type: "timestamptz", nullable: false })
-  startDate: string;
+  start_date: string;
 
   @Column({ type: "timestamptz", nullable: false })
-  endDate: string;
+  end_date: string;
 
   @Column({ type: "enum", enum: SubscriptionStatusEnum, nullable: false })
   status: SubscriptionStatusEnum;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

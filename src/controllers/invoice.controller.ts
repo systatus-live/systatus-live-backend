@@ -32,18 +32,18 @@ export class InvoiceController {
       this.dataSource.query(`
         select inv.*, plan.name as "plan"
         from invoices inv
-        join subscriptions sub on sub.id = inv."subscriptionId"
-        join plans plan on plan.id = sub."planId"
-        where sub."userId" = '${request["loggedUser"]}'
-        order by inv."createdAt" desc
+        join subscriptions sub on sub.id = inv.subscription_id
+        join plans plan on plan.id = sub.plan_id
+        where sub.user_id = '${request["loggedUser"]}'
+        order by inv.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
         from invoices inv
-        join subscriptions sub on sub.id = inv."subscriptionId"
-        join plans plan on plan.id = sub."planId"
-        where sub."userId" = '${request["loggedUser"]}'
+        join subscriptions sub on sub.id = inv.subscription_id
+        join plans plan on plan.id = sub.plan_id
+        where sub.user_id = '${request["loggedUser"]}'
       `),
     ]);
 
@@ -59,25 +59,25 @@ export class InvoiceController {
   @Get("/:id/pdf")
   async pdfInvoicePDF(@Request() request: Request, @Res() response: Response, @Param("id") id: string) {
     const [rootData] = await this.dataSource.query(`
-      select 
+      select
         inv.id
-        , inv."issueDate"
-        , inv."dueDate"
+        , inv.issue_date
+        , inv.due_date
         , inv.amount
         , inv.status
-        , inv."subscriptionStartDate"
-        , inv."subscriptionEndDate"
+        , inv.subscription_start_date
+        , inv.subscription_end_date
         , usu.name as user
         , usu.email
         , pla.name as plan
         , pay.id as "paymentId"
-        , pay."createdAt" as "paymentDate"
+        , pay.created_at as "paymentDate"
       from invoices inv
-      join subscriptions sub on sub.id = inv."subscriptionId"
-      join plans pla on pla.id = sub."planId"
-      join users usu on usu.id = sub."userId"
-      left join payments pay on pay."invoiceId" = inv.id and pay.status = '${PaymentStatusEnum.PAID}'
-      where sub."userId" = '${request["loggedUser"]}'
+      join subscriptions sub on sub.id = inv.subscription_id
+      join plans pla on pla.id = sub.plan_id
+      join users usu on usu.id = sub.user_id
+      left join payments pay on pay.invoice_id = inv.id and pay.status = '${PaymentStatusEnum.PAID}'
+      where sub.user_id = '${request["loggedUser"]}'
       and inv.id = '${id}'
     `);
 
@@ -87,8 +87,8 @@ export class InvoiceController {
 
     const invoice = {
       invoiceNumber: rootData.id,
-      issueDate: formatDate(rootData.issueDate, "D [de] MMMM [de] YYYY"),
-      dueDate: formatDate(rootData.dueDate, "D [de] MMMM [de] YYYY"),
+      issueDate: formatDate(rootData.issue_date, "D [de] MMMM [de] YYYY"),
+      dueDate: formatDate(rootData.due_date, "D [de] MMMM [de] YYYY"),
       amount: rootData.amount,
       status: rootData.status,
       description: `Assinatura do plano "${rootData.plan}"`,
@@ -103,7 +103,7 @@ export class InvoiceController {
       paymentMethod: rootData.plan == PlanEnum.ANDORINHA ? "Cortesia" : "-",
       paymentDate: rootData.paymentDate == null ? "-" : formatDate(rootData.paymentDate, "DD/MM/YYYY HH:mm:ss"),
       transactionId: rootData.paymentId || "-",
-      period: `${formatDate(rootData.subscriptionStartDate, "DD/MM/YYYY")} a ${formatDate(rootData.subscriptionEndDate, "DD/MM/YYYY")}`
+      period: `${formatDate(rootData.subscription_start_date, "DD/MM/YYYY")} a ${formatDate(rootData.subscription_end_date, "DD/MM/YYYY")}`
     };
 
     const statusColor = {
@@ -345,7 +345,7 @@ export class InvoiceController {
     const pdf = await this.pdfService.generatePDF(dd);
     response.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename=systatuslive-fatura-${formatDate(rootData.dueDate, "YYYY-DD-MM")}.pdf`,
+      "Content-Disposition": `inline; filename=systatuslive-fatura-${formatDate(rootData.due_date, "YYYY-DD-MM")}.pdf`,
       "Content-Length": pdf.length,
       "Access-Control-Expose-Headers": "Content-Disposition"
     });

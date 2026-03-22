@@ -6,36 +6,36 @@ import { UserEntity } from './UserEntity';
 @Entity({ name: "monitor_integrations" })
 export class MonitorIntegrationEntity {
   @ManyToOne(() => MonitorEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "monitorId", referencedColumnName: "id" })
+  @JoinColumn({ name: "monitor_id", referencedColumnName: "id" })
   monitor: MonitorEntity;
 
   @PrimaryColumn()
-  monitorId: string;
+  monitor_id: string;
 
   @ManyToOne(() => IntegrationEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "integrationId", referencedColumnName: "id" })
+  @JoinColumn({ name: "integration_id", referencedColumnName: "id" })
   integration: IntegrationEntity;
 
   @PrimaryColumn()
-  integrationId: string;
+  integration_id: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "createdUserId", referencedColumnName: "id" })
+  @JoinColumn({ name: "created_user_id", referencedColumnName: "id" })
   createdUser: UserEntity;
 
   @Column()
-  createdUserId: string;
+  created_user_id: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "updatedUserId", referencedColumnName: "id" })
+  @JoinColumn({ name: "updated_user_id", referencedColumnName: "id" })
   updatedUser: UserEntity;
 
   @Column()
-  updatedUserId: string;
+  updated_user_id: string;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

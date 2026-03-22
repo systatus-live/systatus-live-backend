@@ -4,7 +4,7 @@ import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
 import { PlanEnum } from '../types/PlanEnum';
-import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
+import { ChatPlatformEnum, ChatPlatformLabelEnum } from '../types/ChatPlatformEnum';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -24,14 +24,14 @@ export class PlanService {
 
   async assertMonitorLimit(planId: string, userId: string): Promise<void> {
     const [plan, count] = await Promise.all([
-      this.planRepository.findOne({ where: { id: planId }, select: ['monitorQty'] }),
-      this.monitorRepository.count({ where: { createdUserId: userId } })
+      this.planRepository.findOne({ where: { id: planId }, select: ['monitor_qty'] }),
+      this.monitorRepository.count({ where: { created_user_id: userId } })
     ]);
 
     if (!plan) return;
 
-    if (count >= plan.monitorQty) {
-      throw new ForbiddenException(`Seu plano permite até ${plan.monitorQty} monitores. Considere fazer upgrade.`);
+    if (count >= plan.monitor_qty) {
+      throw new ForbiddenException(`Seu plano permite até ${plan.monitor_qty} monitores. Considere fazer upgrade.`);
     }
   }
 
@@ -55,14 +55,14 @@ export class PlanService {
     const permissionMap: Partial<Record<ChatPlatformEnum, keyof PlanEntity>> = {
       [ChatPlatformEnum.SLACK]: "slack",
       [ChatPlatformEnum.DISCORD]: "discord",
-      [ChatPlatformEnum.GOOGLE_CHAT]: "googleChat",
+      [ChatPlatformEnum.GOOGLE_CHAT]: "google_chat",
       [ChatPlatformEnum.EMAIL]: "email",
       [ChatPlatformEnum.WHATSAPP]: "whatsapp",
     };
 
     const field = permissionMap[chatPlatform.name];
     if (field && !plan[field]) {
-      throw new ForbiddenException(`Seu plano não inclui integração com ${chatPlatform.name}. Considere fazer upgrade.`);
+      throw new ForbiddenException(`Seu plano não inclui integração com "${ChatPlatformLabelEnum[chatPlatform.name]}". Considere fazer upgrade.`);
     }
   }
 
@@ -88,7 +88,7 @@ export class PlanService {
       bta: "Assinar",
       btaLink: "/auth/signup",
       mostPopular: plan.name == PlanEnum.CORUJA,
-      features: plan.displayFeatures,
+      features: plan.display_features,
       image: plan.image
     }));
   }

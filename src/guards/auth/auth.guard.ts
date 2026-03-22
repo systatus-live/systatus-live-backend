@@ -44,10 +44,10 @@ export class AuthGuard implements CanActivate {
 
     const subscription = await this.subscriptionRepository.findOne({
       where: {
-        userId: user.id,
+        user_id: user.id,
         status: SubscriptionStatusEnum.ACTIVE
       },
-      select: ["id", "planId"]
+      select: ["id", "plan_id"]
     })
 
     if (!subscription) {
@@ -56,7 +56,7 @@ export class AuthGuard implements CanActivate {
 
     request["loggedUser"] = jwtData.user;
     request["loggedSubscription"] = subscription.id;
-    request["loggedPlan"] = subscription.planId;
+    request["loggedPlan"] = subscription.plan_id;
 
     return true;
   }

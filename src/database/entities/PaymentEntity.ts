@@ -8,24 +8,24 @@ export class PaymentEntity {
   id: string;
 
   @ManyToOne(() => InvoiceEntity)
-  @JoinColumn({ name: "invoiceId", referencedColumnName: "id" })
+  @JoinColumn({ name: "invoice_id", referencedColumnName: "id" })
   invoice: InvoiceEntity;
 
   @Column({ nullable: false })
-  invoiceId: string;
+  invoice_id: string;
 
   @Column({ type: "int", nullable: false })
   amount: number;
 
   @Column({ type: "timestamptz", nullable: true })
-  paidDate: string | null;
+  paid_date: string | null;
 
   @Column({ type: "enum", enum: PaymentStatusEnum, nullable: false })
   status: PaymentStatusEnum;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

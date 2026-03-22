@@ -21,7 +21,7 @@ export class PlanEntity {
   image: string;
 
   @Column({ type: "int", nullable: false })
-  monitorQty: number;
+  monitor_qty: number;
 
   @Column({ type: "boolean", nullable: false })
   whatsapp: boolean;
@@ -30,7 +30,7 @@ export class PlanEntity {
   slack: boolean;
 
   @Column({ type: "boolean", nullable: false })
-  googleChat: boolean;
+  google_chat: boolean;
 
   @Column({ type: "boolean", nullable: false })
   email: boolean;
@@ -39,17 +39,17 @@ export class PlanEntity {
   discord: boolean;
 
   @Column({ type: "boolean", nullable: false })
-  customNotification: boolean;
+  custom_notification: boolean;
 
   @Column({ type: "boolean", nullable: false })
-  statusPage: boolean;
+  status_page: boolean;
 
   @Column({ type: "jsonb", nullable: false, default: "[]" })
-  displayFeatures: { label: string; included: boolean; }[];
+  display_features: { label: string; included: boolean; }[];
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

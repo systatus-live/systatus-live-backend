@@ -29,43 +29,43 @@ export class IncidentController {
 
     const results = await Promise.all([
       this.dataSource.query(`
-        select 
+        select
           inc.id
           , mon.name
           , mon.address
-          , inc."createdAt" 
-          , inc."endedAt"
+          , inc.created_at
+          , inc.ended_at
           , (
-            select t.status 
-            from monitor_historical t 
-            where t."monitorId" = mon.id 
-            and t."incidentId" = inc.id
+            select t.status
+            from monitor_historical t
+            where t.monitor_id = mon.id
+            and t.incident_id = inc.id
             and t.status not like '2%'
-            order by "createdAt" desc 
+            order by created_at desc
             limit 1
           ) as "lastError"
         from incidents inc
-        join monitors mon on mon.id = inc."monitorId" 
-        where "createdUserId" = '${request["loggedUser"]}'
+        join monitors mon on mon.id = inc.monitor_id
+        where created_user_id = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
-        order by inc."endedAt" desc
+        order by inc.ended_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
         from incidents inc
-        join monitors mon on mon.id = inc."monitorId" 
-        where mon."createdUserId" = '${request["loggedUser"]}'
+        join monitors mon on mon.id = inc.monitor_id
+        where mon.created_user_id = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
       `),
     ]);
 
     const list = results[0];
     for (let row of list) {
-      if (row.endedAt) {
-        row["duration"] = formatSince(row.createdAt, "YYYY-MM-DD HH:mm:ssZ", momentTz(row.endedAt, "YYYY-MM-DD HH:mm:ssZ"))
+      if (row.ended_at) {
+        row["duration"] = formatSince(row.created_at, "YYYY-MM-DD HH:mm:ssZ", momentTz(row.ended_at, "YYYY-MM-DD HH:mm:ssZ"))
       } else {
-        row["duration"] = formatSince(row.createdAt, "YYYY-MM-DD HH:mm:ssZ")
+        row["duration"] = formatSince(row.created_at, "YYYY-MM-DD HH:mm:ssZ")
       }
     }
 
@@ -86,7 +86,7 @@ export class IncidentController {
         )
         select to_char(d.day, 'dd/mm') as date, count(mi.id) as total
         from days d
-        left join incidents mi on (mi."createdAt"::timestamptz)::date = d.day and mi."monitorId" in (select t.id from monitors t where t."createdUserId" = '${request["loggedUser"]}')
+        left join incidents mi on (mi.created_at::timestamptz)::date = d.day and mi.monitor_id in (select t.id from monitors t where t.created_user_id = '${request["loggedUser"]}')
         group by d.day
         order by d.day asc
       `);

@@ -47,7 +47,7 @@ export class AuthService {
 
     if (ip) {
       try {
-        const { data } = await axios.get(`https://api.geoapify.com/v1/ipinfo?ip=${ip}&apiKey=${process.env.GEOAPIFY_API_KEY}`);
+        const { data } = await axios.get(`https://api.geoapify.com/v1/ipinfo?ip=${ip}&apiKey=1${process.env.GEOAPIFY_API_KEY}`);
         if (data.city) {
           locationJson = JSON.stringify({
             city: data.city.name,
@@ -61,16 +61,15 @@ export class AuthService {
           })
         }
       } catch (error) {
-        console.log(`[Auth log error]: ${error.message}`)
+        console.log(`[Auth log error]: ${error.message}: ${JSON.stringify(error.response.data)}`)
       }
     }
 
-
     await this.authSessionRepository.save({
-      userId: userId,
+      user_id: userId,
       ip: ip,
-      userAgent: userAgent,
-      locationJson: locationJson
+      user_agent: userAgent,
+      location_json: locationJson
     })
   }
 

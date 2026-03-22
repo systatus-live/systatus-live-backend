@@ -74,10 +74,10 @@ export class MonitorService {
     const monitorList = await this.dataSource.query(`
       select mon.*
       from monitors mon
-      join intervals val on val.id = mon."intervalId"  
+      join intervals val on val.id = mon.interval_id
       where mon.active = true
       and val.cron = '${cron}'
-      order by mon."createdAt" asc
+      order by mon.created_at asc
     `);
 
     console.log(`[Monitor] ${cron} started for ${monitorList.length} monitors.`);
@@ -159,16 +159,16 @@ export class MonitorService {
       let [monitorIncident, monitorHistory] = await Promise.all([
         this.monitorIncidentRepository.findOne({
           where: {
-            monitorId: monitor.id,
+            monitor_id: monitor.id,
             active: true
           },
         }),
         this.monitorHistoryRepository.findOne({
           where: {
-            monitorId: monitor.id
+            monitor_id: monitor.id
           },
           order: {
-            createdAt: "DESC"
+            created_at: "DESC"
           }
         })
       ]);
@@ -190,20 +190,20 @@ export class MonitorService {
 
         const payload: Partial<IncidentEntity> = {
           id: monitorIncident?.id,
-          monitorId: monitor.id,
+          monitor_id: monitor.id,
           active: incidentIsActive
         }
 
         if (!incidentIsActive) {
-          payload.endedAt = formatDate(getCurrentDate(), "YYYY-MM-DD HH:mm:ssZZ");
+          payload.ended_at = formatDate(getCurrentDate(), "YYYY-MM-DD HH:mm:ssZZ");
         }
 
         monitorIncident = await this.monitorIncidentRepository.save(payload);
       }
 
       await this.monitorHistoryRepository.save({
-        monitorId: monitor.id,
-        incidentId: monitorIncident?.id,
+        monitor_id: monitor.id,
+        incident_id: monitorIncident?.id,
         status: newStatus,
         duration: durationMs
       });
@@ -211,7 +211,7 @@ export class MonitorService {
       if (notifyType) {
         const integrationList = await this.monitorIntegrationRepository.find({
           where: {
-            monitorId: monitor.id
+            monitor_id: monitor.id
           },
           relations: ["integration", "integration.chatPlatform"]
         });
@@ -228,16 +228,16 @@ export class MonitorService {
           if (notifyType == "OK") {
             const monitorIncident = await this.monitorIncidentRepository.findOne({
               where: {
-                monitorId: monitor.id,
+                monitor_id: monitor.id,
                 active: false
               },
               order: {
-                createdAt: "DESC"
+                created_at: "DESC"
               }
             });
 
             if (monitorIncident) {
-              description += ` Downtime: ${formatSince(monitorIncident.createdAt, "YYYY-MM-DD HH:mm:ssZ")}.`;
+              description += ` Downtime: ${formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ")}.`;
             }
           }
 

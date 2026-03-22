@@ -59,10 +59,10 @@ export class AuthController {
         name: body.name,
         email: body.email,
         password: body.password ? this.authService.bcryptHashSync(body.password) : null,
-        acceptedTerms: body.acceptTerms,
+        accepted_terms: body.acceptTerms,
         discovery: body.discovery,
         verified: false,
-        verificationCode: verificationCode,
+        verification_code: verificationCode,
         avatar: null
       });
       await queryRunner.manager.save(UserEntity, savedUser);
@@ -103,7 +103,7 @@ export class AuthController {
     const findUser = await this.userRepository.findOne({
       where: {
         verified: false,
-        verificationCode: body.code
+        verification_code: body.code
       }
     })
 
@@ -115,7 +115,7 @@ export class AuthController {
     await userRepository.save({
       id: findUser.id,
       verified: true,
-      verificationCode: null
+      verification_code: null
     })
 
     const accessToken = this.authService.generateJWT({
@@ -155,7 +155,7 @@ export class AuthController {
 
     const emailBody = readFileSync(`${__dirname}/../assets/mail/VerifyAccountEmail.html`, "utf-8")
       .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
-      .replace(/{{CODE}}/g, findUser.verificationCode!);
+      .replace(/{{CODE}}/g, findUser.verification_code!);
     await this.mailService.sendMail("Systatus.Live <system@systatus.live>", findUser.email!, "Bem-vindo(a) de volta ao Systatus Live 👋", emailBody);
 
     return {
@@ -342,8 +342,8 @@ export class AuthController {
         name: findUser?.name,
         email: findUser?.email,
         verified: findUser?.verified,
-        createdAt: findUser?.createdAt,
-        updatedAt: findUser?.updatedAt,
+        createdAt: findUser?.created_at,
+        updatedAt: findUser?.updated_at,
         avatar: findUser?.avatar,
         signinType: findUser?.password ? SignInTypeEnum.EMAIL_PASSWORD : SignInTypeEnum.SOCIAL
       }

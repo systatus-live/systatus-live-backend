@@ -20,29 +20,29 @@ export class MonitorEntity {
   active: boolean;
 
   @ManyToOne(() => IntervalEntity)
-  @JoinColumn({ name: "intervalId", referencedColumnName: "id" })
+  @JoinColumn({ name: "interval_id", referencedColumnName: "id" })
   interval: IntervalEntity;
 
   @Column()
-  intervalId: string;
+  interval_id: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "createdUserId", referencedColumnName: "id" })
+  @JoinColumn({ name: "created_user_id", referencedColumnName: "id" })
   createdUser: UserEntity;
 
   @Column()
-  createdUserId: string;
+  created_user_id: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "updatedUserId", referencedColumnName: "id" })
+  @JoinColumn({ name: "updated_user_id", referencedColumnName: "id" })
   updatedUser: UserEntity;
 
   @Column()
-  updatedUserId: string;
+  updated_user_id: string;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

@@ -7,24 +7,24 @@ export class AuthHistoryEntity {
   id: string;
 
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "userId", referencedColumnName: "id" })
+  @JoinColumn({ name: "user_id", referencedColumnName: "id" })
   interval: UserEntity;
 
   @Column()
-  userId: string;
+  user_id: string;
 
   @Column({ type: "varchar", length: 50, nullable: false })
   ip: string;
 
   @Column({ type: "varchar", length: 1024, nullable: false })
-  userAgent: string;
+  user_agent: string;
 
   @Column({ type: "varchar", length: 4096, nullable: true })
-  locationJson: string | null;
+  location_json: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
-  createdAt: string;
+  created_at: string;
 
   @UpdateDateColumn({ type: "timestamptz" })
-  updatedAt: string;
+  updated_at: string;
 }

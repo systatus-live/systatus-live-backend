@@ -38,19 +38,19 @@ export class MonitorController {
         type: body.type,
         address: body.address,
         active: body.active,
-        intervalId: body.intervalId,
-        createdUserId: request["loggedUser"],
-        updatedUserId: request["loggedUser"]
+        interval_id: body.intervalId,
+        created_user_id: request["loggedUser"],
+        updated_user_id: request["loggedUser"]
       });
 
       await queryRunner.manager.save(MonitorEntity, newMonitor);
 
       const newMonitorIntegrationList = body.integrationList.map((integrationId: string) => {
         return this.monitorIntegrationRepository.create({
-          monitorId: newMonitor.id,
-          integrationId: integrationId,
-          createdUserId: request["loggedUser"],
-          updatedUserId: request["loggedUser"]
+          monitor_id: newMonitor.id,
+          integration_id: integrationId,
+          created_user_id: request["loggedUser"],
+          updated_user_id: request["loggedUser"]
         });
       });
 
@@ -91,8 +91,8 @@ export class MonitorController {
               )
               select array_agg(json_build_object(
                 'date', dat.date
-                , 'totalOnline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status like '2%')
-                , 'totalOffline', (select count(1) from monitor_historical t where t."monitorId" = mon.id and t."createdAt"::date = dat.date and t.status not like '2%')
+                , 'totalOnline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and t.created_at::date = dat.date and t.status like '2%')
+                , 'totalOffline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and t.created_at::date = dat.date and t.status not like '2%')
               )
             ) 
             from dates dat
@@ -101,21 +101,21 @@ export class MonitorController {
           , ite.cron
           , his.status as "lastStatus"
           , his.duration as "lastDuration"
-          , coalesce(((select coalesce(t."endedAt", t."createdAt") from incidents t  where t."monitorId" = mon.id order by t."createdAt" desc limit 1)), mon."createdAt") as "lastIncident"
+          , coalesce(((select coalesce(t.ended_at, t.created_at) from incidents t  where t.monitor_id = mon.id order by t.created_at desc limit 1)), mon.created_at) as "lastIncident"
         from monitors mon
-        join intervals ite on ite.id = mon."intervalId"
-        left join monitor_historical his on his."monitorId" = mon.id and his."createdAt" = (select max(t."createdAt") from monitor_historical t where t."monitorId" = mon.id)
-        where mon."createdUserId" = '${request["loggedUser"]}'
+        join intervals ite on ite.id = mon.interval_id
+        left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
+        where mon.created_user_id = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
-        order by mon.active desc, (case when status is null then 1 when status not like '2%%' then 0 else -1 end) desc, mon."createdAt" desc
+        order by mon.active desc, (case when status is null then 1 when status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `),
       this.dataSource.query(`
         select count(1) as total
         from monitors mon
-        join intervals ite on ite.id = mon."intervalId"
-        left join monitor_historical his on his."monitorId" = mon.id and his."createdAt" = (select max(t."createdAt") from monitor_historical t where t."monitorId" = mon.id)
-        where mon."createdUserId" = '${request["loggedUser"]}'
+        join intervals ite on ite.id = mon.interval_id
+        left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
+        where mon.created_user_id = '${request["loggedUser"]}'
         ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
       `),
     ]);
@@ -167,10 +167,10 @@ export class MonitorController {
   async getMonitorById(@Request() request: Request, @Param("id") id: string) {
     const monitor = await this.monitorRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
-      select: ["id", "name", "type", "intervalId", "address", "active", "createdAt", "updatedAt"]
+      select: ["id", "name", "type", "interval_id", "address", "active", "created_at", "updated_at"]
     }).catch(_ => {
       throw new NotFoundException("Monitor não encontrado.");
     })
@@ -180,11 +180,11 @@ export class MonitorController {
     }
 
     monitor["integrationList"] = await this.dataSource.query(`
-      select int.id, int.name, cha.description as "chatPlatform", cha."iconUrl" as "chatPlatformIconUrl"
+      select int.id, int.name, cha.description as "chatPlatform", cha.icon_url as "chatPlatformIconUrl"
       from monitor_integrations min
-      join integrations int on int.id = min."integrationId"
-      join chat_platforms cha on cha.id = int."chatPlatformId" 
-      where min."monitorId" = '${monitor.id}'
+      join integrations int on int.id = min.integration_id
+      join chat_platforms cha on cha.id = int.chat_platform_id
+      where min.monitor_id = '${monitor.id}'
     `);
 
     return monitor
@@ -194,7 +194,7 @@ export class MonitorController {
   async updateMonitor(@Request() request: Request, @Body() body: any, @Param("id") id: string) {
     const monitor = await this.monitorRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
       select: ["id"]
@@ -206,7 +206,7 @@ export class MonitorController {
 
     const monitorWithSameAddress = await this.monitorRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         address: body.address,
         id: Not(monitor.id)
       },
@@ -228,23 +228,23 @@ export class MonitorController {
         address: body.address,
         type: body.type,
         active: body.active,
-        intervalId: body.intervalId,
-        updatedUserId: request["loggedUser"]
+        interval_id: body.intervalId,
+        updated_user_id: request["loggedUser"]
       });
 
       // Delete monitor x integrations removed by user
       await this.monitorIntegrationRepository.delete({
-        monitorId: monitor.id,
-        integrationId: Not(In(body.integrationList))
+        monitor_id: monitor.id,
+        integration_id: Not(In(body.integrationList))
       })
 
       // Save monitor x integrations added by user
       const integrationListToSave = body.integrationList.map(integrationId => {
         return this.monitorIntegrationRepository.create({
-          monitorId: monitor.id,
-          integrationId: integrationId,
-          createdUserId: request["loggedUser"],
-          updatedUserId: request["loggedUser"]
+          monitor_id: monitor.id,
+          integration_id: integrationId,
+          created_user_id: request["loggedUser"],
+          updated_user_id: request["loggedUser"]
         })
       })
       await queryRunner.manager.save(MonitorIntegrationEntity, integrationListToSave);
@@ -266,7 +266,7 @@ export class MonitorController {
   async deleteMonitorById(@Request() request: Request, @Param("id") id: string) {
     const monitor = await this.monitorRepository.findOne({
       where: {
-        createdUserId: request["loggedUser"],
+        created_user_id: request["loggedUser"],
         id: id
       },
       select: ["id"]
