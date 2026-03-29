@@ -8,7 +8,6 @@ import { InvoiceStatusEnum, InvoiceStatusLabelEnum } from "src/types/InvoiceStat
 import formatDate from "src/utils/formatDate";
 import { PaymentStatusEnum } from "src/types/PaymentStatusEnum";
 import axios from "axios";
-import { PlanEnum } from "src/types/PlanEnum";
 import { CreditCardBrandLabelEnum } from "src/types/CreditCardBrandEnum";
 
 @Controller({
@@ -17,7 +16,7 @@ import { CreditCardBrandLabelEnum } from "src/types/CreditCardBrandEnum";
 })
 @UseGuards(AuthGuard)
 export class InvoiceController {
-  private querySize: number = 10;
+  private querySize: number = 6;
 
   constructor(
     private dataSource: DataSource,

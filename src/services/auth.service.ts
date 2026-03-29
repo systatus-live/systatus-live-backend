@@ -74,6 +74,10 @@ export class AuthService {
   }
 
   async verifyCaptcha(captcha: string) {
+    if (process.env.ENV == "DEV") {
+      return true;
+    }
+
     if (!captcha) {
       throw new Error("reCAPTCHA não foi informado.");
     }

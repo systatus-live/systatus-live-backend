@@ -34,6 +34,7 @@ import { PdfService } from 'src/services/pdf.service';
 import { StripeController } from 'src/controllers/stripe.controller';
 import { StripeService } from 'src/services/stripe.service';
 import { GatewayLogEntity } from 'src/database/entities/GatewayLogEntity';
+import { UtilsController } from '../controllers/utils.controller';
 const providerList = [
   AuthService,
   MailService,
@@ -84,7 +85,8 @@ const providerList = [
     IntervalController,
     PlanController,
     InvoiceController,
-    StripeController
+    StripeController,
+    UtilsController,
   ],
   exports: [
     TypeOrmModule,

@@ -201,7 +201,7 @@ export class MonitorController {
     })
 
     if (!monitor) {
-      throw new NotFoundException("Integração não encontrada.");
+      throw new NotFoundException("Monitor não encontrado.");
     }
 
     const monitorWithSameAddress = await this.monitorRepository.findOne({

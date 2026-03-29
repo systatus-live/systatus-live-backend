@@ -352,6 +352,48 @@ export class StripeService {
     });
   }
 
+  async updateCustomerBillingData(customerId: string, data: {
+    name: string;
+    email: string;
+    personType: string;
+    document: string;
+    zipCode: string;
+    address: string;
+    number: string;
+    complement: string;
+    city: string;
+    state: string;
+  }): Promise<void> {
+    const line1 = [data.address, data.number, data.complement].filter(Boolean).join(", ");
+
+    await this.stripe.customers.update(customerId, {
+      name: data.name,
+      email: data.email,
+      address: {
+        line1,
+        city: data.city,
+        state: data.state,
+        postal_code: data.zipCode?.replace(/\D/g, ""),
+        country: "BR",
+      },
+    });
+
+    const doc = data.document?.replace(/\D/g, "");
+
+    if (doc) {
+      const existingTaxIds = await this.stripe.customers.listTaxIds(customerId);
+
+      for (const taxId of existingTaxIds.data) {
+        await this.stripe.customers.deleteTaxId(customerId, taxId.id);
+      }
+
+      await this.stripe.customers.createTaxId(customerId, {
+        type: data.personType === "PF" ? "br_cpf" : "br_cnpj",
+        value: doc
+      });
+    }
+  }
+
   async getCardByInvoiceGatewayId(stripeInvoiceId: string): Promise<{ brand: string; last4: string } | null> {
     const fullInvoice = await this.stripe.invoices.retrieve(stripeInvoiceId, {
       expand: ["payments.data.payment.payment_intent"]

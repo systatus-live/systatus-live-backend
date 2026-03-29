@@ -7,6 +7,7 @@ import fs from "fs";
 import { diskStorage } from 'multer';
 import path, { extname } from "path";
 import { PlanService } from '../services/plan.service';
+import { StripeService } from '../services/stripe.service';
 import { DataSource, Not, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
@@ -29,7 +30,8 @@ export class UserController {
   constructor(
     private authService: AuthService,
     private dataSource: DataSource,
-    private planService: PlanService
+    private planService: PlanService,
+    private stripeService: StripeService,
   ) { }
 
   @Patch("/details")
@@ -204,5 +206,66 @@ export class UserController {
     plan["nextBilling"] = formatDate(momentTz(subscription!.end_date!).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY");
 
     return plan;
+  }
+
+  @Get("/billing")
+  async getBillingData(@Request() request: Request) {
+    const user = await this.userRepository.findOne({
+      where: { id: request["loggedUser"] },
+      select: [
+        "billing_name", "billing_email",
+        "person_type", "document",
+        "zip_code", "address", "number", "complement",
+        "neighborhood", "state", "city",
+      ],
+    });
+
+    return user;
+  }
+
+  @Patch("/billing")
+  async updateBillingData(@Request() request: Request, @Body() body: any) {
+    const findUser = await this.userRepository.findOne({
+      where: { id: request["loggedUser"] },
+    });
+
+    if (!findUser) {
+      throw new NotFoundException("Usuário não encontrado.");
+    }
+
+    try {
+      await this.userRepository.update(request["loggedUser"], {
+        billing_name: body.billing_name,
+        billing_email: body.billing_email,
+        person_type: body.person_type,
+        document: body.document,
+        zip_code: body.zip_code,
+        address: body.address,
+        number: body.number,
+        complement: body.complement,
+        neighborhood: body.neighborhood,
+        state: body.state,
+        city: body.city,
+      });
+
+      if (findUser.stripe_customer_id) {
+        await this.stripeService.updateCustomerBillingData(findUser.stripe_customer_id, {
+          name: body.billing_name,
+          email: body.billing_email,
+          personType: body.person_type,
+          document: body.document,
+          zipCode: body.zip_code,
+          address: body.address,
+          number: body.number,
+          complement: body.complement,
+          city: body.city,
+          state: body.state,
+        });
+      }
+
+      return { message: "Dados de cobrança atualizados com sucesso." };
+    } catch (error) {
+      throw new InternalServerErrorException("Falha ao atualizar os dados de cobrança.");
+    }
   }
 }
