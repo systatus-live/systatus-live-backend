@@ -29,6 +29,9 @@ export class UserEntity {
   @Column({ type: "text", nullable: true })
   avatar: string | null;
 
+  @Column({ type: "varchar", length: 100, nullable: true })
+  stripe_customer_id: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 

@@ -9,7 +9,7 @@ import path, { extname } from "path";
 import { PlanService } from '../services/plan.service';
 import { DataSource, Not, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/UserEntity';
-import { AuthGuard } from '../guards/auth/auth.guard';
+import { AuthGuard } from '../middlewares/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import formatDate from 'src/utils/formatDate';

@@ -1,7 +1,7 @@
 import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
 import removeAccents from '../utils/removeAccents';
 import { DataSource, Repository } from 'typeorm';
-import { AuthGuard } from '../guards/auth/auth.guard';
+import { AuthGuard } from '../middlewares/auth.guard';
 
 @Controller({
   version: "1",

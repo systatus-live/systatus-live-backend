@@ -14,7 +14,7 @@ export class InvoiceEntity {
   @Column({ nullable: false })
   subscription_id: string;
 
-  @Column({ type: "int", nullable: false })
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: false })
   amount: number;
 
   @Column({ type: "timestamptz", nullable: false })
@@ -25,6 +25,9 @@ export class InvoiceEntity {
 
   @Column({ type: "enum", enum: InvoiceStatusEnum, nullable: false })
   status: InvoiceStatusEnum;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  gateway_id: string | null;
 
   @Column({ type: "timestamptz", nullable: false })
   subscription_start_date: string;

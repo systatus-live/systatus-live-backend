@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../services/auth.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserEntity } from '../../database/entities/UserEntity';
+import { UserEntity } from '../database/entities/UserEntity';
 import { Repository } from 'typeorm';
-import { SubscriptionEntity } from '../../database/entities/SubscriptionEntity';
+import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
 
 @Injectable()

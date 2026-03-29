@@ -3,17 +3,19 @@ import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { OAuth2Client } from "google-auth-library";
-import { SubscriptionService } from 'src/services/subscription.service';
+import { StripeService } from 'src/services/stripe.service';
 import { DataSource, Repository } from 'typeorm';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
 import { UserEntity } from '../database/entities/UserEntity';
-import { AuthGuard } from '../guards/auth/auth.guard';
+import { AuthGuard } from '../middlewares/auth.guard';
 import { AuthService } from '../services/auth.service';
 import { MailService } from '../services/mail.service';
 import { PlanEnum } from '../types/PlanEnum';
 import { SignInOptionsDTO } from '../types/SignInOptionsDTO';
 import { SignInTypeEnum } from '../types/SignInTypeEnum';
+import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
+import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
 
 @UseGuards(ThrottlerGuard)
 @Controller({
@@ -24,12 +26,13 @@ export class AuthController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
   @InjectRepository(AuthFlowEntity) private authFlowRepository: Repository<AuthFlowEntity>
   @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>
+  @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>
 
   constructor(
     private authService: AuthService,
     private dataSource: DataSource,
     private mailService: MailService,
-    private subscriptionService: SubscriptionService
+    private stripeService: StripeService
   ) { }
 
   @Post("/signup")
@@ -77,7 +80,7 @@ export class AuthController {
         throw new Error("Plano não encontrado. Contate o suporte.");
       }
 
-      await this.subscriptionService.createSubscription(queryRunner, savedUser.id, plan.id);
+      await this.stripeService.provisionSubscription(queryRunner, savedUser.id, savedUser.email, savedUser.name, plan.id);
 
       const emailBody = readFileSync(`${__dirname}/../assets/mail/NewUserEmail.html`, "utf-8")
         .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])
@@ -239,6 +242,18 @@ export class AuthController {
         break;
       default:
         throw new NotImplementedException("Método de login não é suportado.");
+    }
+
+    const subscription = await this.subscriptionRepository.findOne({
+      where: {
+        user_id: findUser.id,
+        status: SubscriptionStatusEnum.ACTIVE
+      },
+      select: ["id", "plan_id"]
+    })
+
+    if (!subscription) {
+      throw new ForbiddenException("Assinatura não encontrada. Contate o suporte.")
     }
 
     const accessToken = this.authService.generateJWT({

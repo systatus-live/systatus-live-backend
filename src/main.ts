@@ -1,12 +1,17 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import { VersioningType } from '@nestjs/common';
+import { ConsoleLogger, VersioningType } from '@nestjs/common';
 import { GlobalHttpExceptionFilter } from './http-exception.filter';
 import requestIp from "request-ip";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+    logger: new ConsoleLogger({
+      prefix: "Default",
+    })
+  });
 
   app.enableCors({ origin: process.env.WEB_URL as string, methods: "GET,HEAD,PUT,PATCH,POST,DELETE" });
   app.use(helmet());

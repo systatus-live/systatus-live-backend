@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
-import { AuthGuard } from '../guards/auth/auth.guard';
+import { AuthGuard } from '../middlewares/auth.guard';
 import { PlanService } from '../services/plan.service';
 import formatDate from '../utils/formatDate';
 import formatSince from '../utils/formatSince';

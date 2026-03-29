@@ -31,6 +31,9 @@ export class SubscriptionEntity {
   @Column({ type: "enum", enum: SubscriptionStatusEnum, nullable: false })
   status: SubscriptionStatusEnum;
 
+  @Column({ type: "varchar", length: 100, nullable: true })
+  gateway_id: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 

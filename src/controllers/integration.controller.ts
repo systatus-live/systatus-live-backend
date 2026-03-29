@@ -4,7 +4,7 @@ import { readFileSync } from 'fs';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
 import { UserEntity } from '../database/entities/UserEntity';
-import { AuthGuard } from '../guards/auth/auth.guard';
+import { AuthGuard } from '../middlewares/auth.guard';
 import { IntegrationService } from '../services/integration.service';
 import { MailService } from '../services/mail.service';
 import { PlanService } from '../services/plan.service';

@@ -27,19 +27,21 @@ import { PlanController } from '../controllers/plan.controller';
 import { PlanService } from '../services/plan.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import { MonitorService } from 'src/services/monitor.service';
-import { SubscriptionService } from 'src/services/subscription.service';
 import { InvoiceEntity } from 'src/database/entities/InvoiceEntity';
 import { PaymentEntity } from 'src/database/entities/PaymentEntity';
 import { InvoiceController } from 'src/controllers/invoice.controller';
 import { PdfService } from 'src/services/pdf.service';
+import { StripeController } from 'src/controllers/stripe.controller';
+import { StripeService } from 'src/services/stripe.service';
+import { GatewayLogEntity } from 'src/database/entities/GatewayLogEntity';
 const providerList = [
   AuthService,
   MailService,
   MonitorService,
-  SubscriptionService,
   IntegrationService,
   PlanService,
-  PdfService
+  PdfService,
+  StripeService
 ]
 
 @Module({
@@ -65,7 +67,8 @@ const providerList = [
       PlanEntity,
       SubscriptionEntity,
       InvoiceEntity,
-      PaymentEntity
+      PaymentEntity,
+      GatewayLogEntity
     ]),
   ],
   providers: [
@@ -80,7 +83,8 @@ const providerList = [
     UserController,
     IntervalController,
     PlanController,
-    InvoiceController
+    InvoiceController,
+    StripeController
   ],
   exports: [
     TypeOrmModule,

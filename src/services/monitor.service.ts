@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from "axios";
@@ -20,6 +20,8 @@ import formatDate from 'src/utils/formatDate';
 
 @Injectable()
 export class MonitorService {
+  private readonly logger = new Logger(MonitorService.name);
+
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
   @InjectRepository(IncidentEntity) private monitorIncidentRepository: Repository<IncidentEntity>
@@ -80,10 +82,10 @@ export class MonitorService {
       order by mon.created_at asc
     `);
 
-    console.log(`[Monitor] ${cron} started for ${monitorList.length} monitors.`);
+    this.logger.log(`${cron} started for ${monitorList.length} monitors.`);
 
     for await (let monitor of monitorList) {
-      console.log(`[Monitor] Checking ${monitor.name} (${monitor.id})`);
+      this.logger.log(`Checking ${monitor.name} (${monitor.id})`);
 
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
       let durationMs: number | null = null;
@@ -265,7 +267,7 @@ export class MonitorService {
                 break;
             }
           } catch (error) {
-            console.log(`Error sending notification for monitor ID: ${monitor.id} via integration ID: ${integration.id}: ${error.message}`);
+            this.logger.error(`Error sending notification for monitor ID: ${monitor.id} via integration ID: ${integration.id}: ${error.message}`);
           }
         }
       }

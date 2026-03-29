@@ -81,6 +81,7 @@ export class PlanService {
     const planList = await this.planRepository.find(filters);
 
     return planList.map((plan) => ({
+      id: plan.id,
       name: plan.name,
       price: plan.price,
       period: plan.name == PlanEnum.ANDORINHA ? "" : "/mês",

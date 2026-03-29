@@ -14,7 +14,7 @@ export class PaymentEntity {
   @Column({ nullable: false })
   invoice_id: string;
 
-  @Column({ type: "int", nullable: false })
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: false })
   amount: number;
 
   @Column({ type: "timestamptz", nullable: true })

@@ -47,6 +47,9 @@ export class PlanEntity {
   @Column({ type: "jsonb", nullable: false, default: "[]" })
   display_features: { label: string; included: boolean; }[];
 
+  @Column({ type: "varchar", length: 100, nullable: true })
+  stripe_price_id: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 
