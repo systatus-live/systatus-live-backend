@@ -34,6 +34,8 @@ import { PdfService } from 'src/services/pdf.service';
 import { StripeController } from 'src/controllers/stripe.controller';
 import { StripeService } from 'src/services/stripe.service';
 import { GatewayLogEntity } from 'src/database/entities/GatewayLogEntity';
+import { TrialService } from 'src/services/trial.service';
+import { CheckoutGuard } from 'src/middlewares/checkout.guard';
 import { UtilsController } from '../controllers/utils.controller';
 const providerList = [
   AuthService,
@@ -42,7 +44,9 @@ const providerList = [
   IntegrationService,
   PlanService,
   PdfService,
-  StripeService
+  StripeService,
+  TrialService,
+  CheckoutGuard
 ]
 
 @Module({

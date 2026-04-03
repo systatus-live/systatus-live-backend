@@ -1,9 +1,11 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, HttpException, HttpStatus, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { OAuth2Client } from "google-auth-library";
-import { StripeService } from 'src/services/stripe.service';
+import momentTz from 'moment-timezone';
+import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
+import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
 import { DataSource, Repository } from 'typeorm';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
@@ -14,8 +16,7 @@ import { MailService } from '../services/mail.service';
 import { PlanEnum } from '../types/PlanEnum';
 import { SignInOptionsDTO } from '../types/SignInOptionsDTO';
 import { SignInTypeEnum } from '../types/SignInTypeEnum';
-import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
-import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
+import formatDate from '../utils/formatDate';
 
 @UseGuards(ThrottlerGuard)
 @Controller({
@@ -25,14 +26,13 @@ import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
 export class AuthController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
   @InjectRepository(AuthFlowEntity) private authFlowRepository: Repository<AuthFlowEntity>
-  @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>
   @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>
+  @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>
 
   constructor(
     private authService: AuthService,
     private dataSource: DataSource,
     private mailService: MailService,
-    private stripeService: StripeService
   ) { }
 
   @Post("/signup")
@@ -70,18 +70,6 @@ export class AuthController {
       });
       await queryRunner.manager.save(UserEntity, savedUser);
 
-      const plan = await this.planRepository.findOne({
-        where: {
-          name: PlanEnum.ANDORINHA
-        }
-      })
-
-      if (!plan) {
-        throw new Error("Plano não encontrado. Contate o suporte.");
-      }
-
-      await this.stripeService.provisionSubscription(queryRunner, savedUser.id, savedUser.email, savedUser.name, plan.id);
-
       const emailBody = readFileSync(`${__dirname}/../assets/mail/NewUserEmail.html`, "utf-8")
         .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])
         .replace(/{{CODE}}/g, verificationCode);
@@ -113,12 +101,45 @@ export class AuthController {
       throw new UnauthorizedException("Código inválido.");
     }
 
-    const userRepository = this.dataSource.getRepository(UserEntity);
-    await userRepository.save({
-      id: findUser.id,
-      verified: true,
-      verification_code: null
-    })
+    const plan = await this.planRepository.findOne({
+      where: { name: PlanEnum.ANDORINHA },
+      select: ["id"]
+    });
+
+    if (!plan) {
+      throw new InternalServerErrorException("Falha ao verificar o código.");
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const dateFormat = "YYYY-MM-DD HH:mm:ssZ";
+      const now = momentTz().tz("America/Sao_Paulo");
+
+      await queryRunner.manager.save(UserEntity, {
+        id: findUser.id,
+        verified: true,
+        verification_code: null
+      });
+
+      await queryRunner.manager.save(SubscriptionEntity, {
+        user_id: findUser.id,
+        plan_id: plan.id,
+        status: SubscriptionStatusEnum.TRIAL,
+        gateway_id: null,
+        start_date: formatDate(now, dateFormat),
+        end_date: formatDate(now.clone().add(14, "days"), dateFormat),
+      });
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new InternalServerErrorException("Falha ao verificar o código.");
+    } finally {
+      await queryRunner.release();
+    }
 
     const accessToken = this.authService.generateJWT({
       user: findUser.id
@@ -244,18 +265,6 @@ export class AuthController {
         throw new NotImplementedException("Método de login não é suportado.");
     }
 
-    const subscription = await this.subscriptionRepository.findOne({
-      where: {
-        user_id: findUser.id,
-        status: SubscriptionStatusEnum.ACTIVE
-      },
-      select: ["id", "plan_id"]
-    })
-
-    if (!subscription) {
-      throw new ForbiddenException("Assinatura não encontrada. Contate o suporte.")
-    }
-
     const accessToken = this.authService.generateJWT({
       user: findUser!.id
     });
@@ -340,11 +349,19 @@ export class AuthController {
   @Get("/me")
   @UseGuards(AuthGuard)
   async me(@Request() request: Request) {
-    const findUser = await this.userRepository.findOne({
-      where: {
-        id: request["loggedUser"]
-      }
-    })
+    const [findUser, subscription] = await Promise.all([
+      this.userRepository.findOne({
+        where: {
+          id: request["loggedUser"]
+        }
+      }),
+      this.subscriptionRepository.findOne({
+        where: {
+          id: request["loggedSubscription"]
+        },
+        select: ["status", "end_date"]
+      })
+    ]);
 
     return {
       data: {
@@ -355,7 +372,11 @@ export class AuthController {
         createdAt: findUser?.created_at,
         updatedAt: findUser?.updated_at,
         avatar: findUser?.avatar,
-        signinType: findUser?.password ? SignInTypeEnum.EMAIL_PASSWORD : SignInTypeEnum.SOCIAL
+        signinType: findUser?.password ? SignInTypeEnum.EMAIL_PASSWORD : SignInTypeEnum.SOCIAL,
+        subscription: {
+          status: subscription?.status,
+          endDate: subscription?.end_date
+        }
       }
     }
   }

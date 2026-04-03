@@ -84,7 +84,7 @@ export class PlanService {
       id: plan.id,
       name: plan.name,
       price: plan.price,
-      period: plan.name == PlanEnum.ANDORINHA ? "" : "/mês",
+      period: "/mês",
       description: plan.description,
       bta: "Assinar",
       btaLink: "/auth/signup",

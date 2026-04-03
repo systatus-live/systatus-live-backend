@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Headers, Post, RawBody, Request, UseGuards } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
-import { AuthGuard } from "../middlewares/auth.guard";
+import { CheckoutGuard } from "../middlewares/checkout.guard";
 import { StripeService } from "../services/stripe.service";
 import { StripeEventEnum } from "../types/StripeEventEnum";
 
@@ -14,7 +14,7 @@ export class StripeController {
   ) { }
 
   @Post("/checkout")
-  @UseGuards(AuthGuard)
+  @UseGuards(CheckoutGuard)
   async createCheckout(@Request() request: Request, @Body() body: { planId: string }) {
     return this.stripeService.createCheckoutSession(request["loggedUser"], body.planId);
   }

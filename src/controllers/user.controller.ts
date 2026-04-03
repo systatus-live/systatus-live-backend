@@ -15,6 +15,7 @@ import { AuthService } from '../services/auth.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import formatDate from 'src/utils/formatDate';
 import momentTz from "moment-timezone";
+import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
 
 @Controller({
   version: "1",
@@ -203,7 +204,18 @@ export class UserController {
     const plan = await this.planService.getPlanById(subscription!.plan!.id);
 
     momentTz.locale("pt-br");
-    plan["nextBilling"] = formatDate(momentTz(subscription!.end_date!).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY");
+
+    if (subscription?.status == SubscriptionStatusEnum.TRIAL) {
+      const now = momentTz().tz("America/Sao_Paulo");
+      const end = momentTz(subscription.end_date).tz("America/Sao_Paulo");
+      const daysLeft = end.diff(now, "days");
+      plan["nextBilling"] = `Seu trial vence ${daysLeft <= 0 ? "hoje" : daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}`;
+    } else {
+      plan["nextBilling"] = `Próximo faturamento: ${formatDate(momentTz(subscription!.end_date).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY")}`;
+    }
+
+    plan["status"] = subscription?.status;
+    plan["endDate"] = subscription?.end_date;
 
     return plan;
   }

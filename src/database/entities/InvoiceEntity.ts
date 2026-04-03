@@ -29,11 +29,11 @@ export class InvoiceEntity {
   @Column({ type: "varchar", length: 100, nullable: true })
   gateway_id: string | null;
 
-  @Column({ type: "timestamptz", nullable: false })
-  subscription_start_date: string;
+  @Column({ type: "timestamptz", nullable: true })
+  subscription_start_date: string | null;
 
-  @Column({ type: "timestamptz", nullable: false })
-  subscription_end_date: string;
+  @Column({ type: "timestamptz", nullable: true })
+  subscription_end_date: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;

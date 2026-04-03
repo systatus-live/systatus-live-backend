@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, QueryRunner, Repository } from "typeorm";
 import Stripe from "stripe";
@@ -99,6 +100,10 @@ export class StripeService {
       throw new BadRequestException("Plano não possui preço configurado no Stripe.");
     }
 
+    if (!user?.billing_name) {
+      throw new BadRequestException("Preencha os dados de cobrança antes de assinar um plano pago.");
+    }
+
     let stripeCustomerId = user!.stripe_customer_id;
 
     if (!stripeCustomerId) {
@@ -186,7 +191,7 @@ export class StripeService {
       const currentSub = await queryRunner.manager.findOne(SubscriptionEntity, {
         where: {
           user_id: userId,
-          status: SubscriptionStatusEnum.ACTIVE
+          status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.TRIAL])
         },
       });
 
@@ -197,7 +202,7 @@ export class StripeService {
 
         await queryRunner.manager.save(SubscriptionEntity, {
           id: currentSub.id,
-          status: SubscriptionStatusEnum.CANCELED,
+          status: SubscriptionStatusEnum.UPGRADED,
         });
       }
 

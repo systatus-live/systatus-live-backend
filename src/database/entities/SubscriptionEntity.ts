@@ -25,8 +25,8 @@ export class SubscriptionEntity {
   @Column({ type: "timestamptz", nullable: false })
   start_date: string;
 
-  @Column({ type: "timestamptz", nullable: false })
-  end_date: string;
+  @Column({ type: "timestamptz", nullable: true })
+  end_date: string | null;
 
   @Column({ type: "enum", enum: SubscriptionStatusEnum, nullable: false })
   status: SubscriptionStatusEnum;
