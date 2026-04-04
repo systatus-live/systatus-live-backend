@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from "bcrypt";
 import { Repository } from 'typeorm';
 import axios from "axios";
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
+import { PlanPermissionEntity } from '../database/entities/PlanPermissionEntity';
 import { CaptchaReasonEnum } from '../types/CaptchaReasonEnum';
+import { PermissionEnum } from '../types/PermissionEnum';
 
 @Injectable()
 export class AuthService {
   @InjectRepository(AuthHistoryEntity) private authSessionRepository: Repository<AuthHistoryEntity>
+  @InjectRepository(PlanPermissionEntity) private planPermissionRepository: Repository<PlanPermissionEntity>
 
   constructor(
     private jwtService: JwtService
@@ -101,5 +104,36 @@ export class AuthService {
         throw new Error("reCAPTCHA inválido. Tente novamente.");
       }
     }
+  }
+
+  async hasPermission(planId: string, permission: PermissionEnum): Promise<boolean> {
+    const count = await this.planPermissionRepository
+      .createQueryBuilder("pp")
+      .innerJoin("pp.permission", "p")
+      .where("pp.plan_id = :planId", {
+        planId: planId
+      })
+      .andWhere("p.name = :permission", {
+        permission: permission
+      })
+      .getCount();
+    return count > 0;
+  }
+
+  async assertPermission(planId: string, permission: PermissionEnum, message: string): Promise<void> {
+    if (!await this.hasPermission(planId, permission)) {
+      throw new ForbiddenException(message);
+    }
+  }
+
+  async getPermissionList(planId: string): Promise<PermissionEnum[]> {
+    const records = await this.planPermissionRepository
+      .createQueryBuilder("pp")
+      .innerJoinAndSelect("pp.permission", "p")
+      .where("pp.plan_id = :planId", { 
+        planId: planId 
+      })
+      .getMany();
+    return records.map(r => r.permission.name);
   }
 }

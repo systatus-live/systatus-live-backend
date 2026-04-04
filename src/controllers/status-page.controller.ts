@@ -4,10 +4,13 @@ import { DataSource, Repository } from 'typeorm';
 import { StatusPageEntity } from '../database/entities/StatusPageEntity';
 import { StatusPageMonitorEntity } from '../database/entities/StatusPageMonitorEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
-import { PlanService } from '../services/plan.service';
+import { AuthService } from '../services/auth.service';
+import { PermissionEnum } from '../types/PermissionEnum';
 import formatDate from '../utils/formatDate';
 import formatSince from '../utils/formatSince';
 import normalizeSlug from '../utils/normalizeSlug';
+import { PlanEntity } from 'src/database/entities/PlanEntity';
+import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
 
 @Controller({
   version: "1",
@@ -16,14 +19,16 @@ import normalizeSlug from '../utils/normalizeSlug';
 export class StatusPageController {
   @InjectRepository(StatusPageEntity) private statusPageRepository: Repository<StatusPageEntity>;
   @InjectRepository(StatusPageMonitorEntity) private statusPageMonitorRepository: Repository<StatusPageMonitorEntity>;
+  @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>;
+  @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>;
 
   constructor(
     private dataSource: DataSource,
-    private planService: PlanService
+    private authService: AuthService
   ) { }
 
   @Get("/public/:slug")
-  async getPublicStatusPage(@Param("slug") slug: string) {
+  async getPublicStatusPage(@Request() request: Request, @Param("slug") slug: string) {
     const statusPage = await this.statusPageRepository.findOne({
       where: {
         slug,
@@ -32,6 +37,17 @@ export class StatusPageController {
     });
 
     if (!statusPage) {
+      throw new NotFoundException("Página de status não encontrada.");
+    }
+
+    const subscription = await this.subscriptionRepository.findOne({
+      where: {
+        user_id: statusPage.user_id,
+      },
+      relations: ["plan"]
+    })
+
+    if (!await this.authService.hasPermission(subscription?.plan_id!, PermissionEnum.STATUS_PAGE)) {
       throw new NotFoundException("Página de status não encontrada.");
     }
 
@@ -129,7 +145,7 @@ export class StatusPageController {
   @Post("/")
   @UseGuards(AuthGuard)
   async createStatusPage(@Request() request: Request, @Body() body: any) {
-    await this.planService.assertStatusPageAllowed(request["loggedPlan"]);
+    await this.authService.assertPermission(request["loggedPlan"], PermissionEnum.STATUS_PAGE, "Seu plano não inclui página de status pública. Considere fazer upgrade.");
 
     const existing = await this.statusPageRepository.findOne({
       where: {
@@ -181,7 +197,7 @@ export class StatusPageController {
   @Put("/")
   @UseGuards(AuthGuard)
   async updateStatusPage(@Request() request: Request, @Body() body: any) {
-    await this.planService.assertStatusPageAllowed(request["loggedPlan"]);
+    await this.authService.assertPermission(request["loggedPlan"], PermissionEnum.STATUS_PAGE, "Seu plano não inclui página de status pública. Considere fazer upgrade.");
 
     const statusPage = await this.statusPageRepository.findOne({
       where: {

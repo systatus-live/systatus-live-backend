@@ -1,18 +1,16 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
 import { PlanIntervalEntity } from '../database/entities/PlanIntervalEntity';
 import { PlanEnum } from '../types/PlanEnum';
-import { ChatPlatformEnum, ChatPlatformLabelEnum } from '../types/ChatPlatformEnum';
+import { ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 @Injectable()
 export class PlanService {
   @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>;
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>;
-  @InjectRepository(ChatPlatformEntity) private chatPlatformRepository: Repository<ChatPlatformEntity>;
   @InjectRepository(PlanIntervalEntity) private planIntervalRepository: Repository<PlanIntervalEntity>;
 
   async getPlanById(id: string) {
@@ -46,37 +44,6 @@ export class PlanService {
     }
   }
 
-  async assertIntegrationAllowed(planId: string, chatPlatformId: string): Promise<void> {
-    const [plan, chatPlatform] = await Promise.all([
-      this.planRepository.findOne({
-        where: {
-          id: planId
-        }
-      }),
-      this.chatPlatformRepository.findOne({
-        where: {
-          id: chatPlatformId
-        },
-        select: ["name"]
-      })
-    ]);
-
-    if (!plan || !chatPlatform) return;
-
-    const permissionMap: Partial<Record<ChatPlatformEnum, keyof PlanEntity>> = {
-      [ChatPlatformEnum.SLACK]: "slack",
-      [ChatPlatformEnum.DISCORD]: "discord",
-      [ChatPlatformEnum.GOOGLE_CHAT]: "google_chat",
-      [ChatPlatformEnum.EMAIL]: "email",
-      [ChatPlatformEnum.WHATSAPP]: "whatsapp",
-    };
-
-    const field = permissionMap[chatPlatform.name];
-    if (field && !plan[field]) {
-      throw new ForbiddenException(`Seu plano não inclui integração com "${ChatPlatformLabelEnum[chatPlatform.name]}". Considere fazer upgrade.`);
-    }
-  }
-
   async _getPlanList(id: string | null = null) {
     let filters: any = {
       order: {
@@ -103,17 +70,6 @@ export class PlanService {
       features: plan.display_features,
       image: plan.image
     }));
-  }
-
-  async assertStatusPageAllowed(planId: string): Promise<void> {
-    const plan = await this.planRepository.findOne({
-      where: { id: planId },
-      select: ["status_page"]
-    });
-
-    if (plan && !plan.status_page) {
-      throw new ForbiddenException(`Seu plano não inclui página de status pública. Considere fazer upgrade.`);
-    }
   }
 
   async assertIntervalAllowed(planId: string, intervalId: string): Promise<void> {

@@ -27,6 +27,8 @@ import { PlanEntity } from '../database/entities/PlanEntity';
 import { PlanController } from '../controllers/plan.controller';
 import { StatusPageEntity } from '../database/entities/StatusPageEntity';
 import { StatusPageMonitorEntity } from '../database/entities/StatusPageMonitorEntity';
+import { PlanPermissionEntity } from '../database/entities/PlanPermissionEntity';
+import { PermissionEntity } from '../database/entities/PermissionEntity';
 import { StatusPageController } from '../controllers/status-page.controller';
 import { PlanService } from '../services/plan.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
@@ -80,7 +82,9 @@ const providerList = [
       PaymentEntity,
       GatewayLogEntity,
       StatusPageEntity,
-      StatusPageMonitorEntity
+      StatusPageMonitorEntity,
+      PlanPermissionEntity,
+      PermissionEntity
     ]),
   ],
   providers: [

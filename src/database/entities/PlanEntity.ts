@@ -23,27 +23,6 @@ export class PlanEntity {
   @Column({ type: "int", nullable: false })
   monitor_qty: number;
 
-  @Column({ type: "boolean", nullable: false })
-  whatsapp: boolean;
-
-  @Column({ type: "boolean", nullable: false })
-  slack: boolean;
-
-  @Column({ type: "boolean", nullable: false })
-  google_chat: boolean;
-
-  @Column({ type: "boolean", nullable: false })
-  email: boolean;
-
-  @Column({ type: "boolean", nullable: false })
-  discord: boolean;
-
-  @Column({ type: "boolean", nullable: false })
-  custom_notification: boolean;
-
-  @Column({ type: "boolean", nullable: false })
-  status_page: boolean;
-
   @Column({ type: "jsonb", nullable: false, default: "[]" })
   display_features: { label: string; included: boolean; }[];
 

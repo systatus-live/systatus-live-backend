@@ -349,7 +349,7 @@ export class AuthController {
   @Get("/me")
   @UseGuards(AuthGuard)
   async me(@Request() request: Request) {
-    const [findUser, subscription] = await Promise.all([
+    const [findUser, subscription, permissionList] = await Promise.all([
       this.userRepository.findOne({
         where: {
           id: request["loggedUser"]
@@ -360,7 +360,8 @@ export class AuthController {
           id: request["loggedSubscription"]
         },
         select: ["status", "end_date"]
-      })
+      }),
+      this.authService.getPermissionList(request["loggedPlan"])
     ]);
 
     return {
@@ -373,6 +374,7 @@ export class AuthController {
         updatedAt: findUser?.updated_at,
         avatar: findUser?.avatar,
         signinType: findUser?.password ? SignInTypeEnum.EMAIL_PASSWORD : SignInTypeEnum.SOCIAL,
+        permissionList,
         subscription: {
           status: subscription?.status,
           endDate: subscription?.end_date
