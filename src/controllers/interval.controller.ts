@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AuthGuard } from '../middlewares/auth.guard';
 import removeAccents from '../utils/removeAccents';
@@ -16,7 +16,7 @@ export class IntervalController {
   ) { }
 
   @Get("/")
-  async getIntervalList(@Query("page") page: number, @Query("search") search: string) {
+  async getIntervalList(@Request() request: Request, @Query("page") page: number, @Query("search") search: string) {
     if (page == null || isNaN(page) || page < 0) {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
@@ -25,12 +25,15 @@ export class IntervalController {
       search = removeAccents(search);
     }
 
+    const planId = request["loggedPlan"];
+
     const results = await Promise.all([
       this.dataSource.query(`
         select int.id
           , int.name
           , int.cron
         from intervals int
+        join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
         where 1 = 1
         ${search ? `and (lower(trim(unaccent(int.name))) like '%${search}%' or lower(trim(unaccent(int.cron))) like '%${search}%')` : ""}
         order by int.index asc
@@ -39,6 +42,7 @@ export class IntervalController {
       this.dataSource.query(`
         select count(1) as total
         from intervals int
+        join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
         where 1 = 1
         ${search ? `and (lower(trim(unaccent(int.name))) like '%${search}%' or lower(trim(unaccent(int.cron))) like '%${search}%')` : ""}
       `),

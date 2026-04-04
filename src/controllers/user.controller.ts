@@ -211,7 +211,7 @@ export class UserController {
       const daysLeft = end.diff(now, "days");
       plan["nextBilling"] = `Seu trial vence ${daysLeft <= 0 ? "hoje" : daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}`;
     } else {
-      plan["nextBilling"] = `Próximo faturamento: ${formatDate(momentTz(subscription!.end_date).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY")}`;
+      plan["nextBilling"] = `Próxima cobrança: ${formatDate(momentTz(subscription!.end_date).tz("America/Sao_Paulo").add(1, "days"), "D [de] MMMM [de] YYYY")}`;
     }
 
     plan["status"] = subscription?.status;

@@ -19,6 +19,7 @@ import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { IncidentController } from '../controllers/incident.controller.ts';
 import { UserController } from '../controllers/user.controller';
 import { IntervalEntity } from '../database/entities/IntervalEntity';
+import { PlanIntervalEntity } from '../database/entities/PlanIntervalEntity';
 import { IntervalController } from '../controllers/interval.controller';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
@@ -67,6 +68,7 @@ const providerList = [
       UserEntity,
       ChatPlatformEntity,
       IntervalEntity,
+      PlanIntervalEntity,
       AuthFlowEntity,
       AuthHistoryEntity,
       PlanEntity,

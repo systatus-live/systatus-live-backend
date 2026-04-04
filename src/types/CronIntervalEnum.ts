@@ -1,4 +1,5 @@
 export enum CronIntervalEnum {
+  EVERY_1_MINUTE = "* * * * *",
   EVERY_5_MINUTES = "*/5 * * * *",
   EVERY_30_MINUTES = "*/30 * * * *",
   EVERY_1_HOUR = "0 * * * *",

@@ -28,6 +28,7 @@ export class MonitorController {
   @Post("/")
   async createMonitor(@Request() request: Request, @Body() body: any) {
     await this.planService.assertMonitorLimit(request["loggedPlan"], request["loggedUser"]);
+    await this.planService.assertIntervalAllowed(request["loggedPlan"], body.intervalId);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
@@ -203,6 +204,8 @@ export class MonitorController {
     if (!monitor) {
       throw new NotFoundException("Monitor não encontrado.");
     }
+
+    await this.planService.assertIntervalAllowed(request["loggedPlan"], body.intervalId);
 
     const monitorWithSameAddress = await this.monitorRepository.findOne({
       where: {

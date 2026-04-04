@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
+import { PlanIntervalEntity } from '../database/entities/PlanIntervalEntity';
 import { PlanEnum } from '../types/PlanEnum';
 import { ChatPlatformEnum, ChatPlatformLabelEnum } from '../types/ChatPlatformEnum';
 import { Repository } from 'typeorm';
@@ -12,6 +13,7 @@ export class PlanService {
   @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>;
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>;
   @InjectRepository(ChatPlatformEntity) private chatPlatformRepository: Repository<ChatPlatformEntity>;
+  @InjectRepository(PlanIntervalEntity) private planIntervalRepository: Repository<PlanIntervalEntity>;
 
   async getPlanById(id: string) {
     const [plan] = await this._getPlanList(id);
@@ -24,8 +26,17 @@ export class PlanService {
 
   async assertMonitorLimit(planId: string, userId: string): Promise<void> {
     const [plan, count] = await Promise.all([
-      this.planRepository.findOne({ where: { id: planId }, select: ['monitor_qty'] }),
-      this.monitorRepository.count({ where: { created_user_id: userId } })
+      this.planRepository.findOne({
+        where: {
+          id: planId
+        },
+        select: ["monitor_qty"]
+      }),
+      this.monitorRepository.count({
+        where: {
+          created_user_id: userId
+        }
+      })
     ]);
 
     if (!plan) return;
@@ -92,5 +103,18 @@ export class PlanService {
       features: plan.display_features,
       image: plan.image
     }));
+  }
+
+  async assertIntervalAllowed(planId: string, intervalId: string): Promise<void> {
+    const planInterval = await this.planIntervalRepository.findOne({
+      where: {
+        plan_id: planId,
+        interval_id: intervalId
+      }
+    });
+
+    if (!planInterval) {
+      throw new ForbiddenException(`Seu plano não permite o uso deste intervalo de monitoramento. Considere fazer upgrade.`);
+    }
   }
 }

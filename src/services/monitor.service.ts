@@ -32,6 +32,14 @@ export class MonitorService {
     private dataSource: DataSource
   ) { }
 
+    @Cron(CronIntervalEnum.EVERY_1_MINUTE, {
+    name: `monitor-1-minutes`,
+    timeZone: "America/Sao_Paulo"
+  })
+  schedule1MinutesMonitor() {
+    this.checkMonitors(CronIntervalEnum.EVERY_1_MINUTE);
+  }
+
   @Cron(CronIntervalEnum.EVERY_5_MINUTES, {
     name: `monitor-5-minutes`,
     timeZone: "America/Sao_Paulo"
