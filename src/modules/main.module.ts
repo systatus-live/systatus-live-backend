@@ -25,6 +25,9 @@ import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
 import { PlanController } from '../controllers/plan.controller';
+import { StatusPageEntity } from '../database/entities/StatusPageEntity';
+import { StatusPageMonitorEntity } from '../database/entities/StatusPageMonitorEntity';
+import { StatusPageController } from '../controllers/status-page.controller';
 import { PlanService } from '../services/plan.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import { MonitorService } from 'src/services/monitor.service';
@@ -75,7 +78,9 @@ const providerList = [
       SubscriptionEntity,
       InvoiceEntity,
       PaymentEntity,
-      GatewayLogEntity
+      GatewayLogEntity,
+      StatusPageEntity,
+      StatusPageMonitorEntity
     ]),
   ],
   providers: [
@@ -93,6 +98,7 @@ const providerList = [
     InvoiceController,
     StripeController,
     UtilsController,
+    StatusPageController,
   ],
   exports: [
     TypeOrmModule,

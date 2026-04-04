@@ -105,6 +105,17 @@ export class PlanService {
     }));
   }
 
+  async assertStatusPageAllowed(planId: string): Promise<void> {
+    const plan = await this.planRepository.findOne({
+      where: { id: planId },
+      select: ["status_page"]
+    });
+
+    if (plan && !plan.status_page) {
+      throw new ForbiddenException(`Seu plano não inclui página de status pública. Considere fazer upgrade.`);
+    }
+  }
+
   async assertIntervalAllowed(planId: string, intervalId: string): Promise<void> {
     const planInterval = await this.planIntervalRepository.findOne({
       where: {
