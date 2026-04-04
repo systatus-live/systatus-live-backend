@@ -12,6 +12,9 @@ export class GatewayLogEntity {
   @Column({ type: "jsonb", nullable: false, default: {} })
   json: Record<string, any>;
 
+  @Column({ type: "varchar", length: 1024, nullable: false })
+  event: string;
+
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 

@@ -153,6 +153,7 @@ export class StripeService {
     await this.gatewayLogRepository.save({
       provider: ProviderEnum.STRIPE,
       json: event,
+      event: event.type
     });
   }
 
