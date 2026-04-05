@@ -63,12 +63,12 @@ export class StatusPageController {
         , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
         , (
             with dates as (
-              select generate_series(current_date - interval '29 days', current_date, '1 day'::interval)::date AS date
+              select generate_series((CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - interval '29 days', (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date, '1 day'::interval)::date AS date
             )
             select array_agg(json_build_object(
               'date', dat.date
-              , 'totalOnline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and t.created_at::date = dat.date and t.status like '2%')
-              , 'totalOffline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and t.created_at::date = dat.date and t.status not like '2%')
+              , 'totalOnline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status like '2%')
+              , 'totalOffline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status not like '2%')
             ))
             from dates dat
           ) as "historical"
