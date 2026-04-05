@@ -71,7 +71,7 @@ export enum HttpStatusCodeLabel {
   SWITCHING_PROTOCOLS = "Switching Protocols",
   PROCESSING = "Processing",
   EARLY_HINTS = "Early Hints",
-  OK = "OK",
+  OK = "Operacional",
   CREATED = "Created",
   ACCEPTED = "Accepted",
   NON_AUTHORITATIVE_INFORMATION = "Non-Authoritative Information",
