@@ -59,12 +59,6 @@ export class IntegrationService {
         {
           cardId: "systatus.live",
           card: {
-            // header: {
-            //   title: title,
-            //   subtitle: description,
-            //   imageUrl: this.systatusAvatarUrl,
-            //   imageType: "CIRCLE"
-            // },
             sections: [
               {
                 widgets: [
@@ -97,6 +91,58 @@ export class IntegrationService {
 
     try {
       const { data } = await axios.post(url, template);
+      return data;
+    } catch (error) {
+      throw new Error(error.response.data.error.message);
+    }
+  }
+
+  public async sendWhatsApp(template: "systatus_monitor_up_pt_br" | "systatus_monitor_down_pt_br", to: string, monitor: string, status: string, downtime: string) {
+    let parameterList = [
+      {
+        type: "text",
+        parameter_name: "monitor",
+        text: monitor
+      },
+      {
+        type: "text",
+        parameter_name: "status",
+        text: status
+      }
+    ]
+
+    if (template == "systatus_monitor_up_pt_br") {
+      parameterList.push({
+        type: "text",
+        parameter_name: "downtime",
+        text: downtime
+      })
+    }
+
+    const request = {
+      messaging_product: "whatsapp",
+      to: `55${to}`,
+      type: "template",
+      template: {
+        name: template,
+        language: {
+          code: "pt_BR"
+        }
+      },
+      components: [
+        {
+          type: "body",
+          parameters: parameterList
+        }
+      ]
+    }
+
+    try {
+      const { data } = await axios.post(`https://graph.facebook.com/v25.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, request, {
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_API_KEY}`
+        }
+      });
       return data;
     } catch (error) {
       throw new Error(error.response.data.error.message);

@@ -32,7 +32,7 @@ export class MonitorService {
     private dataSource: DataSource
   ) { }
 
-    @Cron(CronIntervalEnum.EVERY_1_MINUTE, {
+  @Cron(CronIntervalEnum.EVERY_1_MINUTE, {
     name: `monitor-1-minutes`,
     timeZone: "America/Sao_Paulo"
   })
@@ -266,6 +266,13 @@ export class MonitorService {
                 break;
               case ChatPlatformEnum.SLACK:
                 await this.integrationService.sendSlackWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
+                break;
+              case ChatPlatformEnum.WHATSAPP:
+                if (notifyType == "OK") {
+                  await this.integrationService.sendWhatsApp("systatus_monitor_up_pt_br", integration.address, `${monitor.name} (${monitor.address})`, `🟢 ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"));
+                } else {
+                  await this.integrationService.sendWhatsApp("systatus_monitor_down_pt_br", integration.address, `${monitor.name} (${monitor.address})`, `🔴 ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, "");
+                }
                 break;
               case ChatPlatformEnum.EMAIL:
                 const emailBody = readFileSync(`${__dirname}/../assets/mail/Monitor.html`, "utf-8").replace(/{{MESSAGE}}/g, description).replace("🟢 ", "").replace("🔴 ", "");

@@ -29,6 +29,7 @@ import { StatusPageEntity } from '../database/entities/StatusPageEntity';
 import { StatusPageMonitorEntity } from '../database/entities/StatusPageMonitorEntity';
 import { PlanPermissionEntity } from '../database/entities/PlanPermissionEntity';
 import { PermissionEntity } from '../database/entities/PermissionEntity';
+import { PlanChatPlatformEntity } from '../database/entities/PlanChatPlatformEntity';
 import { StatusPageController } from '../controllers/status-page.controller';
 import { PlanService } from '../services/plan.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
@@ -84,7 +85,8 @@ const providerList = [
       StatusPageEntity,
       StatusPageMonitorEntity,
       PlanPermissionEntity,
-      PermissionEntity
+      PermissionEntity,
+      PlanChatPlatformEntity
     ]),
   ],
   providers: [

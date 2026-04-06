@@ -1,6 +1,6 @@
-import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
 import removeAccents from '../utils/removeAccents';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AuthGuard } from '../middlewares/auth.guard';
 
 @Controller({
@@ -16,7 +16,7 @@ export class ChatPlatformController {
   ) { }
 
   @Get("/")
-  async getChatPlatformList(@Query("page") page: number, @Query("search") search: string) {
+  async getChatPlatformList(@Request() request: Request, @Query("page") page: number, @Query("search") search: string) {
     if (page == null || isNaN(page) || page < 0) {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
@@ -24,6 +24,8 @@ export class ChatPlatformController {
     if (search) {
       search = removeAccents(search);
     }
+
+    const planId = request["loggedPlan"];
 
     const results = await Promise.all([
       this.dataSource.query(`
@@ -36,7 +38,8 @@ export class ChatPlatformController {
           , cpl.updated_at
           , cpl.type
         from chat_platforms cpl
-        where 1 = 1
+        join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
+        where pcp.plan_id = '${planId}'
         ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
         order by cpl.created_at desc
         limit ${this.querySize} offset ${this.querySize * page}
@@ -44,7 +47,8 @@ export class ChatPlatformController {
       this.dataSource.query(`
         select count(1) as total
         from chat_platforms cpl
-        where 1 = 1
+        join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
+        where pcp.plan_id = '${planId}'
         ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
       `),
     ]);

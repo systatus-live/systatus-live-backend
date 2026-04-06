@@ -2,18 +2,17 @@ import { BadRequestException, Body, ConflictException, Controller, Delete, Get, 
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { DataSource, Not, Repository } from 'typeorm';
-import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
-import { AuthService } from '../services/auth.service';
 import { IntegrationService } from '../services/integration.service';
 import { MailService } from '../services/mail.service';
-import { ChatPlatformEnum, ChatPlatformLabelEnum } from '../types/ChatPlatformEnum';
-import { PermissionEnum } from '../types/PermissionEnum';
+import { PlanService } from '../services/plan.service';
+import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
 import getCurrentDate from '../utils/getCurrenDate';
 import removeAccents from '../utils/removeAccents';
 import formatDate from 'src/utils/formatDate';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @Controller({
   version: "1",
@@ -23,23 +22,15 @@ import formatDate from 'src/utils/formatDate';
 export class IntegrationController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
   @InjectRepository(IntegrationEntity) private integrationRepository: Repository<IntegrationEntity>
-  @InjectRepository(ChatPlatformEntity) private chatPlatformRepository: Repository<ChatPlatformEntity>
+
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
-
-  private readonly platformPermissionMap: Partial<Record<ChatPlatformEnum, PermissionEnum>> = {
-    [ChatPlatformEnum.SLACK]: PermissionEnum.INTEG_SLACK,
-    [ChatPlatformEnum.DISCORD]: PermissionEnum.INTEG_DISCORD,
-    [ChatPlatformEnum.GOOGLE_CHAT]: PermissionEnum.INTEG_GOOGLE_CHAT,
-    [ChatPlatformEnum.EMAIL]: PermissionEnum.INTEG_EMAIL,
-    [ChatPlatformEnum.WHATSAPP]: PermissionEnum.INTEG_WHATSAPP,
-  };
 
   constructor(
     private dataSource: DataSource,
     private integrationService: IntegrationService,
     private mailService: MailService,
-    private authService: AuthService
+    private planService: PlanService,
   ) { }
 
   @Post("/")
@@ -56,19 +47,7 @@ export class IntegrationController {
       throw new ConflictException(`Já existe a integração '${integrationWithSameAddress.name}' com este endereço.`)
     }
 
-    const chatPlatform = await this.chatPlatformRepository.findOne({
-      where: {
-        id: body.chatPlatformId
-      },
-      select: ["name"]
-    });
-
-    if (chatPlatform) {
-      const permission = this.platformPermissionMap[chatPlatform.name];
-      if (permission) {
-        await this.authService.assertPermission(request["loggedPlan"], permission, `Seu plano não inclui integração com "${ChatPlatformLabelEnum[chatPlatform.name]}". Considere fazer upgrade.`);
-      }
-    }
+    await this.planService.assertChatPlatformAllowed(request["loggedPlan"], body.chatPlatformId);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
@@ -239,6 +218,8 @@ export class IntegrationController {
     }
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(ThrottlerGuard)
   @Post("/validates")
   async validateIntegration(@Request() request: Request, @Body("id") id: string) {
     const integration = await this.integrationRepository.findOne({
@@ -268,6 +249,8 @@ export class IntegrationController {
           break;
         case ChatPlatformEnum.DISCORD:
           await this.integrationService.sendDiscordWebhook(integration.address, title, msg, footer, "#999999");
+          break;
+        case ChatPlatformEnum.WHATSAPP:
           break;
         case ChatPlatformEnum.EMAIL:
           const loggedUser = await this.userRepository.findOne({

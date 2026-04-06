@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';
 import { PlanIntervalEntity } from '../database/entities/PlanIntervalEntity';
+import { PlanChatPlatformEntity } from '../database/entities/PlanChatPlatformEntity';
+import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { PlanEnum } from '../types/PlanEnum';
 import { ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
@@ -12,6 +14,8 @@ export class PlanService {
   @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>;
   @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>;
   @InjectRepository(PlanIntervalEntity) private planIntervalRepository: Repository<PlanIntervalEntity>;
+  @InjectRepository(PlanChatPlatformEntity) private planChatPlatformRepository: Repository<PlanChatPlatformEntity>;
+  @InjectRepository(ChatPlatformEntity) private chatPlatformRepository: Repository<ChatPlatformEntity>;
 
   async getPlanById(id: string) {
     const [plan] = await this._getPlanList(id);
@@ -82,6 +86,25 @@ export class PlanService {
 
     if (!planInterval) {
       throw new ForbiddenException(`Seu plano não permite o uso deste intervalo de monitoramento. Considere fazer upgrade.`);
+    }
+  }
+
+  async assertChatPlatformAllowed(planId: string, chatPlatformId: string): Promise<void> {
+    const planChatPlatform = await this.planChatPlatformRepository.findOne({
+      where: { 
+        plan_id: planId, 
+        chat_platform_id: chatPlatformId 
+      }
+    });
+
+    if (!planChatPlatform) {
+      const chatPlatform = await this.chatPlatformRepository.findOne({
+        where: { 
+          id: chatPlatformId 
+        },
+        select: ["description"]
+      });
+      throw new ForbiddenException(`Seu plano não inclui integração com "${chatPlatform?.description}". Considere fazer upgrade.`);
     }
   }
 }

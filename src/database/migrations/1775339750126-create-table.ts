@@ -14,11 +14,11 @@ export class CreateTable1775339750126 implements MigrationInterface {
     await queryRunner.query(`
       INSERT INTO "permissions" (name, description) VALUES
       ('${PermissionEnum.STATUS_PAGE}', 'Acesso à criação e gestão de página pública de status'),
-      ('${PermissionEnum.INTEG_SLACK}', 'Integração com Slack para notificações'),
-      ('${PermissionEnum.INTEG_DISCORD}', 'Integração com Discord para notificações'),
-      ('${PermissionEnum.INTEG_GOOGLE_CHAT}', 'Integração com Google Chat para notificações'),
-      ('${PermissionEnum.INTEG_EMAIL}', 'Integração com Email para notificações'),
-      ('${PermissionEnum.INTEG_WHATSAPP}', 'Integração com WhatsApp para notificações'),
+      ('INTEG_SLACK', 'Integração com Slack para notificações'),
+      ('INTEG_DISCORD', 'Integração com Discord para notificações'),
+      ('INTEG_GOOGLE_CHAT', 'Integração com Google Chat para notificações'),
+      ('INTEG_EMAIL', 'Integração com Email para notificações'),
+      ('INTEG_WHATSAPP', 'Integração com WhatsApp para notificações'),
       ('${PermissionEnum.CUSTOM_NOTIFICATION}', 'Notificações customizadas')
     `);
 
@@ -29,24 +29,24 @@ export class CreateTable1775339750126 implements MigrationInterface {
       CROSS JOIN permissions perm
       WHERE
         (p.name = '${PlanEnum.ANDORINHA}' AND perm.name IN (
-          '${PermissionEnum.INTEG_SLACK}',
-          '${PermissionEnum.INTEG_GOOGLE_CHAT}',
-          '${PermissionEnum.INTEG_EMAIL}',
-          '${PermissionEnum.INTEG_DISCORD}'
+          'INTEG_SLACK',
+          'INTEG_GOOGLE_CHAT',
+          'INTEG_EMAIL',
+          'INTEG_DISCORD'
         ))
         OR (p.name = '${PlanEnum.CORUJA}' AND perm.name IN (
-          '${PermissionEnum.INTEG_SLACK}',
-          '${PermissionEnum.INTEG_GOOGLE_CHAT}',
-          '${PermissionEnum.INTEG_EMAIL}',
-          '${PermissionEnum.INTEG_DISCORD}',
+          'INTEG_SLACK',
+          'INTEG_GOOGLE_CHAT',
+          'INTEG_EMAIL',
+          'INTEG_DISCORD',
           '${PermissionEnum.STATUS_PAGE}'
         ))
         OR (p.name = '${PlanEnum.AGUIA}' AND perm.name IN (
-          '${PermissionEnum.INTEG_SLACK}',
-          '${PermissionEnum.INTEG_GOOGLE_CHAT}',
-          '${PermissionEnum.INTEG_EMAIL}',
-          '${PermissionEnum.INTEG_DISCORD}',
-          '${PermissionEnum.INTEG_WHATSAPP}',
+          'INTEG_SLACK',
+          'INTEG_GOOGLE_CHAT',
+          'INTEG_EMAIL',
+          'INTEG_DISCORD',
+          'INTEG_WHATSAPP',
           '${PermissionEnum.CUSTOM_NOTIFICATION}',
           '${PermissionEnum.STATUS_PAGE}'
         ))
