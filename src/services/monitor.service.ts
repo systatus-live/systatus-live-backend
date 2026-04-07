@@ -269,9 +269,9 @@ export class MonitorService {
                 break;
               case ChatPlatformEnum.WHATSAPP:
                 if (notifyType == "OK") {
-                  await this.integrationService.sendWhatsApp("systatus_monitor_up_pt_br", integration.address, `${monitor.name} (${monitor.address})`, `🟢 ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"));
+                  await this.integrationService.sendWhatsApp("systatus_monitor_up", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"));
                 } else {
-                  await this.integrationService.sendWhatsApp("systatus_monitor_down_pt_br", integration.address, `${monitor.name} (${monitor.address})`, `🔴 ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, "");
+                  await this.integrationService.sendWhatsApp("systatus_monitor_down", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, "");
                 }
                 break;
               case ChatPlatformEnum.EMAIL:

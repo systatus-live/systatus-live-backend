@@ -97,27 +97,23 @@ export class IntegrationService {
     }
   }
 
-  public async sendWhatsApp(template: "systatus_monitor_up_pt_br" | "systatus_monitor_down_pt_br", to: string, monitor: string, status: string, downtime: string) {
+  public async sendWhatsApp(template: "systatus_monitor_up" | "systatus_monitor_down", to: string, monitor: string, status: string, downtime: string) {
     let parameterList = [
       {
         type: "text",
         parameter_name: "monitor",
         text: monitor
       },
-      {
-        type: "text",
-        parameter_name: "status",
-        text: status
-      }
-    ]
-
-    if (template == "systatus_monitor_up_pt_br") {
-      parameterList.push({
+      template == "systatus_monitor_up" ? {
         type: "text",
         parameter_name: "downtime",
         text: downtime
-      })
-    }
+      } : {
+        type: "text",
+        parameter_name: "status",
+        text: status
+      },
+    ]
 
     const request = {
       messaging_product: "whatsapp",
@@ -127,14 +123,14 @@ export class IntegrationService {
         name: template,
         language: {
           code: "pt_BR"
-        }
+        },
+        components: [
+          {
+            type: "body",
+            parameters: parameterList
+          }
+        ]
       },
-      components: [
-        {
-          type: "body",
-          parameters: parameterList
-        }
-      ]
     }
 
     try {
