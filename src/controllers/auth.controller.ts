@@ -73,7 +73,7 @@ export class AuthController {
       const emailBody = readFileSync(`${__dirname}/../assets/mail/NewUserEmail.html`, "utf-8")
         .replace(/{{USERNAME}}/g, savedUser.name!.split(" ")[0])
         .replace(/{{CODE}}/g, verificationCode);
-      await this.mailService.sendMail("Systatus.Live <system@systatus.live>", savedUser.email!, "Bem-vindo(a) ao Systatus Live 👋", emailBody);
+      await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", savedUser.email!, "Bem-vindo(a) ao Systatus Live 👋", emailBody);
 
       await queryRunner.commitTransaction();
 
@@ -178,7 +178,7 @@ export class AuthController {
     const emailBody = readFileSync(`${__dirname}/../assets/mail/VerifyAccountEmail.html`, "utf-8")
       .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
       .replace(/{{CODE}}/g, findUser.verification_code!);
-    await this.mailService.sendMail("Systatus.Live <system@systatus.live>", findUser.email!, "Bem-vindo(a) de volta ao Systatus Live 👋", emailBody);
+    await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", findUser.email!, "Bem-vindo(a) de volta ao Systatus Live 👋", emailBody);
 
     return {
       message: defaultMsg
@@ -322,7 +322,7 @@ export class AuthController {
     const emailBody = readFileSync(`${__dirname}/../assets/mail/ForgotPassword.html`, "utf-8")
       .replace(/{{USERNAME}}/g, findUser.name!.split(" ")[0])
       .replace(/{{LINK}}/g, `${process.env.WEB_URL}/auth/reset-password?token=${accessToken}`);
-    await this.mailService.sendMail("Systatus.Live <system@systatus.live>", findUser.email!, "Redefinir Senha", emailBody);
+    await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", findUser.email!, "Redefinir Senha", emailBody);
 
     return {
       message: defaultMsg

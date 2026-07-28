@@ -77,9 +77,9 @@ export class AuthService {
   }
 
   async verifyCaptcha(captcha: string) {
-    if (process.env.ENV == "DEV") {
-      return true;
-    }
+    // if (process.env.ENV == "DEV") {
+    //   return true;
+    // }
 
     if (!captcha) {
       throw new Error("reCAPTCHA não foi informado.");
@@ -89,7 +89,7 @@ export class AuthService {
       event: {
         token: captcha,
         expectedAction: "login",
-        siteKey: process.env.GOOGLE_CAPTCHA_CLIENT_ID
+        siteKey: process.env.GOOGLE_CAPTCHA_SITE_KEY,
       }
     }, {
       headers: {

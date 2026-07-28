@@ -22,6 +22,7 @@ export class IntegrationService {
       const { data } = await axios.post(url, template);
       return data;
     } catch (error) {
+      if (!error.response) throw new Error(error.message);
       throw new Error(error.response.data);
     }
   }
@@ -49,6 +50,7 @@ export class IntegrationService {
       const { data } = await axios.post(url, template);
       return data;
     } catch (error) {
+      if (!error.response) throw new Error(error.message);
       throw new Error(error.response.statusText);
     }
   }
@@ -93,6 +95,7 @@ export class IntegrationService {
       const { data } = await axios.post(url, template);
       return data;
     } catch (error) {
+      if (!error.response) throw new Error(error.message);
       throw new Error(error.response.data.error.message);
     }
   }
@@ -141,6 +144,7 @@ export class IntegrationService {
       });
       return data;
     } catch (error) {
+      if (!error.response) throw new Error(error.message);
       throw new Error(error.response.data.error.message);
     }
   }

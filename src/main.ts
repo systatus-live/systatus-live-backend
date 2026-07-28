@@ -13,7 +13,11 @@ async function bootstrap() {
     })
   });
 
-  app.enableCors({ origin: process.env.WEB_URL as string, methods: "GET,HEAD,PUT,PATCH,POST,DELETE" });
+  app.enableCors({
+    origin: [process.env.WEB_URL, "http://localhost:3000"],
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true
+  });
   app.use(helmet());
   app.use(requestIp.mw());
   app.enableVersioning({ type: VersioningType.URI });

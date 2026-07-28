@@ -44,6 +44,8 @@ import { GatewayLogEntity } from 'src/database/entities/GatewayLogEntity';
 import { TrialService } from 'src/services/trial.service';
 import { CheckoutGuard } from 'src/middlewares/checkout.guard';
 import { UtilsController } from '../controllers/utils.controller';
+import { SupportController } from '../controllers/support.controller';
+
 const providerList = [
   AuthService,
   MailService,
@@ -105,6 +107,7 @@ const providerList = [
     StripeController,
     UtilsController,
     StatusPageController,
+    SupportController,
   ],
   exports: [
     TypeOrmModule,

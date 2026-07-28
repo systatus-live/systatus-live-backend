@@ -33,7 +33,8 @@ export class StatusPageController {
       where: {
         slug,
         active: true
-      }
+      },
+      relations: ["user"]
     });
 
     if (!statusPage) {
@@ -113,13 +114,16 @@ export class StatusPageController {
 
     return {
       title: statusPage.title,
-      monitors
+      owner: statusPage.user.name,
+      monitors: monitors
     };
   }
 
   @Get("/")
   @UseGuards(AuthGuard)
   async getStatusPage(@Request() request: Request) {
+    await this.authService.assertPermission(request["loggedPlan"], PermissionEnum.STATUS_PAGE, "Seu plano não inclui página de status pública. Considere fazer upgrade.");
+
     const statusPage = await this.statusPageRepository.findOne({
       where: {
         user_id: request["loggedUser"]

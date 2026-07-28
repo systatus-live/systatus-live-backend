@@ -263,7 +263,7 @@ export class IntegrationController {
           const emailBody = readFileSync(`${__dirname}/../assets/mail/IntegrationVerify.html`, "utf-8")
             .replace(/{{USERNAME}}/g, loggedUser!.name)
             .replace(/{{INTEGRATION}}/g, integration.name);
-          await this.mailService.sendMail("Systatus.Live <system@systatus.live>", integration.address, "Teste Integração", emailBody);
+          await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", integration.address, "Teste Integração", emailBody);
           break;
         default:
           throw new UnprocessableEntityException("Plataforma de chat não suportada para validação.");

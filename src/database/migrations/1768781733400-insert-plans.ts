@@ -44,7 +44,7 @@ export class Insert1768781733400 implements MigrationInterface {
         '/images/eagle.png',
         100,
         true, true, true, true, true, true, true,
-        '[{"label": "🆙 100 monitores", "enabled": true}, {"label": "🆙 Monitoramento a cada 60 segundos", "enabled": true}, {"label": "🆙 Notificações no Slack", "enabled": true}, {"label": "Notificações no Google Chat", "enabled": true}, {"label": "Notificações no E-mail", "enabled": true}, {"label": "Notificações no Discord", "enabled": true}, {"label": "Notificações no WhatsApp", "enabled": true}, {"label": "🆙 Mensagens personalizáveis", "enabled": true}, {"label": "🆙 Página de status pública", "enabled": true}]'::jsonb,
+        '[{"label": "🆙 100 monitores", "enabled": true}, {"label": "🆙 Monitoramento a cada 60 segundos", "enabled": true}, {"label": "Notificações no Slack", "enabled": true}, {"label": "Notificações no Google Chat", "enabled": true}, {"label": "Notificações no E-mail", "enabled": true}, {"label": "Notificações no Discord", "enabled": true}, {"label": "Notificações no WhatsApp", "enabled": true}, {"label": "🆙 Mensagens personalizáveis", "enabled": true}, {"label": "🆙 Página de status pública", "enabled": true}]'::jsonb,
         '${process.env.STRIPE_PRICE_ID_AGUIA}'
       )
     `);

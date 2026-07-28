@@ -145,7 +145,7 @@ export class InvoiceController {
       const base64Image = `data:${contentType};base64,${Buffer.from(response.data).toString("base64")}`;
       return base64Image;
     };
-    const systatusLogo = await imageUrlToBase64("https://systatus.live/logos/systatus-live.png");
+    const systatusLogo = await imageUrlToBase64(`${process.env.WEB_URL}/logos/systatus-live.png`);
 
     try {
       const dd = {
