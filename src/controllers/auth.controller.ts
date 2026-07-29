@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, ForbiddenException, Get, HttpException, HttpStatus, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, InternalServerErrorException, NotFoundException, NotImplementedException, Param, Patch, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
@@ -36,11 +36,7 @@ export class AuthController {
   ) { }
 
   @Post("/signup")
-  async signup(@Request() request: Request, @Body() body: any) {
-    await this.authService.verifyCaptcha(request.headers["captcha"]).catch(error => {
-      throw new ForbiddenException(error.message);
-    })
-
+  async signup(@Body() body: any) {
     const findUser = await this.userRepository.findOne({
       where: {
         email: body.email
@@ -192,10 +188,6 @@ export class AuthController {
 
     switch (body.type) {
       case SignInTypeEnum.EMAIL_PASSWORD:
-        await this.authService.verifyCaptcha(request.headers["captcha"]).catch(error => {
-          throw new ForbiddenException(error.message);
-        })
-
         findUser = await this.userRepository.findOne({
           where: {
             email: body.email

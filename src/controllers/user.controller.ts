@@ -206,8 +206,8 @@ export class UserController {
     momentTz.locale("pt-br");
 
     if (subscription?.status == SubscriptionStatusEnum.TRIAL) {
-      const now = momentTz().tz("America/Sao_Paulo");
-      const end = momentTz(subscription.end_date).tz("America/Sao_Paulo");
+      const now = momentTz().endOf("day").tz("America/Sao_Paulo");
+      const end = momentTz(subscription.end_date).endOf("day").tz("America/Sao_Paulo");
       const daysLeft = end.diff(now, "days");
       plan["nextBilling"] = `Seu trial vence ${daysLeft <= 0 ? "hoje" : daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}`;
     } else {
