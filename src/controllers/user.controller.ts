@@ -175,15 +175,8 @@ export class UserController {
       `),
     ]);
 
-    const list = results[0];
-    list.forEach(row => {
-      if (row.location_json) {
-        row.location_json = JSON.parse(row.location_json);
-      }
-    })
-
     return {
-      data: list,
+      data: results[0],
       pagination: {
         rows: this.querySize,
         total: parseInt(results[1][0].total)

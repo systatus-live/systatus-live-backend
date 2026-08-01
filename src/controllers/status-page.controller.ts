@@ -1,6 +1,6 @@
 import { Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { StatusPageEntity } from '../database/entities/StatusPageEntity';
 import { StatusPageMonitorEntity } from '../database/entities/StatusPageMonitorEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
@@ -11,6 +11,7 @@ import formatSince from '../utils/formatSince';
 import normalizeSlug from '../utils/normalizeSlug';
 import { PlanEntity } from 'src/database/entities/PlanEntity';
 import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
+import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
 
 @Controller({
   version: "1",
@@ -28,7 +29,7 @@ export class StatusPageController {
   ) { }
 
   @Get("/public/:slug")
-  async getPublicStatusPage(@Request() request: Request, @Param("slug") slug: string) {
+  async getPublicStatusPage(@Param("slug") slug: string) {
     const statusPage = await this.statusPageRepository.findOne({
       where: {
         slug,
@@ -44,8 +45,12 @@ export class StatusPageController {
     const subscription = await this.subscriptionRepository.findOne({
       where: {
         user_id: statusPage.user_id,
+        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.UPGRADED])
       },
-      relations: ["plan"]
+      relations: ["plan"],
+      order: {
+        created_at: "DESC"
+      }
     })
 
     if (!await this.authService.hasPermission(subscription?.plan_id!, PermissionEnum.STATUS_PAGE)) {

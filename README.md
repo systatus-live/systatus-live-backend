@@ -110,7 +110,6 @@ Todas as rotas são versionadas via URI. O prefixo global `/v1` é configurado e
 | **Stripe** | Gateway de pagamentos — gerencia customers, checkout sessions, subscriptions e processamento de webhooks de cobrança |
 | **Google OAuth 2.0** | Autenticação social — valida tokens de identidade do Google para login sem senha |
 | **Resend** | Envio de e-mails transacionais (confirmação de conta, recuperação de senha, suporte) com templates HTML |
-| **Geoapify** | Geolocalização por IP — enriquece o histórico de autenticação com cidade, estado e país |
 | **Vercel Blob** | Armazenamento de avatares dos usuários com acesso público |
 | **WhatsApp Business API** | Envio de notificações de incidentes via templates de mensagem |
 | **Cloudflare Turnstile** | Proteção de formulários públicos contra bots (substituto do reCAPTCHA) |
@@ -158,9 +157,6 @@ STRIPE_PRICE_ID_AGUIA=
 # WhatsApp
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_API_KEY=
-
-# Geolocalização
-GEOAPIFY_API_KEY=
 
 # Storage
 VERCEL_VERCEL_BLOB_READ_WRITE_TOKEN=

@@ -45,33 +45,11 @@ export class AuthService {
   public async authLog(userId: string, request: Request) {
     const ip = request["clientIp"];
     const userAgent = request.headers["x-user-agent"] || request.headers["user-agent"] || "Desconhecido";
-    let locationJson: string | null = null;
-
-    if (ip) {
-      try {
-        const { data } = await axios.get(`https://api.geoapify.com/v1/ipinfo?ip=${ip}&apiKey=${process.env.GEOAPIFY_API_KEY}`);
-        if (data.city) {
-          locationJson = JSON.stringify({
-            city: data.city.name,
-            continent: data.continent.names["pt-BR"],
-            country: data.country.names["pt-BR"],
-            flag: data.country.flag,
-            latitude: data.location.latitude,
-            longitude: data.location.longitude,
-            state: data.state.name,
-            source: "Geoapify",
-          })
-        }
-      } catch (error) {
-        console.log(`[Auth log error]: ${error.message}: ${JSON.stringify(error.response.data)}`)
-      }
-    }
 
     await this.authSessionRepository.save({
       user_id: userId,
       ip: ip,
-      user_agent: userAgent,
-      location_json: locationJson
+      user_agent: userAgent
     })
   }
 

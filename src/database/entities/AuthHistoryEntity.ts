@@ -19,9 +19,6 @@ export class AuthHistoryEntity {
   @Column({ type: "varchar", length: 1024, nullable: false })
   user_agent: string;
 
-  @Column({ type: "varchar", length: 4096, nullable: true })
-  location_json: string | null;
-
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 
