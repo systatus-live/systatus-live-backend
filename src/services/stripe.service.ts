@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { In } from "typeorm";
+import { getRepository, In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, QueryRunner, Repository } from "typeorm";
 import Stripe from "stripe";
@@ -30,51 +30,6 @@ export class StripeService {
   ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: "2026-02-25.clover",
-    });
-  }
-
-  async provisionSubscription(queryRunner: QueryRunner, userId: string, email: string, name: string, planId: string): Promise<void> {
-    const plan = await this.planRepository.findOne({
-      where: {
-        id: planId
-      }
-    });
-
-    if (!plan?.stripe_price_id) {
-      throw new Error("Plano não configurado no Stripe. Contate o suporte.");
-    }
-
-    const customer = await this.stripe.customers.create({
-      email: email,
-      name: name
-    });
-
-    const stripeSubscription = await this.stripe.subscriptions.create({
-      customer: customer.id,
-      items: [
-        {
-          price: plan.stripe_price_id
-        }
-      ],
-      metadata: {
-        userId, planId
-      },
-    });
-
-    await queryRunner.manager.save(UserEntity, {
-      id: userId,
-      stripe_customer_id: customer.id
-    });
-
-    const dateFormat = "YYYY-MM-DD HH:mm:ssZ";
-
-    await queryRunner.manager.save(SubscriptionEntity, {
-      user_id: userId,
-      plan_id: planId,
-      gateway_id: stripeSubscription.id,
-      status: SubscriptionStatusEnum.ACTIVE,
-      start_date: formatDate(momentTz.unix(stripeSubscription.items.data[0].current_period_start).tz("America/Sao_Paulo"), dateFormat),
-      end_date: formatDate(momentTz.unix(stripeSubscription.items.data[0].current_period_end).tz("America/Sao_Paulo"), dateFormat),
     });
   }
 
@@ -270,7 +225,16 @@ export class StripeService {
         end_date: formatDate(periodEnd, dateFormat),
       });
 
+      const [{ iid: nextInvoiceId }] = await this.dataSource.query(`
+        select coalesce(max(inv.iid), 0) + 1 as iid
+        from invoices inv
+        join subscriptions sub on sub.id = inv.subscription_id
+        join users use on use.id = sub.user_id
+        where use.id = '${subscription.user_id}'
+      `);
+
       const newInvoice = await queryRunner.manager.save(InvoiceEntity, {
+        iid: nextInvoiceId,
         subscription_id: subscription.id,
         gateway_id: invoice.id,
         amount: amountPaid,

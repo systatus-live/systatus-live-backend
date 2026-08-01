@@ -32,7 +32,15 @@ export class InvoiceController {
 
     const results = await Promise.all([
       this.dataSource.query(`
-        select inv.*, pla.name as "plan", pla.image
+        select 
+          inv.id
+          , inv.iid
+          , inv.issue_date
+          , inv.due_date
+          , inv.amount
+          , inv.status
+          , pla.name as "plan"
+          , pla.image
         from invoices inv
         join subscriptions sub on sub.id = inv.subscription_id
         join plans pla on pla.id = sub.plan_id
@@ -63,6 +71,7 @@ export class InvoiceController {
     const [rootData] = await this.dataSource.query(`
       select
         inv.id
+        , inv.iid
         , inv.issue_date
         , inv.due_date
         , inv.amount
@@ -111,7 +120,7 @@ export class InvoiceController {
     const formatCardBrand = (brand: string): string => CreditCardBrandLabelEnum[brand as keyof typeof CreditCardBrandLabelEnum] ?? brand.charAt(0).toUpperCase() + brand.slice(1);
 
     const invoice = {
-      invoiceNumber: rootData.id,
+      invoiceNumber: rootData.iid,
       issueDate: formatDate(rootData.issue_date, "D [de] MMMM [de] YYYY"),
       dueDate: formatDate(rootData.due_date, "D [de] MMMM [de] YYYY"),
       amount: rootData.amount,
@@ -181,8 +190,7 @@ export class InvoiceController {
               {
                 alignment: "right",
                 stack: [
-                  { text: "FATURA", style: "invoiceTitle" },
-                  { text: invoice.invoiceNumber, style: "muted", },
+                  { text: `Fatura #${invoice.invoiceNumber}`, style: "invoiceTitle" },
                   {
                     margin: [0, 8, 0, 0],
                     table: {
@@ -328,7 +336,7 @@ export class InvoiceController {
             bold: true
           },
           invoiceTitle: {
-            fontSize: 26,
+            fontSize: 16,
             bold: true
           },
           sectionTitle: {

@@ -99,7 +99,7 @@ export class MonitorController {
             from dates dat
           ) as "historical"
           , ite.name as interval
-          , ite.cron
+          , to_char(his.created_at AT TIME ZONE 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheck"
           , his.status as "lastStatus"
           , his.duration as "lastDuration"
           , coalesce(((select coalesce(t.ended_at, t.created_at) from incidents t  where t.monitor_id = mon.id order by t.created_at desc limit 1)), mon.created_at) as "lastIncident"

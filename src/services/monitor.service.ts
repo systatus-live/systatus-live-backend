@@ -98,7 +98,7 @@ export class MonitorService {
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
       let durationMs: number | null = null;
 
-      const startTime = new Date().getTime();
+      const startTime = Date.now();
 
       switch (monitor.type) {
         case MonitorTypeEnum.GET:
@@ -135,7 +135,7 @@ export class MonitorService {
               newStatus = HttpStatusCode.NOT_FOUND.toString();
             }
           } finally {
-            durationMs = new Date().getTime() - startTime;
+            durationMs = Date.now() - startTime;
           }
           break;
         case MonitorTypeEnum.PING:
@@ -159,7 +159,9 @@ export class MonitorService {
           } catch (error) {
             newStatus = HttpStatusCode.UNKNOWN.toString();
           } finally {
-            durationMs = new Date().getTime() - startTime;
+            if (durationMs === null) {
+              durationMs = Date.now() - startTime;
+            }
           }
           break;
         default:

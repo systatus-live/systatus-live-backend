@@ -7,7 +7,7 @@ export class PaymentEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(() => InvoiceEntity)
+  @ManyToOne(() => InvoiceEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "invoice_id", referencedColumnName: "id" })
   invoice: InvoiceEntity;
 

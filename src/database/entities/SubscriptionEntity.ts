@@ -8,7 +8,7 @@ export class SubscriptionEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(() => UserEntity, { nullable: false })
+  @ManyToOne(() => UserEntity, { nullable: false, onDelete: "CASCADE" })
   @JoinColumn({ name: "user_id", referencedColumnName: "id" })
   user: UserEntity;
 

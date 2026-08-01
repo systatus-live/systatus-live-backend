@@ -7,7 +7,10 @@ export class InvoiceEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(() => SubscriptionEntity)
+  @Column({ type: "int", nullable: false, default: 1 })
+  iid: number;
+
+  @ManyToOne(() => SubscriptionEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "subscription_id", referencedColumnName: "id" })
   subscription: SubscriptionEntity;
 
