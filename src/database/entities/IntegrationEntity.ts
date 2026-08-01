@@ -7,7 +7,7 @@ export class IntegrationEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ type: "varchar", length: 30, nullable: false })
+  @Column({ type: "varchar", length: 128, nullable: false })
   name: string;
 
   @Column({ type: "varchar", length: 1024, nullable: false })
