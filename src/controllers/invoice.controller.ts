@@ -90,9 +90,9 @@ export class InvoiceController {
       join plans pla on pla.id = sub.plan_id
       join users usu on usu.id = sub.user_id
       left join payments pay on pay.invoice_id = inv.id and pay.status = '${PaymentStatusEnum.PAID}'
-      where sub.user_id = '${request["loggedUser"]}'
-      and inv.id = '${id}'
-    `);
+      where sub.user_id = $1
+      and inv.id = $2
+    `, [request["loggedUser"], id]);
 
     if (!rootData) {
       throw new BadRequestException("Fatura não encontrada");

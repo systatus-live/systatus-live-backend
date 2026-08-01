@@ -35,17 +35,17 @@ export class IntervalController {
         from intervals int
         join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
         where 1 = 1
-        ${search ? `and (lower(trim(unaccent(int.name))) like '%${search}%' or lower(trim(unaccent(int.cron))) like '%${search}%')` : ""}
+        and ($1::text is null or lower(trim(unaccent(int.name))) like $1 or lower(trim(unaccent(int.cron))) like $1)
         order by int.index asc
         limit ${this.querySize} offset ${this.querySize * page}
-      `),
+      `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
         select count(1) as total
         from intervals int
         join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
         where 1 = 1
-        ${search ? `and (lower(trim(unaccent(int.name))) like '%${search}%' or lower(trim(unaccent(int.cron))) like '%${search}%')` : ""}
-      `),
+        and ($1::text is null or lower(trim(unaccent(int.name))) like $1 or lower(trim(unaccent(int.cron))) like $1)
+      `, [search ? `%${search}%` : null]),
     ]);
 
     return {

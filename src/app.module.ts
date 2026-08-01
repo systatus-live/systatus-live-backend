@@ -33,7 +33,8 @@ import { LoggerMiddleware } from './middlewares/logger.middleware';
       autoLoadEntities: true,
       retryAttempts: 3,
       retryDelay: 10000,
-      migrationsRun: true
+      migrationsRun: true,
+      logging: ["error"]
     }),
     ScheduleModule.forRoot(),
     MainModule,

@@ -102,17 +102,17 @@ export class IntegrationController {
         from integrations itg
         join chat_platforms cpl on cpl.id = itg.chat_platform_id
         where itg.created_user_id = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.address))) like '%${search}%')` : ""}
+        and ($1::text is null or lower(trim(unaccent(itg.name))) like $1 or lower(trim(unaccent(itg.address))) like $1)
         order by itg.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-      `),
+      `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
         select count(1) as total
         from integrations itg
         join chat_platforms cpl on cpl.id = itg.chat_platform_id
         where itg.created_user_id = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(itg.name))) like '%${search}%' or lower(trim(unaccent(itg.address))) like '%${search}%')` : ""}
-      `),
+        and ($1::text is null or lower(trim(unaccent(itg.name))) like $1 or lower(trim(unaccent(itg.address))) like $1)
+      `, [search ? `%${search}%` : null]),
     ]);
 
     return {

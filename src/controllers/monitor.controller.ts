@@ -85,7 +85,11 @@ export class MonitorController {
     const results = await Promise.all([
       this.dataSource.query(`
         select 
-          mon.*
+          mon.id
+          , mon.name
+          , mon.type
+          , mon.address
+          , mon.active
           , (
               with dates as (
                 select generate_series((CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - interval '29 days', (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date, '1 day'::interval)::date AS date
@@ -107,18 +111,18 @@ export class MonitorController {
         join intervals ite on ite.id = mon.interval_id
         left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
         where mon.created_user_id = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
+        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
         order by mon.active desc, (case when status is null then 1 when status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-      `),
+      `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
         select count(1) as total
         from monitors mon
         join intervals ite on ite.id = mon.interval_id
         left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
         where mon.created_user_id = '${request["loggedUser"]}'
-        ${search ? `and (lower(trim(unaccent(mon.name))) like '%${search}%' or lower(trim(unaccent(mon.address))) like '%${search}%')` : ""}
-      `),
+        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
+      `, [search ? `%${search}%` : null]),
     ]);
 
     const list = results[0];

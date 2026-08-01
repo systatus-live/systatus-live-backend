@@ -40,17 +40,17 @@ export class ChatPlatformController {
         from chat_platforms cpl
         join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
         where pcp.plan_id = '${planId}'
-        ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
+        and ($1::text is null or lower(trim(unaccent(cpl.name))) like $1 or lower(trim(unaccent(cpl.description))) like $1)
         order by cpl.created_at desc
         limit ${this.querySize} offset ${this.querySize * page}
-      `),
+      `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
         select count(1) as total
         from chat_platforms cpl
         join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
         where pcp.plan_id = '${planId}'
-        ${search ? `and (lower(trim(unaccent(cpl.name))) like '%${search}%' or lower(trim(unaccent(cpl.description))) like '%${search}%')` : ""}
-      `),
+        and ($1::text is null or lower(trim(unaccent(cpl.name))) like $1 or lower(trim(unaccent(cpl.description))) like $1)
+      `, [search ? `%${search}%` : null]),
     ]);
 
     return {
