@@ -30,6 +30,18 @@ export class MonitorController {
     await this.planService.assertMonitorLimit(request["loggedPlan"], request["loggedUser"]);
     await this.planService.assertIntervalAllowed(request["loggedPlan"], body.intervalId);
 
+    const monitorWithSameAddress = await this.monitorRepository.findOne({
+      where: {
+        created_user_id: request["loggedUser"],
+        address: body.address
+      },
+      select: ["id", "name"]
+    })
+
+    if (monitorWithSameAddress) {
+      throw new ConflictException(`Já existe um monitor '${monitorWithSameAddress.name}' com este endereço.`)
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 

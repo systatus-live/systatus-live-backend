@@ -101,7 +101,7 @@ export class MonitorService {
       const startTime = Date.now();
 
       switch (monitor.type) {
-        case MonitorTypeEnum.GET:
+        case MonitorTypeEnum.HTTP:
           try {
             const httpResponse = await axios.get(monitor.address, {
               timeout: 10000
