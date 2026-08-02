@@ -1,9 +1,10 @@
 import { BadRequestException, Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { AuthGuard } from '../middlewares/auth.guard';
 import removeAccents from '../utils/removeAccents';
 import formatSince from '../utils/formatSince';
 import momentTz from "moment-timezone";
+import { IncidentEntity } from 'src/database/entities/IncidentEntity';
 
 @Controller({
   version: "1",
@@ -69,11 +70,20 @@ export class IncidentController {
       }
     }
 
+    const totalNotResolved = await this.dataSource.getRepository(IncidentEntity).count({
+      where: {
+        ended_at: IsNull()
+      }
+    })
+
     return {
       data: results[0],
       pagination: {
         rows: this.querySize,
         total: parseInt(results[1][0].total)
+      },
+      extras: {
+        totalNotResolved: totalNotResolved
       }
     }
   }
