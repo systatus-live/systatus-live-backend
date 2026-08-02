@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, InternalServerErrorException, Post } from "@nestjs/common";
+import { Body, Controller, Headers, InternalServerErrorException, Logger, Post } from "@nestjs/common";
 import { MailService } from "../services/mail.service";
 import { Throttle } from "@nestjs/throttler";
 
@@ -16,6 +16,8 @@ function escapeHtml(value: string): string {
   path: "/supports",
 })
 export class SupportController {
+  private readonly logger = new Logger(SupportController.name);
+
   constructor(private readonly mailService: MailService) { }
 
   @Post("/mails")
@@ -43,6 +45,7 @@ export class SupportController {
         message: "Mensagem enviada com sucesso!"
       };
     } catch (error) {
+      this.logger.log(error.message);
       throw new InternalServerErrorException("Erro interno ao enviar a mensagem. Tente novamente ou comunique pelo e-mail no final da página.");
     }
   }
