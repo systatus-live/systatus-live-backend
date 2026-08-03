@@ -103,8 +103,17 @@ export class MonitorService {
       switch (monitor.type) {
         case MonitorTypeEnum.HTTP:
           try {
-            const httpResponse = await axios.get(monitor.address, {
-              timeout: 10000
+            const httpResponse = await axios.head(monitor.address, {
+              timeout: 10000,
+              headers: {
+                "Cache-Control": "no-cache",
+                "Connection": "close",
+                "Referer": monitor.address,
+                "User-Agent": "Systatus.live (https://systatus.live)",
+                "Accept": null,
+                "accept-encoding": null,
+                "host": null
+              }
             });
 
             newStatus = httpResponse.status.toString();

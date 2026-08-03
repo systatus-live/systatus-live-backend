@@ -25,7 +25,8 @@ export class LoggerMiddleware implements NestMiddleware {
       route: `${request.method} ${request.url}`,
       ip: ip,
       agent: userAgent,
-      auth: JSON.stringify(auth)
+      auth: JSON.stringify(auth),
+      headers: JSON.stringify(request.headers)
     });
     next();
   }
