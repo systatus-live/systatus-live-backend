@@ -1,5 +1,5 @@
-import { ChatPlatformEnum } from "src/types/ChatPlatformEnum";
-import { PlanEnum } from "src/types/PlanEnum";
+import { ChatPlatformEnum } from "../../types/ChatPlatformEnum";
+import { PlanEnum } from "../../types/PlanEnum";
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class NomeMigration1785633707577 implements MigrationInterface {

@@ -63,7 +63,7 @@ export enum HttpStatusCode {
   NOT_EXTENDED = 510,
   NETWORK_AUTHENTICATION_REQUIRED = 511,
   UNKNOWN = "UNKNOWN",
-  FROZEN_SITE = 530
+  SITE_FROZEN = 530,
 }
 
 export enum HttpStatusCodeLabel {
@@ -131,7 +131,7 @@ export enum HttpStatusCodeLabel {
   NOT_EXTENDED = "Not Extended",
   NETWORK_AUTHENTICATION_REQUIRED = "Network Authentication Required",
   UNKNOWN = "Desconhecido",
-  FROZEN_SITE = "Frozen Site"
+  SITE_FROZEN = "Site Congelado",
 }
 
 export function getHttpStatusKey(code: string) {

@@ -97,6 +97,8 @@ export class MonitorService {
 
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
       let durationMs: number | null = null;
+      let requestHeaders: any = null;
+      let responseHeaders: any = null;
 
       const startTime = Date.now();
 
@@ -117,6 +119,8 @@ export class MonitorService {
             });
 
             newStatus = httpResponse.status.toString();
+            requestHeaders = httpResponse.config.headers;
+            responseHeaders = httpResponse.headers;
           } catch (error) {
             if (axios.isAxiosError(error)) {
               if (error.response) {
@@ -143,6 +147,9 @@ export class MonitorService {
             if (error.code == "ERR_INVALID_URL") {
               newStatus = HttpStatusCode.NOT_FOUND.toString();
             }
+
+            requestHeaders = (error.response ?? error).config.headers;
+            responseHeaders = error.response ? error.response.headers : null;
           } finally {
             durationMs = Date.now() - startTime;
           }
@@ -233,7 +240,9 @@ export class MonitorService {
         monitor_id: monitor.id,
         incident_id: monitorIncident?.id,
         status: newStatus,
-        duration: durationMs
+        duration: durationMs,
+        request_headers: requestHeaders ? JSON.parse(JSON.stringify(requestHeaders)) : null,
+        response_headers: responseHeaders ? JSON.parse(JSON.stringify(responseHeaders)) : null
       });
 
       if (notifyType) {

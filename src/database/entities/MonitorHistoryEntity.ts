@@ -18,7 +18,7 @@ export class MonitorHistoryEntity {
   @JoinColumn({ name: "incident_id", referencedColumnName: "id" })
   incident: IncidentEntity;
 
-  @Column({ nullable: true})
+  @Column({ nullable: true })
   incident_id: string;
 
   @Column({ type: "varchar", length: 7, nullable: false })
@@ -26,6 +26,12 @@ export class MonitorHistoryEntity {
 
   @Column({ type: "double precision", nullable: true })
   duration: number | null;
+
+  @Column({ type: "jsonb", nullable: true })
+  request_headers: Record<any, any> | null
+
+  @Column({ type: "jsonb", nullable: true })
+  response_headers: Record<any, any> | null
 
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
