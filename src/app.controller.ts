@@ -1,4 +1,4 @@
-import { All, Controller } from '@nestjs/common';
+import { All, Controller } from "@nestjs/common";
 
 @Controller()
 export class AppController {
@@ -7,7 +7,7 @@ export class AppController {
   @All()
   check() {
     return {
-      message: "Online"
-    }
+      message: "Online",
+    };
   }
 }

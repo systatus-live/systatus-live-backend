@@ -2,7 +2,6 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from "bcrypt";
 import { Repository } from 'typeorm';
-import axios from "axios";
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
 import { PlanPermissionEntity } from '../database/entities/PlanPermissionEntity';

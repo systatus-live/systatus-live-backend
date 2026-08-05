@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from "axios";
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import ping from "ping";
 import { DataSource, Repository } from 'typeorm';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
@@ -17,6 +17,8 @@ import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
 import { MailService } from './mail.service';
 import formatDate from 'src/utils/formatDate';
+import { Agent } from 'https';
+import { rootCertificates } from 'tls';
 
 @Injectable()
 export class MonitorService {
@@ -118,7 +120,8 @@ export class MonitorService {
             try {
               const httpResponse = await axios.head(monitor.address, {
                 timeout: 10000,
-                headers: requestHeaders
+                headers: requestHeaders,
+                httpsAgent: this.buildHttpsAgent(),
               });
 
               newStatus = httpResponse.status.toString();
@@ -352,5 +355,14 @@ export class MonitorService {
       <td width="42%" bgcolor="#0d1520" style="background-color:#0d1520;padding:13px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#9ca3af;border-top:1px solid #1f2937;border-right:1px solid #1f2937;white-space:nowrap;">${label}</td>
       <td bgcolor="#111827" style="background-color:#111827;padding:13px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:${valueColor};border-top:1px solid #1f2937;word-break:break-all;">${value}</td>
     </tr>`;
+  }
+
+  public buildHttpsAgent() {
+    const caPath = process.env.NODE_EXTRA_CA_CERTS;
+    const ca = (caPath && existsSync(caPath)) ? [...rootCertificates, readFileSync(caPath, "utf8")] : [...rootCertificates];
+    return new Agent({
+      ca: ca,
+      rejectUnauthorized: false
+    });
   }
 }
