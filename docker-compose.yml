@@ -32,4 +32,12 @@ services:
       STRIPE_PRICE_ID_AGUIA: ${STRIPE_PRICE_ID_AGUIA}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
       WHATSAPP_API_KEY: ${WHATSAPP_API_KEY}
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+    volumes:
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
     restart: unless-stopped
