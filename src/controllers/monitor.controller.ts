@@ -96,7 +96,7 @@ export class MonitorController {
 
     const results = await Promise.all([
       this.dataSource.query(`
-        select 
+        select
           mon.id
           , mon.name
           , mon.type
@@ -111,7 +111,7 @@ export class MonitorController {
                 , 'totalOnline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status like '2%')
                 , 'totalOffline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status not like '2%')
               )
-            ) 
+            )
             from dates dat
           ) as "historical"
           , ite.name as interval
@@ -135,6 +135,17 @@ export class MonitorController {
         where mon.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
       `, [search ? `%${search}%` : null]),
+      this.dataSource.query(`
+        select
+          count(case when mon.active = true and his.status like '2%' then 1 end) as "totalUp",
+          count(case when mon.active = true and his.status not like '2%' and his.status is not null then 1 end) as "totalDown",
+          count(case when mon.active = false then 1 end) as "totalPaused",
+          count(case when mon.active = true then 1 end) as "totalMonitoring",
+          count(1) as "totalMonitors"
+        from monitors mon
+        left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
+        where mon.created_user_id = '${request["loggedUser"]}'
+      `),
     ]);
 
     const list = results[0];
@@ -175,11 +186,20 @@ export class MonitorController {
       }
     }
 
+    const extrasRow = results[2][0];
+
     return {
       data: list,
       pagination: {
         rows: this.querySize,
         total: parseInt(results[1][0].total)
+      },
+      extras: {
+        totalUp: parseInt(extrasRow.totalUp) || 0,
+        totalDown: parseInt(extrasRow.totalDown) || 0,
+        totalPaused: parseInt(extrasRow.totalPaused) || 0,
+        totalMonitoring: parseInt(extrasRow.totalMonitoring) || 0,
+        totalMonitors: parseInt(extrasRow.totalMonitors) || 0,
       }
     }
   }
