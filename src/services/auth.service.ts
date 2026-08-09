@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthHistoryEntity } from '../database/entities/AuthHistoryEntity';
@@ -76,10 +77,28 @@ export class AuthService {
     const records = await this.planPermissionRepository
       .createQueryBuilder("pp")
       .innerJoinAndSelect("pp.permission", "p")
-      .where("pp.plan_id = :planId", { 
-        planId: planId 
+      .where("pp.plan_id = :planId", {
+        planId: planId
       })
       .getMany();
     return records.map(r => r.permission.name);
+  }
+
+  public aesEncrypt(data: string, key = process.env.ENCRYPT_KEY!): string {
+    const keyBuffer = crypto.scryptSync(key, "salt", 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv("aes-256-cbc", keyBuffer, iv);
+    const encrypted = Buffer.concat([cipher.update(data, "utf8"), cipher.final()]);
+    return iv.toString("hex") + ":" + encrypted.toString("hex");
+  }
+
+  public aesDecrypt(encrypted: string, key = process.env.ENCRYPT_KEY!): string {
+    const [ivHex, encryptedHex] = encrypted.split(":");
+    const keyBuffer = crypto.scryptSync(key, "salt", 32);
+    const iv = Buffer.from(ivHex, "hex");
+    const encryptedBuffer = Buffer.from(encryptedHex, "hex");
+    const decipher = crypto.createDecipheriv("aes-256-cbc", keyBuffer, iv);
+    const decrypted = Buffer.concat([decipher.update(encryptedBuffer), decipher.final()]);
+    return decrypted.toString("utf8");
   }
 }
