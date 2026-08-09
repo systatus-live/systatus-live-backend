@@ -3,12 +3,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'fs';
 import { DataSource, Not, Repository } from 'typeorm';
 import { IntegrationEntity } from '../database/entities/IntegrationEntity';
+import { IntegrationTemplateEntity } from '../database/entities/IntegrationTemplateEntity';
 import { UserEntity } from '../database/entities/UserEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
+import { AuthService } from '../services/auth.service';
 import { IntegrationService } from '../services/integration.service';
 import { MailService } from '../services/mail.service';
 import { PlanService } from '../services/plan.service';
-import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
+import { ChatPlatformEnum, ChatPlatformTypeEnum } from '../types/ChatPlatformEnum';
+import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
+import { IntegrationTemplateTypeEnum } from '../types/IntegrationTemplateTypeEnum';
+import { PermissionEnum } from '../types/PermissionEnum';
 import getCurrentDate from '../utils/getCurrenDate';
 import removeAccents from '../utils/removeAccents';
 import formatDate from 'src/utils/formatDate';
@@ -22,12 +27,16 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 export class IntegrationController {
   @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>
   @InjectRepository(IntegrationEntity) private integrationRepository: Repository<IntegrationEntity>
-
+  @InjectRepository(IntegrationTemplateEntity) private integrationTemplateRepository: Repository<IntegrationTemplateEntity>
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
+  private readonly downTemplateDefault = "🔴 {{monitor}} ({{address}}) ficou indisponível: {{status_description}}";
+  private readonly upTemplateDefault = "🟢 {{monitor}} ({{address}}) ficou disponível. Downtime: {{downtime}}";
+
   constructor(
     private dataSource: DataSource,
+    private authService: AuthService,
     private integrationService: IntegrationService,
     private mailService: MailService,
     private planService: PlanService,
@@ -49,6 +58,28 @@ export class IntegrationController {
 
     await this.planService.assertChatPlatformAllowed(request["loggedPlan"], body.chatPlatformId);
 
+    const hasCustomNotification = await this.authService.hasPermission(request["loggedPlan"], PermissionEnum.CUSTOM_NOTIFICATION);
+
+    const downTemplate = hasCustomNotification ? (body.downTemplate || this.downTemplateDefault) : this.downTemplateDefault;
+    const upTemplate = hasCustomNotification ? (body.upTemplate || this.upTemplateDefault) : this.upTemplateDefault;
+
+    if (hasCustomNotification) {
+      const chatPlatform = await this.dataSource.getRepository(ChatPlatformEntity).findOne({
+        where: {
+          id: body.chatPlatformId
+        },
+        select: ["type"]
+      });
+
+      if (chatPlatform?.type !== ChatPlatformTypeEnum.WEBHOOK) {
+        throw new BadRequestException("Mensagens personalizadas disponíveis apenas para integrações de webhook.");
+      }
+
+      if (downTemplate.length > 250 || upTemplate.length > 250) {
+        throw new BadRequestException("Os templates devem ter no máximo 250 caracteres.");
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 
@@ -62,6 +93,22 @@ export class IntegrationController {
       });
 
       await queryRunner.manager.save(IntegrationEntity, newIntegration);
+
+      await queryRunner.manager.save(IntegrationTemplateEntity, this.integrationTemplateRepository.create({
+        integration_id: newIntegration.id,
+        created_user_id: request["loggedUser"],
+        updated_user_id: request["loggedUser"],
+        ...(hasCustomNotification ? {
+          type: IntegrationTemplateTypeEnum.CUSTOM,
+          down_template: downTemplate,
+          up_template: upTemplate,
+        } : {
+          type: IntegrationTemplateTypeEnum.DEFAULT,
+          down_template: this.downTemplateDefault,
+          up_template: this.upTemplateDefault,
+        })
+      }));
+
       await queryRunner.commitTransaction();
 
       return {
@@ -76,6 +123,14 @@ export class IntegrationController {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  @Get("/templates/defaults")
+  getTemplateDefaults() {
+    return {
+      downTemplate: this.downTemplateDefault,
+      upTemplate: this.upTemplateDefault,
+    };
   }
 
   @Get("/")
@@ -132,6 +187,15 @@ export class IntegrationController {
       throw new NotFoundException("Integração não encontrada.");
     }
 
+    const templates = await this.integrationTemplateRepository.find({
+      where: {
+        integration_id: integration.id
+      },
+      select: ["type", "down_template", "up_template"]
+    });
+
+    integration["template"] = templates.find(t => t.type == IntegrationTemplateTypeEnum.CUSTOM) ?? templates.find(t => t.type == IntegrationTemplateTypeEnum.DEFAULT);
+
     return integration
   }
 
@@ -142,7 +206,7 @@ export class IntegrationController {
         created_user_id: request["loggedUser"],
         id: id
       },
-      select: ["id"]
+      select: ["id", "chat_platform_id"]
     })
 
     if (!integration) {
@@ -162,6 +226,30 @@ export class IntegrationController {
       throw new ConflictException(`Já existe a integração '${integrationWithSameAddress.name}' com este endereço.`)
     }
 
+    const hasCustomNotification = await this.authService.hasPermission(request["loggedPlan"], PermissionEnum.CUSTOM_NOTIFICATION);
+
+    const downTemplate = hasCustomNotification ? (body.downTemplate || this.downTemplateDefault) : this.downTemplateDefault;
+    const upTemplate = hasCustomNotification ? (body.upTemplate || this.upTemplateDefault) : this.upTemplateDefault;
+
+    if (hasCustomNotification) {
+      const platformId = body.chatPlatformId ?? integration.chat_platform_id;
+
+      const chatPlatform = await this.dataSource.getRepository(ChatPlatformEntity).findOne({
+        where: {
+          id: platformId
+        },
+        select: ["type"]
+      });
+
+      if (chatPlatform?.type != ChatPlatformTypeEnum.WEBHOOK) {
+        throw new BadRequestException("Mensagens personalizadas disponíveis apenas para integrações de webhook.");
+      }
+
+      if (downTemplate.length > 250 || upTemplate.length > 250) {
+        throw new BadRequestException("Os templates devem ter no máximo 250 caracteres.");
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
 
@@ -174,6 +262,38 @@ export class IntegrationController {
         chat_platform_id: body.chatPlatformId,
         updated_user_id: request["loggedUser"]
       });
+
+      const existingTemplate = await queryRunner.manager.findOne(IntegrationTemplateEntity, {
+        where: {
+          integration_id: integration.id
+        }
+      });
+
+      const templateData = {
+        updated_user_id: request["loggedUser"],
+        ...(hasCustomNotification ? {
+          type: IntegrationTemplateTypeEnum.CUSTOM,
+          down_template: downTemplate,
+          up_template: upTemplate,
+        } : {
+          type: IntegrationTemplateTypeEnum.DEFAULT,
+          down_template: this.downTemplateDefault,
+          up_template: this.upTemplateDefault,
+        })
+      };
+
+      if (existingTemplate) {
+        await queryRunner.manager.update(IntegrationTemplateEntity, {
+          id: existingTemplate.id
+        }, templateData);
+      } else {
+        await queryRunner.manager.save(IntegrationTemplateEntity, this.integrationTemplateRepository.create({
+          integration_id: integration.id,
+          created_user_id: request["loggedUser"],
+          ...templateData
+        }));
+      }
+
       await queryRunner.commitTransaction();
 
       return {
@@ -210,7 +330,12 @@ export class IntegrationController {
     }
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({
+    default: {
+      limit: 5,
+      ttl: 60000
+    }
+  })
   @UseGuards(ThrottlerGuard)
   @Post("/validates")
   async validateIntegration(@Request() request: Request, @Body("id") id: string) {

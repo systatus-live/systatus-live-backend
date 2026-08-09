@@ -3,22 +3,22 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from "axios";
 import { existsSync, readFileSync } from 'fs';
+import { Agent } from 'https';
 import ping from "ping";
-import { DataSource, Repository } from 'typeorm';
+import formatDate from 'src/utils/formatDate';
+import { rootCertificates } from 'tls';
+import { DataSource, In, Repository } from 'typeorm';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
+import { IntegrationTemplateEntity } from '../database/entities/IntegrationTemplateEntity';
 import { MonitorHistoryEntity } from '../database/entities/MonitorHistoryEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
-import { ChatPlatformEnum } from '../types/ChatPlatformEnum';
+import { ChatPlatformEnum, ChatPlatformTypeEnum } from '../types/ChatPlatformEnum';
 import { CronIntervalEnum } from '../types/CronIntervalEnum';
 import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../types/HttpStatusCode';
 import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
 import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
-import { MailService } from './mail.service';
-import formatDate from 'src/utils/formatDate';
-import { Agent } from 'https';
-import { rootCertificates } from 'tls';
 
 @Injectable()
 export class MonitorService {
@@ -27,10 +27,10 @@ export class MonitorService {
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
   @InjectRepository(IncidentEntity) private monitorIncidentRepository: Repository<IncidentEntity>
+  @InjectRepository(IntegrationTemplateEntity) private integrationTemplateRepository: Repository<IntegrationTemplateEntity>
 
   constructor(
     private integrationService: IntegrationService,
-    private mailService: MailService,
     private dataSource: DataSource
   ) { }
 
@@ -250,6 +250,25 @@ export class MonitorService {
             relations: ["integration", "integration.chatPlatform"]
           });
 
+          const allTemplates = integrationList.length > 0
+            ? await this.integrationTemplateRepository.find({
+              where: {
+                integration_id: In(integrationList.map(m => m.integration.id))
+              },
+              select: ["integration_id", "down_template", "up_template"]
+            })
+            : [];
+
+
+          const templateVars: Record<string, string> = {
+            monitor: monitor.name,
+            address: monitor.address,
+            status_code: newStatus,
+            status_description: HttpStatusCodeLabel[getHttpStatusKey(newStatus)] ?? newStatus,
+            downtime: notifyType === "OK" && monitorIncident ? formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ") : "",
+            datetime: formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")
+          };
+
           for await (let { integration } of integrationList) {
             let title = `🟢 ${monitor.name} ficou disponível`;
             let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível.`;
@@ -261,6 +280,15 @@ export class MonitorService {
 
             if (notifyType == "OK" && monitorIncident) {
               description += ` Downtime: ${formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ")}.`;
+            }
+
+            if (integration.chatPlatform.type === ChatPlatformTypeEnum.WEBHOOK) {
+              const template = allTemplates.find(t => t.integration_id === integration.id);
+              const templateField = notifyType === "FAILURE" ? "down_template" : "up_template";
+
+              if (template?.[templateField]) {
+                description = this.integrationService.renderTemplate(template[templateField]!, templateVars);
+              }
             }
 
             const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
@@ -287,54 +315,7 @@ export class MonitorService {
                   }
                   break;
                 case ChatPlatformEnum.EMAIL:
-                  const isUp = notifyType === "OK";
-                  const eventAt = formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss");
-                  const responseTimeLabel = durationMs != null ? `${durationMs}ms` : "—";
-
-                  let detailsRows = "";
-                  let alertNote = "";
-
-                  if (isUp) {
-                    const downtimeDuration = monitorIncident?.created_at ? formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ") : "—";
-                    const incidentStartedAt = monitorIncident?.created_at ? formatDate(monitorIncident.created_at, "DD/MM/YYYY HH:mm:ss") : "—";
-
-                    detailsRows = this.buildEmailRow("Dura&ccedil;&atilde;o", downtimeDuration, "#f9fafb")
-                      + this.buildEmailRow("Lat&ecirc;ncia", responseTimeLabel, "#10b981")
-                      + this.buildEmailRow("Incidente iniciado em", incidentStartedAt, "#f9fafb")
-                      + this.buildEmailRow("Resolvido em", eventAt, "#10b981");
-                  } else {
-                    const statusLabel = HttpStatusCodeLabel[getHttpStatusKey(newStatus)] ?? newStatus;
-
-                    detailsRows = this.buildEmailRow("C&oacute;digo de erro", newStatus, "#ef4444")
-                      + this.buildEmailRow("Descri&ccedil;&atilde;o", statusLabel, "#f9fafb")
-                      + this.buildEmailRow("Detectado em", eventAt, "#f9fafb");
-
-                    alertNote = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top:20px;">
-                      <tr>
-                        <td bgcolor="#1c0a0a" style="background-color:#1c0a0a;padding:14px 16px;border:1px solid #3d1515;">
-                          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#fca5a5;line-height:1.6;">
-                            <strong>A&ccedil;&atilde;o necess&aacute;ria:</strong> Verifique o servi&ccedil;o imediatamente. Voc&ecirc; receber&aacute; uma nova notifica&ccedil;&atilde;o quando o monitor for restaurado.
-                          </p>
-                        </td>
-                      </tr>
-                    </table>`;
-                  }
-
-                  const emailBody = readFileSync(`${__dirname}/../assets/mail/Monitor.html`, "utf-8")
-                    .replace(/{{STATUS_BG}}/g, isUp ? "#052e1c" : "#2d0e0e")
-                    .replace(/{{STATUS_BORDER_COLOR}}/g, isUp ? "#10b981" : "#ef4444")
-                    .replace(/{{STATUS_TEXT_COLOR}}/g, isUp ? "#10b981" : "#ef4444")
-                    .replace(/{{STATUS_LABEL}}/g, isUp ? "&#10003;&nbsp;&nbsp;SERVI&#199;O OPERACIONAL" : "&#9888;&nbsp;&nbsp;SERVI&#199;O INDISPON&#205;VEL")
-                    .replace(/{{EMAIL_INTRO}}/g, isUp ? "O monitor abaixo retornou ao estado operacional e est&#225; respondendo normalmente." : "Um dos seus monitores detectou uma falha e est&#225; indispon&#237;vel. Verifique o painel imediatamente.")
-                    .replace(/{{MONITOR_NAME}}/g, monitor.name)
-                    .replace(/{{MONITOR_URL}}/g, monitor.address)
-                    .replace(/{{DETAILS_ROWS}}/g, detailsRows)
-                    .replace(/{{ALERT_NOTE}}/g, alertNote)
-                    .replace(/{{CTA_BG}}/g, isUp ? "#10b981" : "#ef4444")
-                    .replace(/{{CTA_TEXT}}/g, isUp ? "Ver no Dashboard" : "Analisar Incidente no Painel")
-                    .replace(/{{ACTION_URL}}/g, `${process.env.WEB_URL}/panel/monitors`);
-
-                  await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", integration.address, title, emailBody);
+                  await this.integrationService.sendMonitorEmail(integration.address, title, notifyType === "OK", monitor.name, monitor.address, newStatus, durationMs, monitorIncident?.created_at ?? null);
                   break;
                 default:
                   break;
@@ -348,13 +329,6 @@ export class MonitorService {
         this.logger.error(`Global error ${error.message}`);
       }
     }
-  }
-
-  private buildEmailRow(label: string, value: string, valueColor: string): string {
-    return `<tr>
-      <td width="42%" bgcolor="#0d1520" style="background-color:#0d1520;padding:13px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#9ca3af;border-top:1px solid #1f2937;border-right:1px solid #1f2937;white-space:nowrap;">${label}</td>
-      <td bgcolor="#111827" style="background-color:#111827;padding:13px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:${valueColor};border-top:1px solid #1f2937;word-break:break-all;">${value}</td>
-    </tr>`;
   }
 
   public buildHttpsAgent() {
