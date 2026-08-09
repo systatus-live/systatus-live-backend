@@ -32,33 +32,24 @@ export class IncidentController {
       search = removeAccents(search);
     }
 
-    const results = await Promise.all([
-      this.dataSource.query(`
-        select
-          inc.id
-          , mon.name
-          , mon.address
-          , inc.created_at
-          , inc.ended_at
-          , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id and t.status not like '2%' order by created_at asc limit 1) as "firstError"
-          , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id order by created_at desc limit 1) as "status"
-        from incidents inc
-        join monitors mon on mon.id = inc.monitor_id
-        where created_user_id = '${request["loggedUser"]}'
-        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
-        order by inc.ended_at desc
-        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-      `, [search ? `%${search}%` : null]),
-      this.dataSource.query(`
-        select count(1) as total
-        from incidents inc
-        join monitors mon on mon.id = inc.monitor_id
-        where mon.created_user_id = '${request["loggedUser"]}'
-        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
-      `, [search ? `%${search}%` : null]),
-    ]);
+    const list = await this.dataSource.query(`
+      select
+        inc.id
+        , mon.name
+        , mon.address
+        , inc.created_at
+        , inc.ended_at
+        , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id and t.status not like '2%' order by created_at asc limit 1) as "firstError"
+        , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id order by created_at desc limit 1) as "status"
+        , count(*) over() as total
+      from incidents inc
+      join monitors mon on mon.id = inc.monitor_id
+      where created_user_id = '${request["loggedUser"]}'
+      and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
+      order by inc.ended_at desc
+      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+    `, [search ? `%${search}%` : null]);
 
-    const list = results[0];
     for (let row of list) {
       if (row.ended_at) {
         row["duration"] = formatSince(row.created_at, "YYYY-MM-DD HH:mm:ssZ", momentTz(row.ended_at, "YYYY-MM-DD HH:mm:ssZ"))
@@ -80,10 +71,10 @@ export class IncidentController {
     })
 
     return {
-      data: results[0],
+      data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(results[1][0].total)
+        total: parseInt(list[0]?.total ?? 0)
       },
       extras: {
         totalNotResolved: totalNotResolved
@@ -184,30 +175,24 @@ export class IncidentController {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
 
-    const historical = await Promise.all([
-      this.dataSource.query(`
-        select
-          his.id
-          , his.status
-          , his.duration
-          , his.created_at
-        from monitor_historical his
-        where his.incident_id = $1
-        order by his.created_at desc
-        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-      `, [incident.id]),
-      this.dataSource.query(`
-        select count(1) as total
-        from monitor_historical his
-        where his.incident_id = $1
-      `, [incident.id]),
-    ]);
+    const historical = await this.dataSource.query(`
+      select
+        his.id
+        , his.status
+        , his.duration
+        , his.created_at
+        , count(*) over() as total
+      from monitor_historical his
+      where his.incident_id = $1
+      order by his.created_at desc
+      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+    `, [incident.id]);
 
     return {
-      data: historical[0],
+      data: historical,
       pagination: {
         rows: this.querySize,
-        total: parseInt(historical[1][0].total)
+        total: parseInt(historical[0]?.total ?? 0)
       }
     }
   }

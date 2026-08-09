@@ -58,32 +58,53 @@ export class StatusPageController {
     }
 
     const monitors = await this.dataSource.query(`
+      with dates as (
+        select generate_series(
+          (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days',
+          (current_timestamp at time zone 'America/Sao_Paulo')::date,
+          '1 day'::interval
+        )::date as date
+      ),
+      hist_agg as (
+        select
+          monitor_id,
+          (created_at at time zone 'America/Sao_Paulo')::date as check_date,
+          count(case when status like '2%' then 1 end) as total_online,
+          count(case when status not like '2%' then 1 end) as total_offline
+        from monitor_historical
+        where created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
+        group by monitor_id, (created_at at time zone 'America/Sao_Paulo')::date
+      ),
+      last_check as (
+        select distinct on (monitor_id)
+          monitor_id, created_at, status, duration
+        from monitor_historical
+        order by monitor_id, created_at desc
+      )
       select
         mon.id
         , mon.name
         , mon.type
         , mon.address
         , ite.name as interval
-        , his.status as "lastStatus"
-        , his.duration as "lastDuration"
+        , lc.status as "lastStatus"
+        , lc.duration as "lastDuration"
         , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
         , (
-            with dates as (
-              select generate_series((CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - interval '29 days', (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date, '1 day'::interval)::date AS date
-            )
             select array_agg(json_build_object(
-              'date', dat.date
-              , 'totalOnline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status like '2%')
-              , 'totalOffline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status not like '2%')
-            ))
-            from dates dat
+              'date', d.date
+              , 'totalOnline', coalesce(h.total_online, 0)
+              , 'totalOffline', coalesce(h.total_offline, 0)
+            ) order by d.date)
+            from dates d
+            left join hist_agg h on h.monitor_id = mon.id and h.check_date = d.date
           ) as "historical"
       from monitors mon
       join intervals ite on ite.id = mon.interval_id
       join status_page_monitors spm on spm.monitor_id = mon.id and spm.status_page_id = '${statusPage.id}'
-      left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
+      left join last_check lc on lc.monitor_id = mon.id
       where mon.active = true
-      order by (case when status is null then 1 when status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
+      order by (case when lc.status is null then 1 when lc.status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
     `);
 
     for (let row of monitors) {

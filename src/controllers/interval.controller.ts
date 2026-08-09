@@ -27,30 +27,22 @@ export class IntervalController {
 
     const planId = request["loggedPlan"];
 
-    const results = await Promise.all([
-      this.dataSource.query(`
-        select int.id
-          , int.name
-          , int.cron
-        from intervals int
-        join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
-        where 1 = 1
-        and ($1::text is null or lower(trim(unaccent(int.name))) like $1 or lower(trim(unaccent(int.cron))) like $1)
-        order by int.index asc
-        limit ${this.querySize} offset ${this.querySize * page}
-      `, [search ? `%${search}%` : null]),
-      this.dataSource.query(`
-        select count(1) as total
-        from intervals int
-        join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
-        where 1 = 1
-        and ($1::text is null or lower(trim(unaccent(int.name))) like $1 or lower(trim(unaccent(int.cron))) like $1)
-      `, [search ? `%${search}%` : null]),
-    ]);
+    const list = await this.dataSource.query(`
+      select int.id
+        , int.name
+        , int.cron
+        , count(*) over() as total
+      from intervals int
+      join plan_intervals pi on pi.interval_id = int.id and pi.plan_id = '${planId}'
+      where 1 = 1
+      and ($1::text is null or lower(trim(unaccent(int.name))) like $1 or lower(trim(unaccent(int.cron))) like $1)
+      order by int.index asc
+      limit ${this.querySize} offset ${this.querySize * page}
+    `, [search ? `%${search}%` : null]);
 
     return {
-      data: results[0],
-      total: results[1][0].total
+      data: list,
+      total: parseInt(list[0]?.total ?? 0)
     }
   }
 }

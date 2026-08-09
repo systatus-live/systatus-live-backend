@@ -88,38 +88,30 @@ export class IntegrationController {
       search = removeAccents(search).toLowerCase();
     }
 
-    const results = await Promise.all([
-      this.dataSource.query(`
-        select
-          itg.id
-          , itg.name
-          , itg.address
-          , itg.chat_platform_id
-          , cpl.description as "chatPlatform"
-          , cpl.icon_url as "chatPlatformIconUrl"
-          , itg.created_at
-          , itg.updated_at
-        from integrations itg
-        join chat_platforms cpl on cpl.id = itg.chat_platform_id
-        where itg.created_user_id = '${request["loggedUser"]}'
-        and ($1::text is null or lower(trim(unaccent(itg.name))) like $1 or lower(trim(unaccent(itg.address))) like $1)
-        order by itg.created_at desc
-        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-      `, [search ? `%${search}%` : null]),
-      this.dataSource.query(`
-        select count(1) as total
-        from integrations itg
-        join chat_platforms cpl on cpl.id = itg.chat_platform_id
-        where itg.created_user_id = '${request["loggedUser"]}'
-        and ($1::text is null or lower(trim(unaccent(itg.name))) like $1 or lower(trim(unaccent(itg.address))) like $1)
-      `, [search ? `%${search}%` : null]),
-    ]);
+    const list = await this.dataSource.query(`
+      select
+        itg.id
+        , itg.name
+        , itg.address
+        , itg.chat_platform_id
+        , cpl.description as "chatPlatform"
+        , cpl.icon_url as "chatPlatformIconUrl"
+        , itg.created_at
+        , itg.updated_at
+        , count(*) over() as total
+      from integrations itg
+      join chat_platforms cpl on cpl.id = itg.chat_platform_id
+      where itg.created_user_id = '${request["loggedUser"]}'
+      and ($1::text is null or lower(trim(unaccent(itg.name))) like $1 or lower(trim(unaccent(itg.address))) like $1)
+      order by itg.created_at desc
+      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+    `, [search ? `%${search}%` : null]);
 
     return {
-      data: results[0],
+      data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(results[1][0].total)
+        total: parseInt(list[0]?.total ?? 0)
       }
     }
   }

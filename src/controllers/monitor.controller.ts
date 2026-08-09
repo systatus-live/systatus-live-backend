@@ -96,6 +96,28 @@ export class MonitorController {
 
     const results = await Promise.all([
       this.dataSource.query(`
+        with dates as (
+          select generate_series(
+            (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days',
+            (current_timestamp at time zone 'America/Sao_Paulo')::date,
+            '1 day'::interval
+          )::date as date
+        ),
+        hist_agg as (
+          select
+            monitor_id,
+            (created_at at time zone 'America/Sao_Paulo')::date as check_date,
+            count(case when status like '2%' then 1 end) as total_online,
+            count(case when status not like '2%' then 1 end) as total_offline
+          from monitor_historical
+          where created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
+          group by monitor_id, (created_at at time zone 'America/Sao_Paulo')::date
+        ),
+        last_check as (
+          select distinct on (monitor_id) monitor_id, created_at, status, duration
+          from monitor_historical
+          order by monitor_id, created_at desc
+        )
         select
           mon.id
           , mon.name
@@ -103,47 +125,42 @@ export class MonitorController {
           , mon.address
           , mon.active
           , (
-              with dates as (
-                select generate_series((CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - interval '29 days', (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date, '1 day'::interval)::date AS date
-              )
               select array_agg(json_build_object(
-                'date', dat.date
-                , 'totalOnline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status like '2%')
-                , 'totalOffline', (select count(1) from monitor_historical t where t.monitor_id = mon.id and (t.created_at AT TIME ZONE 'America/Sao_Paulo')::date = dat.date and t.status not like '2%')
-              )
-            )
-            from dates dat
-          ) as "historical"
+                'date', d.date
+                , 'totalOnline', coalesce(h.total_online, 0)
+                , 'totalOffline', coalesce(h.total_offline, 0)
+              ) order by d.date)
+              from dates d
+              left join hist_agg h on h.monitor_id = mon.id and h.check_date = d.date
+            ) as "historical"
           , ite.name as interval
-          , to_char(his.created_at AT TIME ZONE 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheck"
-          , his.status as "lastStatus"
-          , his.duration as "lastDuration"
-          , coalesce(((select coalesce(t.ended_at, t.created_at) from incidents t  where t.monitor_id = mon.id order by t.created_at desc limit 1)), mon.created_at) as "lastIncident"
+          , to_char(lc.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheck"
+          , lc.status as "lastStatus"
+          , lc.duration as "lastDuration"
+          , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
+          , count(*) over() as total
         from monitors mon
         join intervals ite on ite.id = mon.interval_id
-        left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
+        left join last_check lc on lc.monitor_id = mon.id
         where mon.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
-        order by mon.active desc, (case when status is null then 1 when status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
+        order by mon.active desc, (case when lc.status is null then 1 when lc.status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
-        select count(1) as total
-        from monitors mon
-        join intervals ite on ite.id = mon.interval_id
-        left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
-        where mon.created_user_id = '${request["loggedUser"]}'
-        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
-      `, [search ? `%${search}%` : null]),
-      this.dataSource.query(`
+        with last_check as (
+          select distinct on (monitor_id) monitor_id, status
+          from monitor_historical
+          order by monitor_id, created_at desc
+        )
         select
-          count(case when mon.active = true and his.status like '2%' then 1 end) as "totalUp",
-          count(case when mon.active = true and his.status not like '2%' and his.status is not null then 1 end) as "totalDown",
+          count(case when mon.active = true and lc.status like '2%' then 1 end) as "totalUp",
+          count(case when mon.active = true and lc.status not like '2%' and lc.status is not null then 1 end) as "totalDown",
           count(case when mon.active = false then 1 end) as "totalPaused",
           count(case when mon.active = true then 1 end) as "totalMonitoring",
           count(1) as "totalMonitors"
         from monitors mon
-        left join monitor_historical his on his.monitor_id = mon.id and his.created_at = (select max(t.created_at) from monitor_historical t where t.monitor_id = mon.id)
+        left join last_check lc on lc.monitor_id = mon.id
         where mon.created_user_id = '${request["loggedUser"]}'
       `),
     ]);
@@ -160,10 +177,6 @@ export class MonitorController {
         day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(2)) : 0;
 
         const formattedDate = formatDate(day.date, "DD/MM/YYYY", "YYYY-MM-DD");
-
-        if (row.id == '58f61a40-1751-4605-97cd-24be74bc84a7') {
-          console.log(row);
-        }
 
         if (total == 0) {
           day["note"] = `${formattedDate}: Sem monitoramento`;
@@ -186,13 +199,13 @@ export class MonitorController {
       }
     }
 
-    const extrasRow = results[2][0];
+    const extrasRow = results[1][0];
 
     return {
       data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(results[1][0].total)
+        total: parseInt(list[0]?.total ?? 0)
       },
       extras: {
         totalUp: parseInt(extrasRow.totalUp) || 0,
