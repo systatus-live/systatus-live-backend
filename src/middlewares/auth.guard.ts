@@ -61,7 +61,7 @@ export class AuthGuard implements CanActivate {
     const subscription = await this.subscriptionRepository.findOne({
       where: {
         user_id: user.id,
-        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.TRIAL, SubscriptionStatusEnum.EXPIRED])
+        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.FREE, SubscriptionStatusEnum.EXPIRED])
       },
       select: ["id", "plan_id", "status", "end_date"],
       order: {

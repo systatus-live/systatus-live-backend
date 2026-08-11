@@ -123,10 +123,10 @@ export class AuthController {
       await queryRunner.manager.save(SubscriptionEntity, {
         user_id: findUser.id,
         plan_id: plan.id,
-        status: SubscriptionStatusEnum.TRIAL,
+        status: SubscriptionStatusEnum.FREE,
         gateway_id: null,
         start_date: formatDate(now, dateFormat),
-        end_date: formatDate(now.clone().add(14, "days"), dateFormat),
+        end_date: null,
       });
 
       await queryRunner.commitTransaction();

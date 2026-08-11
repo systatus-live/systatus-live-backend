@@ -8,7 +8,7 @@ import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
 
 /**
  * Versão permissiva do AuthGuard para o endpoint de checkout.
- * Aceita ACTIVE, TRIAL e EXPIRED — o usuário precisa poder assinar mesmo com trial vencido.
+ * Aceita ACTIVE, FREE e EXPIRED — o usuário precisa poder assinar mesmo com a assinatura vencida.
  */
 @Injectable()
 export class CheckoutGuard implements CanActivate {
@@ -45,7 +45,7 @@ export class CheckoutGuard implements CanActivate {
     const subscription = await this.subscriptionRepository.findOne({
       where: {
         user_id: user.id,
-        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.TRIAL, SubscriptionStatusEnum.EXPIRED])
+        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.FREE, SubscriptionStatusEnum.EXPIRED])
       },
       select: ["id", "plan_id"],
       order: { created_at: "DESC" }

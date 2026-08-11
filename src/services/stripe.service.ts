@@ -147,7 +147,7 @@ export class StripeService {
       const currentSub = await queryRunner.manager.findOne(SubscriptionEntity, {
         where: {
           user_id: userId,
-          status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.TRIAL])
+          status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.FREE])
         },
       });
 
@@ -158,7 +158,7 @@ export class StripeService {
 
         await queryRunner.manager.save(SubscriptionEntity, {
           id: currentSub.id,
-          status: SubscriptionStatusEnum.UPGRADED,
+          status: SubscriptionStatusEnum.CANCELED,
         });
       }
 

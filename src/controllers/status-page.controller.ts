@@ -45,7 +45,7 @@ export class StatusPageController {
     const subscription = await this.subscriptionRepository.findOne({
       where: {
         user_id: statusPage.user_id,
-        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.UPGRADED])
+        status: In([SubscriptionStatusEnum.ACTIVE])
       },
       relations: ["plan"],
       order: {

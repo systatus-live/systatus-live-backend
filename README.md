@@ -94,7 +94,7 @@ Todas as rotas são versionadas via URI. O prefixo global `/v1` é configurado e
 ### Autenticação e Autorização
 
 - **Mecanismo:** JWT via header `Authorization: Bearer {token}`.
-- **Guard principal:** `AuthGuard` — valida o token JWT, busca o usuário no banco e executa uma cadeia de verificações: existência do usuário → e-mail verificado → assinatura ativa ou em trial. Em caso de falha em qualquer etapa, lança `UnauthorizedException` ou `ForbiddenException` com mensagens descritivas.
+- **Guard principal:** `AuthGuard` — valida o token JWT, busca o usuário no banco e executa uma cadeia de verificações: existência do usuário → e-mail verificado → assinatura ativa (ACTIVE, FREE ou EXPIRED). Em caso de falha em qualquer etapa, lança `UnauthorizedException` ou `ForbiddenException` com mensagens descritivas.
 - **Injeção de contexto:** Após validação bem-sucedida, o guard injeta `loggedUser`, `loggedSubscription` e `loggedPlan` no objeto de requisição para uso nas camadas subsequentes.
 - **Verificação de e-mail:** Usuários com `verified = false` recebem resposta HTTP 403 com a flag `needVerifyFlow`, sinalizando ao cliente que o fluxo de confirmação por código OTP (6 dígitos) deve ser iniciado.
 - **Controle de acesso por plano:** Permissões são verificadas via `hasPermission(planId, permission)` e `assertPermission(planId, permission, message)`, consultando a tabela associativa do plano antes de executar operações restritas.

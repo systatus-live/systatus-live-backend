@@ -43,7 +43,6 @@ import { StripeService } from 'src/services/stripe.service';
 import { GatewayLogEntity } from 'src/database/entities/GatewayLogEntity';
 import { RequestLogEntity } from 'src/database/entities/RequestLogEntity';
 import { IntegrationTemplateEntity } from 'src/database/entities/IntegrationTemplateEntity';
-import { TrialService } from 'src/services/trial.service';
 import { CheckoutGuard } from 'src/middlewares/checkout.guard';
 import { UtilsController } from '../controllers/utils.controller';
 import { SupportController } from '../controllers/support.controller';
@@ -56,7 +55,6 @@ const providerList = [
   PlanService,
   PdfService,
   StripeService,
-  TrialService,
   CheckoutGuard
 ]
 
