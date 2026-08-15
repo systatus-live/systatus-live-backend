@@ -1,0 +1,13 @@
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class NomeMigration1786818680157 implements MigrationInterface {
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`update plans set price = 0, monitor_qty = 50, stripe_price_id = null, description = 'Para projetos pessoais e pequenos sites. Sem cartão de crédito.', display_features = '[{"label": "50 monitores", "enabled": true}, {"label": "Monitoramento a partir de 5min.", "enabled": true}, {"label": "Notificações no Slack", "enabled": true}, {"label": "Notificações no Google Chat", "enabled": true}, {"label": "Notificações no Discord", "enabled": true}, {"label": "Notificações no E-mail", "enabled": false}, {"label": "Notificações no WhatsApp", "enabled": false, "hint": null}, {"label": "Mensagens personalizáveis", "enabled": false}, {"label": "Página de status pública", "enabled": false}, {"label": "30 dias de retenção de dados", "enabled": true}]'::jsonb where name = 'Andorinha';`);
+    await queryRunner.query(`update plans set price = 89.90, monitor_qty = 100, description = 'Ideal para times que rodam serviços em produção com monitoramento contínuo.', display_features = '[{"label": "✨ 100 monitores", "enabled": true}, {"label": "✨ Monitoramento a partir de 60s", "enabled": true}, {"label": "Notificações no Slack", "enabled": true}, {"label": "Notificações no Google Chat", "enabled": true}, {"label": "Notificações no Discord", "enabled": true}, {"label": "⭐ Notificações no E-mail", "enabled": true}, {"label": "Notificações no WhatsApp", "enabled": false, "hint": null}, {"label": "⭐ Mensagens personalizáveis", "enabled": true}, {"label": "⭐ Página de status pública", "enabled": true}, {"label": "✨ 90 dias de retenção de dados", "enabled": true}]'::jsonb where name = 'Coruja';`);
+    await queryRunner.query(`update plans set price = 189.90, monitor_qty = 200,description = 'O plano completo para quem opera em escala e precisa de tudo.', display_features = '[{"label": "✨ 200 monitores", "enabled": true}, {"label": "✨ Monitoramento a partir de 60s", "enabled": true}, {"label": "Notificações no Slack", "enabled": true}, {"label": "Notificações no Google Chat", "enabled": true}, {"label": "Notificações no Discord", "enabled": true}, {"label": "⭐ Notificações no E-mail", "enabled": true}, {"label": "⭐ Notificações no WhatsApp", "enabled": true, "hint": "Com limite de 100 mensagens por mês"}, {"label": "⭐ Mensagens personalizáveis", "enabled": true}, {"label": "⭐ Página de status pública", "enabled": true}, {"label": "✨ 180 dias de retenção de dados", "enabled": true}]'::jsonb where name = 'Águia';`);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+  }
+}

@@ -16,6 +16,8 @@ import { ChatPlatformEnum, ChatPlatformTypeEnum } from '../types/ChatPlatformEnu
 import { CronIntervalEnum } from '../types/CronIntervalEnum';
 import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../types/HttpStatusCode';
 import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
+import { PlanEnum } from '../types/PlanEnum';
+import { SubscriptionStatusEnum } from '../types/SubscriptionStatusEnum';
 import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
@@ -80,6 +82,44 @@ export class MonitorService {
   })
   schedule24HoursMonitor() {
     this.checkMonitors(CronIntervalEnum.EVERY_24_HOURS);
+  }
+
+  @Cron(CronIntervalEnum.EVERY_24_HOURS, {
+    name: `rotate-monitor-history`,
+    timeZone: "America/Sao_Paulo"
+  })
+  async scheduleRotateMonitorHistory() {
+    try {
+      this.logger.log(`Iniciando rotação do histórico de monitores.`);
+
+      await this.dataSource.transaction(async (manager) => {
+        await manager.query(`
+          create temp table monitor_historical_keep on commit drop as
+            with current_subscription as (
+              select distinct on (user_id) user_id, plan_id
+              from subscriptions
+              order by user_id, created_at desc
+            )
+            select mh.*
+            from monitor_historical mh
+            join monitors mon on mon.id = mh.monitor_id
+            join current_subscription cs on cs.user_id = mon.created_user_id
+            join plans p on p.id = cs.plan_id
+            where
+              (p.name = '${PlanEnum.ANDORINHA}' and mh.created_at >= now() - interval '30 days')
+              or (p.name = '${PlanEnum.CORUJA}' and mh.created_at >= now() - interval '90 days')
+              or (p.name = '${PlanEnum.AGUIA}' and mh.created_at >= now() - interval '180 days')
+        `);
+
+        await manager.query(`truncate table monitor_historical`);
+
+        await manager.query(`insert into monitor_historical select * from monitor_historical_keep`);
+      });
+
+      this.logger.log(`Rotação do histórico de monitores concluída.`);
+    } catch (error) {
+      this.logger.error(`Erro ao rotar histórico de monitores: ${error.message}`);
+    }
   }
 
   private async checkMonitors(cron: CronIntervalEnum) {

@@ -15,7 +15,7 @@ export class Insert1768781733400 implements MigrationInterface {
         5,
         false, true, true, true, true, false, false,
         '[{"label": "5 monitores", "enabled": true}, {"label": "Monitoramento a cada 5 minutos", "enabled": true}, {"label": "Notificações no Slack", "enabled": true}, {"label": "Notificações no Google Chat", "enabled": true}, {"label": "Notificações no E-mail", "enabled": true}, {"label": "Notificações no Discord", "enabled": true}, {"label": "Notificações no WhatsApp", "enabled": false}, {"label": "Mensagens personalizáveis", "enabled": false}, {"label": "Página de status pública", "enabled": false}]'::jsonb,
-        '${process.env.STRIPE_PRICE_ID_ANDORINHA}'
+        'STRIPE_PRICE_ID_ANDORINHA'
       )
     `);
 
