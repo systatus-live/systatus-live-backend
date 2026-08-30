@@ -1,12 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import axios from "axios";
-import { existsSync, readFileSync } from 'fs';
-import { Agent } from 'https';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import ping from "ping";
 import formatDate from 'src/utils/formatDate';
-import { rootCertificates } from 'tls';
 import { DataSource, In, Repository } from 'typeorm';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
 import { IntegrationTemplateEntity } from '../database/entities/IntegrationTemplateEntity';
@@ -21,6 +19,8 @@ import { SubscriptionStatusEnum } from '../types/SubscriptionStatusEnum';
 import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
+
+const execFileAsync = promisify(execFile);
 
 @Injectable()
 export class MonitorService {
@@ -157,11 +157,13 @@ export class MonitorService {
     this.logger.log(`Checking ${monitor.name} (${monitor.id})`);
     try {
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
-      let durationMs: number | null = null;
+      let totalMs: number | null = null;
       let requestHeaders: any = null;
       let responseHeaders: any = null;
-
-      const startTime = Date.now();
+      let dnsMs: number | null = null;
+      let tcpMs: number | null = null;
+      let tlsMs: number | null = null;
+      let ttfbMs: number | null = null;
 
       switch (monitor.type) {
         case MonitorTypeEnum.HTTP:
@@ -169,43 +171,75 @@ export class MonitorService {
             "Cache-Control": "no-cache",
             "Connection": "close",
             "Referer": monitor.address,
-            "User-Agent": "Systatus.live (https://systatus.live)",
-            "Accept": null,
-            "accept-encoding": null,
-            "host": null
+            "User-Agent": "Systatus.live (https://systatus.live)"
           }
 
           try {
-            const httpResponse = await axios.head(monitor.address, {
-              timeout: 10000,
-              headers: requestHeaders,
-              httpsAgent: this.buildHttpsAgent(),
-            });
+            const curlArgs = [
+              "-X", "HEAD",
+              "-I",
+              "-s",
+              "--max-time", "10",
+              "--insecure",
+              "-L",
+              "--max-redirs", "5",
+              "-H", "Cache-Control: no-cache",
+              "-H", "Connection: close",
+              "-H", `Referer: ${monitor.address}`,
+              "-H", "User-Agent: Systatus.live (https://systatus.live)",
+              "-w", `\n---CURL-METRICS---\n{"status":%{http_code},"dns":%{time_namelookup},"tcp":%{time_connect},"tls":%{time_appconnect},"ttfb":%{time_starttransfer},"total":%{time_total}}`,
+              monitor.address
+            ];
 
-            newStatus = httpResponse.status.toString();
-            responseHeaders = httpResponse.headers;
-          } catch (error) {
-            if (axios.isAxiosError(error)) {
-              if (error.response) {
-                newStatus = error.response.status.toString();
-              } else if (["ERR_BAD_RESPONSE", "EPROTO", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].includes(error.code ?? "")) {
-                newStatus = HttpStatusCode.BAD_GATEWAY.toString();
-              } else if (["ECONNABORTED", "ETIMEDOUT"].includes(error.code ?? "")) {
-                newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-              } else if (["ECONNREFUSED", "ENOTFOUND"].includes(error.code ?? "")) {
-                newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-              } else if (error.code == "ERR_BAD_REQUEST") {
-                newStatus = HttpStatusCode.BAD_REQUEST.toString();
-              } else if (error.code) {
-                newStatus = error.code;
+            const { stdout } = await execFileAsync("curl", curlArgs);
+            const separatorIndex = stdout.indexOf("\n---CURL-METRICS---\n");
+
+            if (separatorIndex === -1) {
+              newStatus = HttpStatusCode.UNKNOWN.toString();
+            } else {
+              const headersRaw = stdout.slice(0, separatorIndex);
+              const metricsRaw = stdout.slice(separatorIndex + "\n---CURL-METRICS---\n".length).trim();
+              const metrics = JSON.parse(metricsRaw);
+
+              // curl retorna tempos cumulativos desde o início da requisição (man curl):
+              // dns = time_namelookup, tcp = time_connect, tls = time_appconnect, ttfb = time_starttransfer
+              // para obter a duração isolada de cada fase, subtraímos o acumulado anterior
+              newStatus = metrics.status.toString();
+              dnsMs = Math.round(metrics.dns * 1000);
+              tcpMs = Math.round((metrics.tcp - metrics.dns) * 1000);
+              tlsMs = Math.round((metrics.tls > 0 ? metrics.tls - metrics.tcp : 0) * 1000);
+              ttfbMs = Math.round((metrics.ttfb - (metrics.tls || metrics.tcp)) * 1000);
+              totalMs = Math.round(metrics.total * 1000);
+
+              const headerLines = headersRaw.split(/\r?\n/).filter(Boolean);
+              const lastStatusLine = headerLines.reduce(
+                (last, line, i) => line.toUpperCase().startsWith("HTTP/") ? i : last, 0
+              );
+              const parsedHeaders: Record<string, string> = {};
+              for (const line of headerLines.slice(lastStatusLine + 1)) {
+                const colonIdx = line.indexOf(":");
+                if (colonIdx > 0) {
+                  const key = line.slice(0, colonIdx).trim().toLowerCase();
+                  const val = line.slice(colonIdx + 1).trim();
+                  parsedHeaders[key] = val;
+                }
               }
-            } else if (error.code == "ERR_INVALID_URL") {
-              newStatus = HttpStatusCode.NOT_FOUND.toString();
+              responseHeaders = Object.keys(parsedHeaders).length > 0 ? parsedHeaders : null;
             }
-
-            responseHeaders = error?.response?.headers ?? null;
-          } finally {
-            durationMs = Date.now() - startTime;
+          } catch (error: any) {
+            const exitCode: number = error.code ?? -1;
+            if (exitCode === 6) {
+              newStatus = HttpStatusCode.NOT_FOUND.toString();
+            } else if (exitCode === 7) {
+              newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+            } else if (exitCode === 28) {
+              newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
+            } else if ([35, 51, 60].includes(exitCode)) {
+              newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+            } else {
+              newStatus = HttpStatusCode.UNKNOWN.toString();
+            }
+            responseHeaders = null;
           }
           break;
         case MonitorTypeEnum.PING:
@@ -225,14 +259,10 @@ export class MonitorService {
             }
 
             if (pingResponse.time != "unknown") {
-              durationMs = pingResponse.time;
+              totalMs = Math.round(pingResponse.time);
             }
           } catch (error) {
             newStatus = HttpStatusCode.UNKNOWN.toString();
-          } finally {
-            if (durationMs === null) {
-              durationMs = Date.now() - startTime;
-            }
           }
           break;
         default:
@@ -297,9 +327,13 @@ export class MonitorService {
           monitor_id: monitor.id,
           incident_id: monitorIncident?.id,
           status: newStatus,
-          duration: durationMs,
-          request_headers: requestHeaders ? JSON.parse(JSON.stringify(requestHeaders, (_, v) => v ?? undefined)) : null,
-          response_headers: responseHeaders ? JSON.parse(JSON.stringify(responseHeaders)) : null
+          total_ms: totalMs,
+          request_headers: requestHeaders ? JSON.parse(JSON.stringify(requestHeaders)) : null,
+          response_headers: responseHeaders ? JSON.parse(JSON.stringify(responseHeaders)) : null,
+          dns_ms: dnsMs,
+          tcp_ms: tcpMs,
+          tls_ms: tlsMs,
+          ttfb_ms: ttfbMs
         });
       });
 
@@ -376,7 +410,7 @@ export class MonitorService {
                 }
                 break;
               case ChatPlatformEnum.EMAIL:
-                await this.integrationService.sendMonitorEmail(integration.address, title, notifyType === "OK", monitor.name, monitor.address, newStatus, durationMs, monitorIncident?.created_at ?? null);
+                await this.integrationService.sendMonitorEmail(integration.address, title, notifyType === "OK", monitor.name, monitor.address, newStatus, totalMs, monitorIncident?.created_at ?? null);
                 break;
               default:
                 break;
@@ -391,12 +425,4 @@ export class MonitorService {
     }
   }
 
-  public buildHttpsAgent() {
-    const caPath = process.env.NODE_EXTRA_CA_CERTS;
-    const ca = (caPath && existsSync(caPath)) ? [...rootCertificates, readFileSync(caPath, "utf8")] : [...rootCertificates];
-    return new Agent({
-      ca: ca,
-      rejectUnauthorized: false
-    });
-  }
 }

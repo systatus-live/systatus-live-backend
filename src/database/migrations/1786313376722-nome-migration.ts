@@ -1,4 +1,4 @@
-import { PlanEnum } from "src/types/PlanEnum";
+import { PlanEnum } from "../../types/PlanEnum";
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class NomeMigration1786313376722 implements MigrationInterface {

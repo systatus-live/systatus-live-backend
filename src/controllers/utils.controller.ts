@@ -2,16 +2,23 @@ import { BadRequestException, Controller, Get, NotFoundException, Param, Query, 
 import { AuthGuard } from "../middlewares/auth.guard";
 import { Response } from "express";
 import axios from "axios";
-import { MonitorService } from "src/services/monitor.service";
+import { existsSync, readFileSync } from 'fs';
+import { Agent } from 'https';
+import { rootCertificates } from 'tls';
 
 @Controller({
   version: "1",
   path: "/utils",
 })
 export class UtilsController {
-  constructor(
-    private monitorService: MonitorService
-  ) { }
+  private buildHttpsAgent() {
+    const caPath = process.env.NODE_EXTRA_CA_CERTS;
+    const ca = (caPath && existsSync(caPath)) ? [...rootCertificates, readFileSync(caPath, "utf8")] : [...rootCertificates];
+    return new Agent({
+      ca: ca,
+      rejectUnauthorized: false
+    });
+  }
 
   @Get("/cep/:cep")
   @UseGuards(AuthGuard)
@@ -100,7 +107,7 @@ export class UtilsController {
       const response = await axios.get(`${parsed.origin}/favicon.ico`, {
         responseType: "arraybuffer",
         timeout: 5000,
-        httpsAgent: this.monitorService.buildHttpsAgent()
+        httpsAgent: this.buildHttpsAgent()
       });
 
       res.setHeader("Content-Type", String(response.headers["content-type"] ?? "image/x-icon"));

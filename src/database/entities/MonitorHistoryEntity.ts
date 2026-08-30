@@ -25,13 +25,25 @@ export class MonitorHistoryEntity {
   status: string;
 
   @Column({ type: "double precision", nullable: true })
-  duration: number | null;
+  total_ms: number | null;
 
   @Column({ type: "jsonb", nullable: true })
   request_headers: Record<any, any> | null
 
   @Column({ type: "jsonb", nullable: true })
   response_headers: Record<any, any> | null
+
+  @Column({ type: "double precision", nullable: true })
+  dns_ms: number | null;
+
+  @Column({ type: "double precision", nullable: true })
+  tcp_ms: number | null;
+
+  @Column({ type: "double precision", nullable: true })
+  tls_ms: number | null;
+
+  @Column({ type: "double precision", nullable: true })
+  ttfb_ms: number | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;

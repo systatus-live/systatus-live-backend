@@ -179,7 +179,7 @@ export class IncidentController {
       select
         his.id
         , his.status
-        , his.duration
+        , his.total_ms
         , his.created_at
         , count(*) over() as total
       from monitor_historical his

@@ -1,4 +1,4 @@
-import { IntegrationTemplateTypeEnum } from "src/types/IntegrationTemplateTypeEnum";
+import { IntegrationTemplateTypeEnum } from "../../types/IntegrationTemplateTypeEnum";
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class NomeMigration1786309970100 implements MigrationInterface {

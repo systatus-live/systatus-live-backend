@@ -77,7 +77,7 @@ export class StatusPageController {
       ),
       last_check as (
         select distinct on (monitor_id)
-          monitor_id, created_at, status, duration
+          monitor_id, created_at, status, total_ms
         from monitor_historical
         order by monitor_id, created_at desc
       )
@@ -88,7 +88,7 @@ export class StatusPageController {
         , mon.address
         , ite.name as interval
         , lc.status as "lastStatus"
-        , lc.duration as "lastDuration"
+        , lc.total_ms as "lastDuration"
         , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
         , (
             select array_agg(json_build_object(
