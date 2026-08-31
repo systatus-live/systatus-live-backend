@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { existsSync, readFileSync } from 'fs';
-import * as path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import ping from "ping";
-import * as tls from 'tls';
-import { Worker } from 'worker_threads';
 import formatDate from 'src/utils/formatDate';
 import { DataSource, In, Repository } from 'typeorm';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
@@ -22,11 +20,12 @@ import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
 
+const execFileAsync = promisify(execFile);
+
 @Injectable()
 export class MonitorService {
   private readonly logger = new Logger(MonitorService.name);
   private readonly runningIntervals = new Set<CronIntervalEnum>();
-  private readonly tlsCa: string[];
 
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
@@ -36,10 +35,7 @@ export class MonitorService {
   constructor(
     private integrationService: IntegrationService,
     private dataSource: DataSource
-  ) {
-    const caPath = process.env.NODE_EXTRA_CA_CERTS;
-    this.tlsCa = (caPath && existsSync(caPath)) ? [...tls.rootCertificates, readFileSync(caPath, "utf8")] : [...tls.rootCertificates];
-  }
+  ) { }
 
   @Cron(CronIntervalEnum.EVERY_1_MINUTE, {
     name: `monitor-1-minutes`,
@@ -157,41 +153,8 @@ export class MonitorService {
     }
   }
 
-  private runHttpWorker(address: string, requestHeaders: Record<string, string>): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const isCompiledJs = __filename.endsWith(".js");
-      const workerPath = path.join(
-        __dirname,
-        `../workers/http-monitor.worker${isCompiledJs ? ".js" : ".ts"}`
-      );
-      const workerOptions: any = {
-        workerData: {
-          address: address,
-          tlsCa: this.tlsCa,
-          requestHeaders: requestHeaders
-        }
-      };
-      if (!isCompiledJs) {
-        workerOptions.execArgv = ["-r", "ts-node/register"];
-      }
-      const worker = new Worker(workerPath, workerOptions);
-      worker.once("message", (result) => {
-        resolve(result);
-      });
-      worker.once("error", (err) => {
-        reject(err);
-      });
-      worker.once("exit", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Worker exited with code ${code}`));
-        }
-      });
-    });
-  }
-
   private async processMonitor(monitor: any) {
     this.logger.log(`Checking ${monitor.name} (${monitor.id})`);
-
     try {
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
       let totalMs: number | null = null;
@@ -208,48 +171,70 @@ export class MonitorService {
 
       switch (monitor.type) {
         case MonitorTypeEnum.HTTP:
-          requestHeaders = {
-            "Cache-Control": "no-cache",
-            "Connection": "close",
-            "Referer": monitor.address,
-            "User-Agent": "Systatus.live (https://systatus.live)"
-          };
-
           try {
-            new URL(monitor.address);
-          } catch {
-            newStatus = HttpStatusCode.UNKNOWN.toString();
-            break;
-          }
+            const curlArgs = [
+              "-X", "HEAD",
+              "-I",
+              "-s",
+              "--max-time", "10",
+              "--insecure",
+              "-L",
+              "--max-redirs", "5",
+              "-H", "Cache-Control: no-cache",
+              "-H", "Connection: close",
+              "-H", `Referer: ${monitor.address}`,
+              "-H", "User-Agent: Systatus.live (https://systatus.live)",
+              "-w", `\n---CURL-METRICS---\n{"status":%{http_code},"dns":%{time_namelookup},"tcp":%{time_connect},"tls":%{time_appconnect},"ttfb":%{time_starttransfer},"total":%{time_total}}`,
+              monitor.address
+            ];
 
-          try {
-            const result = await this.runHttpWorker(monitor.address, requestHeaders);
+            const { stdout } = await execFileAsync("curl", curlArgs);
+            const separatorIndex = stdout.indexOf("\n---CURL-METRICS---\n");
 
-            if (result.error) {
-              const code: string = result.code;
-              if (["ENOTFOUND", "EAI_AGAIN"].includes(code)) {
-                newStatus = HttpStatusCode.NOT_FOUND.toString();
-              } else if (code === "ECONNREFUSED") {
-                newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-              } else if (["UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "ETIMEDOUT"].includes(code)) {
-                newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-              } else if (code.startsWith("ERR_TLS") || code.startsWith("CERT_") || ["DEPTH_ZERO_SELF_SIGNED_CERT", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].includes(code)) {
-                newStatus = HttpStatusCode.BAD_GATEWAY.toString();
-              } else {
-                newStatus = HttpStatusCode.UNKNOWN.toString();
-              }
-              responseHeaders = null;
+            if (separatorIndex === -1) {
+              newStatus = HttpStatusCode.UNKNOWN.toString();
             } else {
-              newStatus = result.statusCode;
-              dnsMs = result.dnsMs;
-              tcpMs = result.tcpMs;
-              tlsMs = result.tlsMs;
-              ttfbMs = result.ttfbMs;
-              totalMs = result.totalMs;
-              responseHeaders = result.responseHeaders;
+              const headersRaw = stdout.slice(0, separatorIndex);
+              const metricsRaw = stdout.slice(separatorIndex + "\n---CURL-METRICS---\n".length).trim();
+              const metrics = JSON.parse(metricsRaw);
+
+              const toMs = (seconds: number): number => parseFloat((seconds * 1000).toFixed(2));
+
+              newStatus = metrics.status.toString();
+              dnsMs = toMs(metrics.dns);
+              tcpMs = toMs(metrics.tcp - metrics.dns);
+              tlsMs = toMs(Math.max(0, metrics.tls > 0 ? metrics.tls - metrics.tcp : 0));
+              ttfbMs = toMs(metrics.ttfb - (metrics.tls || metrics.tcp));
+              totalMs = toMs(metrics.total);
+
+              const headerLines = headersRaw.split(/\r?\n/).filter(Boolean);
+              const lastStatusLine = headerLines.reduce(
+                (last, line, i) => line.toUpperCase().startsWith("HTTP/") ? i : last, 0
+              );
+              const parsedHeaders: Record<string, string> = {};
+              for (const line of headerLines.slice(lastStatusLine + 1)) {
+                const colonIdx = line.indexOf(":");
+                if (colonIdx > 0) {
+                  const key = line.slice(0, colonIdx).trim().toLowerCase();
+                  const val = line.slice(colonIdx + 1).trim();
+                  parsedHeaders[key] = val;
+                }
+              }
+              responseHeaders = Object.keys(parsedHeaders).length > 0 ? parsedHeaders : null;
             }
-          } catch {
-            newStatus = HttpStatusCode.UNKNOWN.toString();
+          } catch (error: any) {
+            const exitCode: number = error.code ?? -1;
+            if (exitCode === 6) {
+              newStatus = HttpStatusCode.NOT_FOUND.toString();
+            } else if (exitCode === 7) {
+              newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+            } else if (exitCode === 28) {
+              newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
+            } else if ([35, 51, 60].includes(exitCode)) {
+              newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+            } else {
+              newStatus = HttpStatusCode.UNKNOWN.toString();
+            }
             responseHeaders = null;
           }
           break;

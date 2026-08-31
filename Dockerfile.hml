@@ -21,18 +21,17 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV=staging
-
-RUN apk add --no-cache curl iputils
+RUN apk add --no-cache curl iputils dnsmasq su-exec
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY package.json ./
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /app/tmp/avatars
 
 RUN chown -R node:node /app
 
-USER node
-
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["docker-entrypoint.sh"]
