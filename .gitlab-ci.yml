@@ -23,7 +23,6 @@ deploy-systatus-api-hml:
   tags:
     - systatus-runner
   script:
-    - mkdir -p /home/gitlab-runner/.ssh
     - ssh-keyscan $HML_DEPLOY_HOST >> /home/gitlab-runner/.ssh/known_hosts
     - docker build -f Dockerfile.hml -t systatus.live-api-hml:latest .
     - docker save systatus.live-api-hml:latest | gzip | ssh $HML_DEPLOY_USER@$HML_DEPLOY_HOST "docker load"
