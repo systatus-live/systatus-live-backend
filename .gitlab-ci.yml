@@ -1,14 +1,32 @@
 stages:
   - deploy-systatus-api
+  - deploy-systatus-api-hml
 
 deploy-systatus-api:
+  environment:
+    name: production
   stage: deploy-systatus-api
   tags:
     - systatus-runner
   script:
-    - docker compose build --no-cache
-    - docker compose down
-    - docker compose up -d
+    - docker compose build --no-cache api
+    - docker compose down api
+    - docker compose up -d api
     - docker image prune -f
   only:
     - master
+
+deploy-systatus-api-hml:
+  environment:
+    name: homolog
+  stage: deploy-systatus-api-hml
+  tags:
+    - systatus-runner
+  script:
+    - ssh-keyscan $HML_DEPLOY_HOST >> ~/.ssh/known_hosts
+    - docker build -f Dockerfile.hml -t systatus.live-api-hml:latest .
+    - docker save systatus.live-api-hml:latest | gzip | ssh $HML_DEPLOY_USER@$HML_DEPLOY_HOST "docker load"
+    - ssh $HML_DEPLOY_USER@$HML_DEPLOY_HOST "cd $HML_DEPLOY_DIR && docker compose up -d api-hml"
+    - docker image prune -f
+  only:
+    - homolog

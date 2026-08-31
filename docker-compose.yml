@@ -4,9 +4,51 @@ services:
     container_name: systatus-live-api
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
       - "4003:3000"
+    environment:
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+      TYPEORM_ENTITIES: ${TYPEORM_ENTITIES}
+      TYPEORM_MIGRATIONS: ${TYPEORM_MIGRATIONS}
+      QUERY_SIZE: ${QUERY_SIZE}
+      JWT_KEY: ${JWT_KEY}
+      ENCRYPT_KEY: ${ENCRYPT_KEY}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      RESEND_API_URL: ${RESEND_API_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      CONTACT_EMAIL: ${CONTACT_EMAIL}
+      VERCEL_BLOB_READ_WRITE_TOKEN: ${VERCEL_BLOB_READ_WRITE_TOKEN}
+      NODE_ENV: ${NODE_ENV}
+      WEB_URL: ${WEB_URL}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_ID_CORUJA: ${STRIPE_PRICE_ID_CORUJA}
+      STRIPE_PRICE_ID_AGUIA: ${STRIPE_PRICE_ID_AGUIA}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY}
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+    volumes:
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
+    restart: unless-stopped
+
+  api-hml:
+    image: systatus.live-api-hml:latest
+    container_name: systatus-live-api-hml
+    build:
+      context: .
+      dockerfile: Dockerfile.hml
+    ports:
+      - "4000:3000"
     environment:
       DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_PORT: ${DATABASE_PORT}
