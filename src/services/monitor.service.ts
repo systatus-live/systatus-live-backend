@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { existsSync, readFileSync } from 'fs';
-import * as net from 'net';
+import * as path from 'path';
 import ping from "ping";
 import * as tls from 'tls';
-import { Agent, interceptors, request as undiciRequest } from 'undici';
+import { Worker } from 'worker_threads';
 import formatDate from 'src/utils/formatDate';
 import { DataSource, In, Repository } from 'typeorm';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
@@ -157,6 +157,38 @@ export class MonitorService {
     }
   }
 
+  private runHttpWorker(address: string, requestHeaders: Record<string, string>): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const isCompiledJs = __filename.endsWith(".js");
+      const workerPath = path.join(
+        __dirname,
+        `../workers/http-monitor.worker${isCompiledJs ? ".js" : ".ts"}`
+      );
+      const workerOptions: any = {
+        workerData: {
+          address: address,
+          tlsCa: this.tlsCa,
+          requestHeaders: requestHeaders
+        }
+      };
+      if (!isCompiledJs) {
+        workerOptions.execArgv = ["-r", "ts-node/register"];
+      }
+      const worker = new Worker(workerPath, workerOptions);
+      worker.once("message", (result) => {
+        resolve(result);
+      });
+      worker.once("error", (err) => {
+        reject(err);
+      });
+      worker.once("exit", (code) => {
+        if (code !== 0) {
+          reject(new Error(`Worker exited with code ${code}`));
+        }
+      });
+    });
+  }
+
   private async processMonitor(monitor: any) {
     this.logger.log(`Checking ${monitor.name} (${monitor.id})`);
 
@@ -184,126 +216,40 @@ export class MonitorService {
           };
 
           try {
-            try {
-              new URL(monitor.address);
-            } catch {
-              newStatus = HttpStatusCode.UNKNOWN.toString();
-              break;
-            }
+            new URL(monitor.address);
+          } catch {
+            newStatus = HttpStatusCode.UNKNOWN.toString();
+            break;
+          }
 
-            const tStart = process.hrtime.bigint();
-            let tDns = 0n;
-            let tTcp = 0n;
-            let tTls = 0n;
+          try {
+            const result = await this.runHttpWorker(monitor.address, requestHeaders);
 
-            const baseAgent = new Agent({
-              connect: (options: any, callback: any) => {
-                const host: string = options.hostname ?? options.host;
-                const port: number = options.port ? parseInt(options.port, 10) : (options.protocol === "https:" ? 443 : 80);
-                const isHttpsConn: boolean = options.protocol === "https:";
-                
-                this.logger.log(`Connect ${host}:${port}`);
-
-                tDns = 0n;
-                tTcp = 0n;
-                tTls = 0n;
-
-                let socket: tls.TLSSocket | net.Socket;
-
-                if (isHttpsConn) {
-                  socket = tls.connect({
-                    host: host,
-                    port: port,
-                    servername: options.servername ?? host,
-                    ca: this.tlsCa,
-                    rejectUnauthorized: false
-                  });
-
-                  socket.on("lookup", () => {
-                    tDns = process.hrtime.bigint();
-                  });
-
-                  socket.on("connect", () => {
-                    tTcp = process.hrtime.bigint();
-                  });
-                  
-                  (socket as tls.TLSSocket).on("secureConnect", () => {
-                    tTls = process.hrtime.bigint();
-                    callback(null, socket);
-                  });
-                } else {
-                  socket = net.createConnection({
-                    host: host,
-                    port: port
-                  });
-
-                  socket.on("lookup", () => {
-                    tDns = process.hrtime.bigint();
-                  });
-
-                  socket.on("connect", () => {
-                    tTcp = process.hrtime.bigint();
-                    callback(null, socket);
-                  });
-                }
-
-                socket.on("error", (err: Error) => {
-                  callback(err, null);
-                });
-              },
-              headersTimeout: 10000,
-              bodyTimeout: 10000
-            });
-
-            const dispatcher = baseAgent.compose(interceptors.redirect({ 
-              maxRedirections: 5 
-            }));
-
-            try {
-              const response = await undiciRequest(monitor.address, {
-                dispatcher: dispatcher,
-                method: "HEAD",
-                headers: requestHeaders
-              });
-
-              const tHeaders = process.hrtime.bigint();
-
-              for await (const _chunk of response.body) { }
-
-              const tEnd = process.hrtime.bigint();
-
-              const toMs = (from: bigint, to: bigint) => parseFloat((Number(to - from) / 1000000).toFixed(2));
-
-              newStatus = response.statusCode.toString();
-              dnsMs = tDns > 0n ? toMs(tStart, tDns) : null;
-              tcpMs = tDns > 0n && tTcp > 0n ? toMs(tDns, tTcp) : null;
-              tlsMs = tTcp > 0n && tTls > 0n ? toMs(tTcp, tTls) : null;
-              ttfbMs = tTcp > 0n ? toMs(tTls > 0n ? tTls : tTcp, tHeaders) : null;
-              totalMs = toMs(tStart, tEnd);
-
-              const parsedHeaders: Record<string, string> = {};
-              for (const [key, value] of Object.entries(response.headers)) {
-                if (value !== undefined) {
-                  parsedHeaders[key] = Array.isArray(value) ? value.join(", ") : value;
-                }
+            if (result.error) {
+              const code: string = result.code;
+              if (["ENOTFOUND", "EAI_AGAIN"].includes(code)) {
+                newStatus = HttpStatusCode.NOT_FOUND.toString();
+              } else if (code === "ECONNREFUSED") {
+                newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+              } else if (["UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "ETIMEDOUT"].includes(code)) {
+                newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
+              } else if (code.startsWith("ERR_TLS") || code.startsWith("CERT_") || ["DEPTH_ZERO_SELF_SIGNED_CERT", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].includes(code)) {
+                newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+              } else {
+                newStatus = HttpStatusCode.UNKNOWN.toString();
               }
-              responseHeaders = Object.keys(parsedHeaders).length > 0 ? parsedHeaders : null;
-            } finally {
-              await baseAgent.destroy();
-            }
-          } catch (error: any) {
-            const code: string = error.code ?? "";
-            if (["ENOTFOUND", "EAI_AGAIN"].includes(code)) {
-              newStatus = HttpStatusCode.NOT_FOUND.toString();
-            } else if (code == "ECONNREFUSED") {
-              newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-            } else if (["UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "ETIMEDOUT"].includes(code)) {
-              newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-            } else if (code.startsWith("ERR_TLS") || code.startsWith("CERT_") || ["DEPTH_ZERO_SELF_SIGNED_CERT", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].includes(code)) {
-              newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+              responseHeaders = null;
             } else {
-              newStatus = HttpStatusCode.UNKNOWN.toString();
+              newStatus = result.statusCode;
+              dnsMs = result.dnsMs;
+              tcpMs = result.tcpMs;
+              tlsMs = result.tlsMs;
+              ttfbMs = result.ttfbMs;
+              totalMs = result.totalMs;
+              responseHeaders = result.responseHeaders;
             }
+          } catch {
+            newStatus = HttpStatusCode.UNKNOWN.toString();
             responseHeaders = null;
           }
           break;
