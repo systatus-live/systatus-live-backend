@@ -5,10 +5,11 @@ import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
 import { PlanService } from '../services/plan.service';
-import momentTz from 'moment-timezone';
+import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
 import formatDate from '../utils/formatDate';
 import formatSince from '../utils/formatSince';
 import removeAccents from '../utils/removeAccents';
+import calcDuration from '../utils/calcDuration';
 
 @Controller({
   version: "1",
@@ -16,15 +17,41 @@ import removeAccents from '../utils/removeAccents';
 })
 @UseGuards(AuthGuard)
 export class MonitorController {
-  @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>
-  @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
-
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
   constructor(
     private dataSource: DataSource,
-    private planService: PlanService
+    private planService: PlanService,
+    @InjectRepository(MonitorEntity) private monitorRepository: Repository<MonitorEntity>,
+    @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   ) { }
+
+  private calcHistoricalDays(historical: any[]): number {
+    let totalPercentOnline = 0;
+
+    for (const day of historical) {
+      const total = day.totalOnline + day.totalOffline;
+      day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(2)) : 0;
+      day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(2)) : 0;
+
+      const formattedDate = formatDate(day.date, "DD/MM/YYYY", "YYYY-MM-DD");
+
+      if (total == 0) {
+        day["note"] = `${formattedDate}: Sem monitoramento`;
+      } else if (day.percentOnline == 100) {
+        day["note"] = `${formattedDate}: 100% disponível`;
+      } else if (day.percentOnline >= 50) {
+        day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% disponível)`;
+      } else {
+        day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% disponível)`;
+      }
+
+      totalPercentOnline += day.percentOnline;
+    }
+
+    const totalDaysWithData = historical.filter(item => (item.percentOnline + item.percentOffline) > 0).length;
+    return totalDaysWithData ? parseFloat((totalPercentOnline / totalDaysWithData).toFixed(2)) : 0;
+  }
 
   @Post("/")
   async createMonitor(@Request() request: Request, @Body() body: any) {
@@ -137,7 +164,7 @@ export class MonitorController {
           , ite.name as interval
           , to_char(lc.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheck"
           , lc.status as "lastStatus"
-          , lc.total_ms as "lastDuration"
+          , round(lc.total_ms::numeric, 2) as "lastDuration"
           , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
           , count(*) over() as total
         from monitors mon
@@ -168,32 +195,8 @@ export class MonitorController {
 
     const list = results[0];
 
-    // Monitor historical
     for (let row of list) {
-      let totalPercentOnline = 0;
-
-      for (let day of row.historical) {
-        const total = day.totalOnline + day.totalOffline;
-        day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(2)) : 0;
-        day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(2)) : 0;
-
-        const formattedDate = formatDate(day.date, "DD/MM/YYYY", "YYYY-MM-DD");
-
-        if (total == 0) {
-          day["note"] = `${formattedDate}: Sem monitoramento`;
-        } else if (day.percentOnline == 100) {
-          day["note"] = `${formattedDate}: 100% disponível`;
-        } else if (day.percentOnline >= 50) {
-          day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% disponível)`;
-        } else {
-          day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% disponível)`;
-        }
-
-        totalPercentOnline += day.percentOnline;
-      }
-
-      const totalDaysWithData = row.historical.filter(item => (item.percentOnline + item.percentOffline) > 0).length;
-      row["percentOnline"] = totalDaysWithData ? parseFloat((totalPercentOnline / (totalDaysWithData)).toFixed(2)) : 0;
+      row["percentOnline"] = this.calcHistoricalDays(row.historical);
 
       if (row.lastIncident) {
         row.lastIncident = formatSince(row.lastIncident, "YYYY-MM-DD HH:mm:ssZ");
@@ -239,8 +242,8 @@ export class MonitorController {
       from monitor_integrations min
       join integrations int on int.id = min.integration_id
       join chat_platforms cha on cha.id = int.chat_platform_id
-      where min.monitor_id = '${monitor.id}'
-    `);
+      where min.monitor_id = $1
+    `, [monitor.id]);
 
     return monitor
   }
@@ -253,6 +256,8 @@ export class MonitorController {
         id: id
       },
       select: ["id"]
+    }).catch(_ => {
+      throw new NotFoundException("Monitor não encontrado.");
     })
 
     if (!monitor) {
@@ -290,10 +295,16 @@ export class MonitorController {
       });
 
       // Delete monitor x integrations removed by user
-      await this.monitorIntegrationRepository.delete({
-        monitor_id: monitor.id,
-        integration_id: Not(In(body.integrationList))
-      })
+      if (body.integrationList.length === 0) {
+        await queryRunner.manager.delete(MonitorIntegrationEntity, { 
+          monitor_id: monitor.id 
+        });
+      } else {
+        await queryRunner.manager.delete(MonitorIntegrationEntity, {
+          monitor_id: monitor.id,
+          integration_id: Not(In(body.integrationList))
+        });
+      }
 
       // Save monitor x integrations added by user
       const integrationListToSave = body.integrationList.map(integrationId => {
@@ -327,6 +338,8 @@ export class MonitorController {
         id: id
       },
       select: ["id"]
+    }).catch(_ => {
+      throw new NotFoundException("Monitor não encontrado.");
     })
 
     if (!monitor) {
@@ -349,28 +362,46 @@ export class MonitorController {
         created_user_id: request["loggedUser"],
         id: id
       },
-      select: ["id"]
+      select: ["id", "type"]
+    }).catch(_ => {
+      throw new NotFoundException("Monitor não encontrado.");
     })
 
     if (!monitor) {
       throw new NotFoundException("Monitor não encontrado.");
     }
 
+    const isPing = monitor.type === MonitorTypeEnum.PING;
+
     const [lastCheckRows, historicalDaysRows, avgMetricsRows, recentIncidentsRows, responseTime24hRows] = await Promise.all([
-      this.dataSource.query(`
-        select
-          his.dns_ms as "lastDns"
-          , his.tcp_ms as "lastTcp"
-          , his.tls_ms as "lastTls"
-          , his.ttfb_ms as "lastTtfb"
-          , his.total_ms as "lastDuration"
-          , his.status as "lastStatus"
-          , to_char(his.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheckedAt"
-        from monitor_historical his
-        where his.monitor_id = $1
-        order by his.created_at desc
-        limit 1
-      `, [monitor.id]),
+      isPing
+        ? this.dataSource.query(`
+            select
+              round(his.ping_packet_loss::numeric, 2) as "lastPacketLoss"
+              , round(his.ping_avg_ms::numeric, 2) as "lastAvgMs"
+              , round(his.ping_min_ms::numeric, 2) as "lastMinMs"
+              , round(his.ping_max_ms::numeric, 2) as "lastMaxMs"
+              , his.status as "lastStatus"
+              , to_char(his.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheckedAt"
+            from monitor_historical his
+            where his.monitor_id = $1
+            order by his.created_at desc
+            limit 1
+          `, [monitor.id])
+        : this.dataSource.query(`
+            select
+              round(his.dns_ms::numeric, 2) as "lastDns"
+              , round(his.tcp_ms::numeric, 2) as "lastTcp"
+              , round(his.tls_ms::numeric, 2) as "lastTls"
+              , round(his.ttfb_ms::numeric, 2) as "lastTtfb"
+              , round(his.total_ms::numeric, 2) as "lastDuration"
+              , his.status as "lastStatus"
+              , to_char(his.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheckedAt"
+            from monitor_historical his
+            where his.monitor_id = $1
+            order by his.created_at desc
+            limit 1
+          `, [monitor.id]),
       this.dataSource.query(`
         with dates as (
           select generate_series(
@@ -397,18 +428,30 @@ export class MonitorController {
         from dates d
         left join hist_agg h on h.check_date = d.date
       `, [monitor.id]),
-      this.dataSource.query(`
-        select
-          round(avg(dns_ms))::int as "avgDns"
-          , round(avg(tcp_ms))::int as "avgTcp"
-          , round(avg(tls_ms))::int as "avgTls"
-          , round(avg(ttfb_ms))::int as "avgTtfb"
-          , round(avg(total_ms))::int as "avgTotal"
-        from monitor_historical
-        where monitor_id = $1
-        and created_at >= now() - interval '30 days'
-        and total_ms is not null
-      `, [monitor.id]),
+      isPing
+        ? this.dataSource.query(`
+            select
+              round(avg(ping_avg_ms)::numeric, 2) as "avgMs"
+              , round(avg(ping_min_ms)::numeric, 2) as "avgMinMs"
+              , round(avg(ping_max_ms)::numeric, 2) as "avgMaxMs"
+              , round(avg(ping_packet_loss)::numeric, 2) as "avgPacketLoss"
+            from monitor_historical
+            where monitor_id = $1
+            and created_at >= now() - interval '30 days'
+            and ping_avg_ms is not null
+          `, [monitor.id])
+        : this.dataSource.query(`
+            select
+              round(avg(dns_ms)::numeric, 2) as "avgDns"
+              , round(avg(tcp_ms)::numeric, 2) as "avgTcp"
+              , round(avg(tls_ms)::numeric, 2) as "avgTls"
+              , round(avg(ttfb_ms)::numeric, 2) as "avgTtfb"
+              , round(avg(total_ms)::numeric, 2) as "avgTotal"
+            from monitor_historical
+            where monitor_id = $1
+            and created_at >= now() - interval '30 days'
+            and total_ms is not null
+          `, [monitor.id]),
       this.dataSource.query(`
         select
           inc.id
@@ -427,65 +470,58 @@ export class MonitorController {
         order by inc.created_at desc
         limit 5
       `, [monitor.id]),
-      this.dataSource.query(`
-        with hours as (
-          select generate_series(
-            date_trunc('hour', now() - interval '23 hours'),
-            date_trunc('hour', now()),
-            '1 hour'::interval
-          ) as hour
-        )
-        select
-          to_char(h.hour at time zone 'America/Sao_Paulo', 'HH24:MI') as label
-          , coalesce(round(avg(his.total_ms))::int, 0) as "avgTotal"
-        from hours h
-        left join monitor_historical his on
-          his.monitor_id = $1
-          and date_trunc('hour', his.created_at) = h.hour
-          and his.total_ms is not null
-        group by h.hour
-        order by h.hour
-      `, [monitor.id])
+      isPing
+        ? this.dataSource.query(`
+            with hours as (
+              select generate_series(
+                date_trunc('hour', now() - interval '23 hours'),
+                date_trunc('hour', now()),
+                '1 hour'::interval
+              ) as hour
+            )
+            select
+              to_char(h.hour at time zone 'America/Sao_Paulo', 'HH24:MI') as label
+              , coalesce(round(avg(his.ping_avg_ms)::numeric, 2), 0) as "avgTotal"
+            from hours h
+            left join monitor_historical his on
+              his.monitor_id = $1
+              and date_trunc('hour', his.created_at) = h.hour
+              and his.ping_avg_ms is not null
+            group by h.hour
+            order by h.hour
+          `, [monitor.id])
+        : this.dataSource.query(`
+            with hours as (
+              select generate_series(
+                date_trunc('hour', now() - interval '23 hours'),
+                date_trunc('hour', now()),
+                '1 hour'::interval
+              ) as hour
+            )
+            select
+              to_char(h.hour at time zone 'America/Sao_Paulo', 'HH24:MI') as label
+              , coalesce(round(avg(his.total_ms)::numeric, 2), 0) as "avgTotal"
+            from hours h
+            left join monitor_historical his on
+              his.monitor_id = $1
+              and date_trunc('hour', his.created_at) = h.hour
+              and his.total_ms is not null
+            group by h.hour
+            order by h.hour
+          `, [monitor.id])
     ]);
 
     const historicalDays: any[] = historicalDaysRows[0]?.historical ?? [];
-    let totalPercentOnline = 0;
-
-    for (const day of historicalDays) {
-      const total = day.totalOnline + day.totalOffline;
-      day["percentOnline"] = total > 0 ? parseFloat(((day.totalOnline * 100) / total).toFixed(2)) : 0;
-      day["percentOffline"] = total > 0 ? parseFloat(((day.totalOffline * 100) / total).toFixed(2)) : 0;
-
-      const formattedDate = formatDate(day.date, "DD/MM/YYYY", "YYYY-MM-DD");
-
-      if (total == 0) {
-        day["note"] = `${formattedDate}: Sem monitoramento`;
-      } else if (day.percentOnline == 100) {
-        day["note"] = `${formattedDate}: 100% disponível`;
-      } else if (day.percentOnline >= 50) {
-        day["note"] = `${formattedDate}: Parcialmente disponível (${day.percentOnline}% disponível)`;
-      } else {
-        day["note"] = `${formattedDate}: Indisponibilidade crítica (${day.percentOnline}% disponível)`;
-      }
-
-      totalPercentOnline += day.percentOnline;
-    }
-
-    const totalDaysWithData = historicalDays.filter(item => (item.percentOnline + item.percentOffline) > 0).length;
-    const percentOnline = totalDaysWithData ? parseFloat((totalPercentOnline / totalDaysWithData).toFixed(2)) : 0;
+    const percentOnline = this.calcHistoricalDays(historicalDays);
 
     for (const incident of recentIncidentsRows) {
-      if (incident.ended_at) {
-        incident['duration'] = formatSince(incident.created_at, 'YYYY-MM-DD HH:mm:ssZ', momentTz(incident.ended_at, 'YYYY-MM-DD HH:mm:ssZ'));
-      } else {
-        incident['duration'] = formatSince(incident.created_at, 'YYYY-MM-DD HH:mm:ssZ');
-      }
+      incident['duration'] = calcDuration(incident.created_at, incident.ended_at);
     }
 
     return {
       lastCheck: lastCheckRows[0] ?? null,
-      historicalDays,
-      percentOnline,
+      historicalDays: historicalDays,
+      percentOnline: percentOnline,
       avgMetrics: avgMetricsRows[0] ?? null,
       recentIncidents: recentIncidentsRows,
       responseTime24h: responseTime24hRows

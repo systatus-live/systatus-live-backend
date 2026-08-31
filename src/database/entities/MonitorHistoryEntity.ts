@@ -45,6 +45,18 @@ export class MonitorHistoryEntity {
   @Column({ type: "double precision", nullable: true })
   ttfb_ms: number | null;
 
+  @Column({ type: "double precision", nullable: true })
+  ping_packet_loss: number | null;
+
+  @Column({ type: "double precision", nullable: true })
+  ping_avg_ms: number | null;
+
+  @Column({ type: "double precision", nullable: true })
+  ping_min_ms: number | null;
+
+  @Column({ type: "double precision", nullable: true })
+  ping_max_ms: number | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 

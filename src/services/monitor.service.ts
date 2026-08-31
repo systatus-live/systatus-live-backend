@@ -164,6 +164,10 @@ export class MonitorService {
       let tcpMs: number | null = null;
       let tlsMs: number | null = null;
       let ttfbMs: number | null = null;
+      let pingPacketLoss: number | null = null;
+      let pingAvgMs: number | null = null;
+      let pingMinMs: number | null = null;
+      let pingMaxMs: number | null = null;
 
       switch (monitor.type) {
         case MonitorTypeEnum.HTTP:
@@ -258,9 +262,11 @@ export class MonitorService {
               newStatus = HttpStatusCode.NOT_FOUND.toString()
             }
 
-            if (pingResponse.time != "unknown") {
-              totalMs = Math.round(pingResponse.time);
-            }
+            pingPacketLoss = parseFloat(parseFloat(pingResponse.packetLoss).toFixed(2));
+            pingAvgMs = pingResponse.avg != "unknown" ? parseFloat(parseFloat(pingResponse.avg).toFixed(2)) : null;
+            pingMinMs = pingResponse.min != "unknown" ? parseFloat(parseFloat(pingResponse.min).toFixed(2)) : null;
+            pingMaxMs = pingResponse.max != "unknown" ? parseFloat(parseFloat(pingResponse.max).toFixed(2)) : null;
+            totalMs = pingAvgMs;
           } catch (error) {
             newStatus = HttpStatusCode.UNKNOWN.toString();
           }
@@ -333,7 +339,11 @@ export class MonitorService {
           dns_ms: dnsMs,
           tcp_ms: tcpMs,
           tls_ms: tlsMs,
-          ttfb_ms: ttfbMs
+          ttfb_ms: ttfbMs,
+          ping_packet_loss: pingPacketLoss,
+          ping_avg_ms: pingAvgMs,
+          ping_min_ms: pingMinMs,
+          ping_max_ms: pingMaxMs
         });
       });
 

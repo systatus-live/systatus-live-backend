@@ -16,7 +16,7 @@ import { ChatPlatformController } from '../controllers/chat-platform.controller'
 import { ChatPlatformEntity } from '../database/entities/ChatPlatformEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
-import { IncidentController } from '../controllers/incident.controller.ts';
+import { IncidentController } from '../controllers/incident.controller';
 import { UserController } from '../controllers/user.controller';
 import { IntervalEntity } from '../database/entities/IntervalEntity';
 import { PlanIntervalEntity } from '../database/entities/PlanIntervalEntity';

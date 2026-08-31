@@ -2,11 +2,9 @@ import { BadRequestException, Controller, Get, NotFoundException, Param, Query, 
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { AuthGuard } from '../middlewares/auth.guard';
 import removeAccents from '../utils/removeAccents';
-import formatSince from '../utils/formatSince';
-import momentTz from "moment-timezone";
+import calcDuration from '../utils/calcDuration';
 import { IncidentEntity } from 'src/database/entities/IncidentEntity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity';
 
 @Controller({
   version: "1",
@@ -15,11 +13,10 @@ import { MonitorHistoryEntity } from 'src/database/entities/MonitorHistoryEntity
 @UseGuards(AuthGuard)
 export class IncidentController {
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
-  @InjectRepository(IncidentEntity) private incidentRepository: Repository<IncidentEntity>;
-  @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
 
   constructor(
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    @InjectRepository(IncidentEntity) private incidentRepository: Repository<IncidentEntity>
   ) { }
 
   @Get("/")
@@ -32,43 +29,40 @@ export class IncidentController {
       search = removeAccents(search).toLowerCase();
     }
 
-    const list = await this.dataSource.query(`
-      select
-        inc.id
-        , mon.name
-        , mon.address
-        , inc.created_at
-        , inc.ended_at
-        , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id and t.status not like '2%' order by created_at asc limit 1) as "firstError"
-        , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id order by created_at desc limit 1) as "status"
-        , count(*) over() as total
-      from incidents inc
-      join monitors mon on mon.id = inc.monitor_id
-      where created_user_id = '${request["loggedUser"]}'
-      and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
-      order by inc.ended_at desc
-      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-    `, [search ? `%${search}%` : null]);
+    const [list, totalNotResolved] = await Promise.all([
+      this.dataSource.query(`
+        select
+          inc.id
+          , mon.name
+          , mon.address
+          , inc.created_at
+          , inc.ended_at
+          , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id and t.status not like '2%' order by created_at asc limit 1) as "firstError"
+          , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id order by created_at desc limit 1) as "status"
+          , count(*) over() as total
+        from incidents inc
+        join monitors mon on mon.id = inc.monitor_id
+        where created_user_id = '${request["loggedUser"]}'
+        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
+        order by inc.ended_at desc
+        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+      `, [search ? `%${search}%` : null]),
+      this.incidentRepository.count({
+        relations: {
+          monitor: true
+        },
+        where: {
+          ended_at: IsNull(),
+          monitor: {
+            created_user_id: request["loggedUser"]
+          }
+        },
+      })
+    ]);
 
     for (let row of list) {
-      if (row.ended_at) {
-        row["duration"] = formatSince(row.created_at, "YYYY-MM-DD HH:mm:ssZ", momentTz(row.ended_at, "YYYY-MM-DD HH:mm:ssZ"))
-      } else {
-        row["duration"] = formatSince(row.created_at, "YYYY-MM-DD HH:mm:ssZ")
-      }
+      row["duration"] = calcDuration(row.created_at, row.ended_at);
     }
-
-    const totalNotResolved = await this.dataSource.getRepository(IncidentEntity).count({
-      relations: {
-        monitor: true
-      },
-      where: {
-        ended_at: IsNull(),
-        monitor: {
-          created_user_id: request["loggedUser"]
-        }
-      },
-    })
 
     return {
       data: list,
@@ -132,11 +126,7 @@ export class IncidentController {
       throw new NotFoundException("Incidente não encontrado.");
     }
 
-    if (incident.ended_at) {
-      incident["duration"] = formatSince(incident.created_at, "YYYY-MM-DD HH:mm:ssZ", momentTz(incident.ended_at, "YYYY-MM-DD HH:mm:ssZ"))
-    } else {
-      incident["duration"] = formatSince(incident.created_at, "YYYY-MM-DD HH:mm:ssZ")
-    }
+    incident["duration"] = calcDuration(incident.created_at, incident.ended_at);
 
     const [extraRow] = await this.dataSource.query(`
       select
@@ -179,7 +169,7 @@ export class IncidentController {
       select
         his.id
         , his.status
-        , his.total_ms
+        , round(his.total_ms::numeric, 2) as total_ms
         , his.created_at
         , count(*) over() as total
       from monitor_historical his
