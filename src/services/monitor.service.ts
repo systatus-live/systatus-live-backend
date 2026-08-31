@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { existsSync, readFileSync } from 'fs';
+import * as net from 'net';
 import ping from "ping";
+import * as tls from 'tls';
+import { Agent, interceptors, request as undiciRequest } from 'undici';
 import formatDate from 'src/utils/formatDate';
 import { DataSource, In, Repository } from 'typeorm';
 import { IncidentEntity } from '../database/entities/IncidentEntity';
@@ -20,12 +22,11 @@ import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
 
-const execFileAsync = promisify(execFile);
-
 @Injectable()
 export class MonitorService {
   private readonly logger = new Logger(MonitorService.name);
   private readonly runningIntervals = new Set<CronIntervalEnum>();
+  private readonly tlsCa: string[];
 
   @InjectRepository(MonitorIntegrationEntity) private monitorIntegrationRepository: Repository<MonitorIntegrationEntity>
   @InjectRepository(MonitorHistoryEntity) private monitorHistoryRepository: Repository<MonitorHistoryEntity>
@@ -35,7 +36,10 @@ export class MonitorService {
   constructor(
     private integrationService: IntegrationService,
     private dataSource: DataSource
-  ) { }
+  ) {
+    const caPath = process.env.NODE_EXTRA_CA_CERTS;
+    this.tlsCa = (caPath && existsSync(caPath)) ? [...tls.rootCertificates, readFileSync(caPath, "utf8")] : [...tls.rootCertificates];
+  }
 
   @Cron(CronIntervalEnum.EVERY_1_MINUTE, {
     name: `monitor-1-minutes`,
@@ -155,6 +159,7 @@ export class MonitorService {
 
   private async processMonitor(monitor: any) {
     this.logger.log(`Checking ${monitor.name} (${monitor.id})`);
+
     try {
       let newStatus: string = HttpStatusCode.UNKNOWN.toString();
       let totalMs: number | null = null;
@@ -176,69 +181,123 @@ export class MonitorService {
             "Connection": "close",
             "Referer": monitor.address,
             "User-Agent": "Systatus.live (https://systatus.live)"
-          }
+          };
 
           try {
-            const curlArgs = [
-              "-X", "HEAD",
-              "-I",
-              "-s",
-              "--max-time", "10",
-              "--insecure",
-              "-L",
-              "--max-redirs", "5",
-              "-H", "Cache-Control: no-cache",
-              "-H", "Connection: close",
-              "-H", `Referer: ${monitor.address}`,
-              "-H", "User-Agent: Systatus.live (https://systatus.live)",
-              "-w", `\n---CURL-METRICS---\n{"status":%{http_code},"dns":%{time_namelookup},"tcp":%{time_connect},"tls":%{time_appconnect},"ttfb":%{time_starttransfer},"total":%{time_total}}`,
-              monitor.address
-            ];
-
-            const { stdout } = await execFileAsync("curl", curlArgs);
-            const separatorIndex = stdout.indexOf("\n---CURL-METRICS---\n");
-
-            if (separatorIndex === -1) {
+            try {
+              new URL(monitor.address);
+            } catch {
               newStatus = HttpStatusCode.UNKNOWN.toString();
-            } else {
-              const headersRaw = stdout.slice(0, separatorIndex);
-              const metricsRaw = stdout.slice(separatorIndex + "\n---CURL-METRICS---\n".length).trim();
-              const metrics = JSON.parse(metricsRaw);
+              break;
+            }
 
-              // curl retorna tempos cumulativos desde o início da requisição (man curl):
-              // dns = time_namelookup, tcp = time_connect, tls = time_appconnect, ttfb = time_starttransfer
-              // para obter a duração isolada de cada fase, subtraímos o acumulado anterior
-              newStatus = metrics.status.toString();
-              dnsMs = parseFloat((metrics.dns * 1000).toFixed(2));
-              tcpMs = parseFloat(((metrics.tcp - metrics.dns) * 1000).toFixed(2));
-              tlsMs = parseFloat((Math.max(0, metrics.tls > 0 ? metrics.tls - metrics.tcp : 0) * 1000).toFixed(2));
-              ttfbMs = parseFloat(((metrics.ttfb - (metrics.tls || metrics.tcp)) * 1000).toFixed(2));
-              totalMs = parseFloat((metrics.total * 1000).toFixed(2));
+            const tStart = process.hrtime.bigint();
+            let tDns = 0n;
+            let tTcp = 0n;
+            let tTls = 0n;
 
-              const headerLines = headersRaw.split(/\r?\n/).filter(Boolean);
-              const lastStatusLine = headerLines.reduce(
-                (last, line, i) => line.toUpperCase().startsWith("HTTP/") ? i : last, 0
-              );
+            const baseAgent = new Agent({
+              connect: (options: any, callback: any) => {
+                const host: string = options.hostname ?? options.host;
+                const port: number = options.port ? parseInt(options.port, 10) : (options.protocol === "https:" ? 443 : 80);
+                const isHttpsConn: boolean = options.protocol === "https:";
+
+                tDns = 0n;
+                tTcp = 0n;
+                tTls = 0n;
+
+                let socket: tls.TLSSocket | net.Socket;
+
+                if (isHttpsConn) {
+                  socket = tls.connect({
+                    host: host,
+                    port: port,
+                    servername: options.servername ?? host,
+                    ca: this.tlsCa,
+                    rejectUnauthorized: false
+                  });
+
+                  socket.on("lookup", () => {
+                    tDns = process.hrtime.bigint();
+                  });
+
+                  socket.on("connect", () => {
+                    tTcp = process.hrtime.bigint();
+                  });
+                  
+                  (socket as tls.TLSSocket).on("secureConnect", () => {
+                    tTls = process.hrtime.bigint();
+                    callback(null, socket);
+                  });
+                } else {
+                  socket = net.createConnection({
+                    host: host,
+                    port: port
+                  });
+
+                  socket.on("lookup", () => {
+                    tDns = process.hrtime.bigint();
+                  });
+
+                  socket.on("connect", () => {
+                    tTcp = process.hrtime.bigint();
+                    callback(null, socket);
+                  });
+                }
+
+                socket.on("error", (err: Error) => {
+                  callback(err, null);
+                });
+              },
+              headersTimeout: 10000,
+              bodyTimeout: 10000
+            });
+
+            const dispatcher = baseAgent.compose(interceptors.redirect({ 
+              maxRedirections: 5 
+            }));
+
+            try {
+              const response = await undiciRequest(monitor.address, {
+                dispatcher: dispatcher,
+                method: "HEAD",
+                headers: requestHeaders
+              });
+
+              const tHeaders = process.hrtime.bigint();
+
+              for await (const _chunk of response.body) { }
+
+              const tEnd = process.hrtime.bigint();
+
+              const toMs = (from: bigint, to: bigint) => parseFloat((Number(to - from) / 1000000).toFixed(2));
+
+              newStatus = response.statusCode.toString();
+              dnsMs = tDns > 0n ? toMs(tStart, tDns) : null;
+              tcpMs = tDns > 0n && tTcp > 0n ? toMs(tDns, tTcp) : null;
+              tlsMs = tTcp > 0n && tTls > 0n ? toMs(tTcp, tTls) : null;
+              ttfbMs = tTcp > 0n ? toMs(tTls > 0n ? tTls : tTcp, tHeaders) : null;
+              totalMs = toMs(tStart, tEnd);
+
               const parsedHeaders: Record<string, string> = {};
-              for (const line of headerLines.slice(lastStatusLine + 1)) {
-                const colonIdx = line.indexOf(":");
-                if (colonIdx > 0) {
-                  const key = line.slice(0, colonIdx).trim().toLowerCase();
-                  const val = line.slice(colonIdx + 1).trim();
-                  parsedHeaders[key] = val;
+              for (const [key, value] of Object.entries(response.headers)) {
+                if (value !== undefined) {
+                  parsedHeaders[key] = Array.isArray(value) ? value.join(", ") : value;
                 }
               }
               responseHeaders = Object.keys(parsedHeaders).length > 0 ? parsedHeaders : null;
+            } finally {
+              await baseAgent.destroy();
             }
           } catch (error: any) {
-            const exitCode: number = error.code ?? -1;
-            if (exitCode === 6) {
+            const code: string = error.code ?? "";
+            if (["ENOTFOUND", "EAI_AGAIN"].includes(code)) {
               newStatus = HttpStatusCode.NOT_FOUND.toString();
-            } else if (exitCode === 7) {
+            } else if (code == "ECONNREFUSED") {
               newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-            } else if (exitCode === 28) {
+            } else if (["UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "ETIMEDOUT"].includes(code)) {
               newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-            } else if ([35, 51, 60].includes(exitCode)) {
+            } else if (code.startsWith("ERR_TLS") || code.startsWith("CERT_") || ["DEPTH_ZERO_SELF_SIGNED_CERT", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"].includes(code)) {
               newStatus = HttpStatusCode.BAD_GATEWAY.toString();
             } else {
               newStatus = HttpStatusCode.UNKNOWN.toString();
