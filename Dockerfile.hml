@@ -23,7 +23,7 @@ WORKDIR /app
 
 ENV NODE_ENV=staging
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl iputils
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
