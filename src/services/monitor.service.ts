@@ -201,6 +201,8 @@ export class MonitorService {
                 const host: string = options.hostname ?? options.host;
                 const port: number = options.port ? parseInt(options.port, 10) : (options.protocol === "https:" ? 443 : 80);
                 const isHttpsConn: boolean = options.protocol === "https:";
+                
+                this.logger.log(`Connect ${host}:${port}`);
 
                 tDns = 0n;
                 tTcp = 0n;
