@@ -29,7 +29,7 @@ export class IncidentController {
     }
 
     if (search) {
-      search = removeAccents(search);
+      search = removeAccents(search).toLowerCase();
     }
 
     const list = await this.dataSource.query(`

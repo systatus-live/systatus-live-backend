@@ -205,11 +205,11 @@ export class MonitorService {
               // dns = time_namelookup, tcp = time_connect, tls = time_appconnect, ttfb = time_starttransfer
               // para obter a duração isolada de cada fase, subtraímos o acumulado anterior
               newStatus = metrics.status.toString();
-              dnsMs = Math.round(metrics.dns * 1000);
-              tcpMs = Math.round((metrics.tcp - metrics.dns) * 1000);
-              tlsMs = Math.round((metrics.tls > 0 ? metrics.tls - metrics.tcp : 0) * 1000);
-              ttfbMs = Math.round((metrics.ttfb - (metrics.tls || metrics.tcp)) * 1000);
-              totalMs = Math.round(metrics.total * 1000);
+              dnsMs = parseFloat((metrics.dns * 1000).toFixed(2));
+              tcpMs = parseFloat(((metrics.tcp - metrics.dns) * 1000).toFixed(2));
+              tlsMs = parseFloat((Math.max(0, metrics.tls > 0 ? metrics.tls - metrics.tcp : 0) * 1000).toFixed(2));
+              ttfbMs = parseFloat(((metrics.ttfb - (metrics.tls || metrics.tcp)) * 1000).toFixed(2));
+              totalMs = parseFloat((metrics.total * 1000).toFixed(2));
 
               const headerLines = headersRaw.split(/\r?\n/).filter(Boolean);
               const lastStatusLine = headerLines.reduce(

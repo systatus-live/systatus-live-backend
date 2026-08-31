@@ -92,7 +92,7 @@ export class MonitorController {
     }
 
     if (search) {
-      search = removeAccents(search);
+      search = removeAccents(search).toLowerCase();
     }
 
     const results = await Promise.all([
