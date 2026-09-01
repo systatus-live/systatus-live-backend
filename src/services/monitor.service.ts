@@ -170,7 +170,16 @@ export class MonitorService {
       let pingMaxMs: number | null = null;
 
       switch (monitor.type) {
-        case MonitorTypeEnum.HTTP:
+        case MonitorTypeEnum.HTTP: {
+          const toMs = (seconds: number): number => parseFloat((seconds * 1000).toFixed(2));
+
+          requestHeaders = {
+            "Cache-Control": "no-cache",
+            "Connection": "close",
+            "Referer": monitor.address,
+            "User-Agent": "Systatus.live (https://systatus.live)"
+          };
+
           try {
             const curlArgs = [
               "-X", "HEAD",
@@ -179,26 +188,21 @@ export class MonitorService {
               "--max-time", "10",
               "--insecure",
               "-L",
-              "--max-redirs", "5",
-              "-H", "Cache-Control: no-cache",
-              "-H", "Connection: close",
-              "-H", `Referer: ${monitor.address}`,
-              "-H", "User-Agent: Systatus.live (https://systatus.live)",
-              "-w", `\n---CURL-METRICS---\n{"status":%{http_code},"dns":%{time_namelookup},"tcp":%{time_connect},"tls":%{time_appconnect},"ttfb":%{time_starttransfer},"total":%{time_total}}`,
+              "--max-redirs", "3",
+              ...Object.entries(requestHeaders).flatMap(([key, value]) => ["-H", `${key}: ${value}`]),
+              "-w", `\n---CURL-METRICS---\n{"status":"%{http_code}","dns":%{time_namelookup},"tcp":%{time_connect},"tls":%{time_appconnect},"ttfb":%{time_starttransfer},"total":%{time_total}}`,
               monitor.address
             ];
 
             const { stdout } = await execFileAsync("curl", curlArgs);
             const separatorIndex = stdout.indexOf("\n---CURL-METRICS---\n");
 
-            if (separatorIndex === -1) {
+            if (separatorIndex == -1) {
               newStatus = HttpStatusCode.UNKNOWN.toString();
             } else {
               const headersRaw = stdout.slice(0, separatorIndex);
               const metricsRaw = stdout.slice(separatorIndex + "\n---CURL-METRICS---\n".length).trim();
               const metrics = JSON.parse(metricsRaw);
-
-              const toMs = (seconds: number): number => parseFloat((seconds * 1000).toFixed(2));
 
               newStatus = metrics.status.toString();
               dnsMs = toMs(metrics.dns);
@@ -224,11 +228,11 @@ export class MonitorService {
             }
           } catch (error: any) {
             const exitCode: number = error.code ?? -1;
-            if (exitCode === 6) {
+            if (exitCode == 6) {
               newStatus = HttpStatusCode.NOT_FOUND.toString();
-            } else if (exitCode === 7) {
+            } else if (exitCode == 7) {
               newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
-            } else if (exitCode === 28) {
+            } else if (exitCode == 28) {
               newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
             } else if ([35, 51, 60].includes(exitCode)) {
               newStatus = HttpStatusCode.BAD_GATEWAY.toString();
@@ -236,8 +240,25 @@ export class MonitorService {
               newStatus = HttpStatusCode.UNKNOWN.toString();
             }
             responseHeaders = null;
+
+            const partialStdout: string = error.stdout ?? "";
+            const partialSepIdx = partialStdout.indexOf("\n---CURL-METRICS---\n");
+
+            if (partialSepIdx != -1) {
+              try {
+                const partialMetrics = JSON.parse(partialStdout.slice(partialSepIdx + "\n---CURL-METRICS---\n".length).trim());
+                dnsMs = partialMetrics.dns > 0 ? toMs(partialMetrics.dns) : null;
+                tcpMs = partialMetrics.tcp > 0 ? toMs(partialMetrics.tcp - partialMetrics.dns) : (partialMetrics.dns > 0 && partialMetrics.total > 0 ? toMs(partialMetrics.total - partialMetrics.dns) : null);
+                tlsMs = partialMetrics.tls > 0 ? toMs(partialMetrics.tls - partialMetrics.tcp) : null;
+                ttfbMs = partialMetrics.ttfb > 0 ? toMs(partialMetrics.ttfb - (partialMetrics.tls || partialMetrics.tcp)) : null;
+                totalMs = partialMetrics.total > 0 ? toMs(partialMetrics.total) : null;
+              } catch (error) {
+                console.log(error);
+              }
+            }
           }
           break;
+        }
         case MonitorTypeEnum.PING:
           try {
             const pingResponse = await ping.promise.probe(monitor.address, {
@@ -362,7 +383,7 @@ export class MonitorService {
           address: monitor.address,
           status_code: newStatus,
           status_description: HttpStatusCodeLabel[getHttpStatusKey(newStatus)] ?? newStatus,
-          downtime: notifyType === "OK" && monitorIncident ? formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ") : "",
+          downtime: notifyType == "OK" && monitorIncident ? formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ") : "",
           datetime: formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")
         };
 
@@ -379,9 +400,9 @@ export class MonitorService {
             description += ` Downtime: ${formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ")}.`;
           }
 
-          if (integration.chatPlatform.type === ChatPlatformTypeEnum.WEBHOOK) {
-            const template = allTemplates.find(t => t.integration_id === integration.id);
-            const templateField = notifyType === "FAILURE" ? "down_template" : "up_template";
+          if (integration.chatPlatform.type == ChatPlatformTypeEnum.WEBHOOK) {
+            const template = allTemplates.find(t => t.integration_id == integration.id);
+            const templateField = notifyType == "FAILURE" ? "down_template" : "up_template";
 
             if (template?.[templateField]) {
               description = this.integrationService.renderTemplate(template[templateField]!, templateVars);
@@ -412,7 +433,7 @@ export class MonitorService {
                 }
                 break;
               case ChatPlatformEnum.EMAIL:
-                await this.integrationService.sendMonitorEmail(integration.address, title, notifyType === "OK", monitor.name, monitor.address, newStatus, totalMs, monitorIncident?.created_at ?? null);
+                await this.integrationService.sendMonitorEmail(integration.address, title, notifyType == "OK", monitor.name, monitor.address, newStatus, totalMs, monitorIncident?.created_at ?? null);
                 break;
               default:
                 break;

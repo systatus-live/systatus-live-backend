@@ -437,7 +437,7 @@ export class MonitorController {
               , round(avg(ping_packet_loss)::numeric, 2) as "avgPacketLoss"
             from monitor_historical
             where monitor_id = $1
-            and created_at >= now() - interval '30 days'
+            and created_at >= now() - interval '7 days'
             and ping_avg_ms is not null
           `, [monitor.id])
         : this.dataSource.query(`
@@ -449,7 +449,7 @@ export class MonitorController {
               , round(avg(total_ms)::numeric, 2) as "avgTotal"
             from monitor_historical
             where monitor_id = $1
-            and created_at >= now() - interval '30 days'
+            and created_at >= now() - interval '7 days'
             and total_ms is not null
           `, [monitor.id]),
       this.dataSource.query(`
