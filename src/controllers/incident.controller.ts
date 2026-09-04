@@ -29,7 +29,7 @@ export class IncidentController {
       search = removeAccents(search).toLowerCase();
     }
 
-    const [list, totalNotResolved] = await Promise.all([
+    const [list, [{ total }], totalNotResolved] = await Promise.all([
       this.dataSource.query(`
         select
           inc.id
@@ -37,15 +37,31 @@ export class IncidentController {
           , mon.address
           , inc.created_at
           , inc.ended_at
-          , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id and t.status not like '2%' order by created_at asc limit 1) as "firstError"
-          , (select t.status from monitor_historical t where t.monitor_id = mon.id and t.incident_id = inc.id order by created_at desc limit 1) as "status"
-          , count(*) over() as total
+          , first_err.status as "firstError"
+          , last_status.status as "status"
         from incidents inc
         join monitors mon on mon.id = inc.monitor_id
-        where created_user_id = '${request["loggedUser"]}'
+        left join lateral (
+          select status from monitor_historical
+          where monitor_id = mon.id and incident_id = inc.id and status not like '2%'
+          order by created_at asc limit 1
+        ) first_err on true
+        left join lateral (
+          select status from monitor_historical
+          where monitor_id = mon.id and incident_id = inc.id
+          order by created_at desc limit 1
+        ) last_status on true
+        where mon.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
         order by inc.ended_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+      `, [search ? `%${search}%` : null]),
+      this.dataSource.query(`
+        select count(*) as total
+        from incidents inc
+        join monitors mon on mon.id = inc.monitor_id
+        where mon.created_user_id = '${request["loggedUser"]}'
+        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
       `, [search ? `%${search}%` : null]),
       this.incidentRepository.count({
         relations: {
@@ -68,7 +84,7 @@ export class IncidentController {
       data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(list[0]?.total ?? 0)
+        total: parseInt(total ?? 0)
       },
       extras: {
         totalNotResolved: totalNotResolved
