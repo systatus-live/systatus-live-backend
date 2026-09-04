@@ -39,6 +39,7 @@ deploy-systatus-api:
       QUERY_SIZE=$QUERY_SIZE
       NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
       EOF"
+    - scp docker-compose.yml $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/docker-compose.yml
     - ssh $DEPLOY_USER@$DEPLOY_HOST "cd $DEPLOY_DIR && docker compose up -d systatus-live-api"
     - docker image prune -f
   only:
