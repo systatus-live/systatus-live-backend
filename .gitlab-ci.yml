@@ -9,25 +9,11 @@ deploy-systatus-api:
   tags:
     - systatus-runner
   script:
-    - docker compose build --no-cache api
-    - docker compose down api
-    - docker compose up -d api
-    - docker image prune -f
-  only:
-    - master
-
-deploy-systatus-api-hml:
-  environment:
-    name: homolog
-  stage: deploy-systatus-api-hml
-  tags:
-    - systatus-runner
-  script:
-    - ssh-keyscan $HML_DEPLOY_HOST >> /home/gitlab-runner/.ssh/known_hosts
+    - ssh-keyscan $DEPLOY_HOST >> /home/gitlab-runner/.ssh/known_hosts
     - docker build -f Dockerfile.hml -t systatus.live-api-hml:latest .
-    - docker save systatus.live-api-hml:latest | gzip | ssh $HML_DEPLOY_USER@$HML_DEPLOY_HOST "docker load"
+    - docker save systatus.live-api-hml:latest | gzip | ssh $DEPLOY_USER@$DEPLOY_HOST "docker load"
     - |
-      ssh $HML_DEPLOY_USER@$HML_DEPLOY_HOST "cat > $HML_DEPLOY_DIR/.env << 'EOF'
+      ssh $DEPLOY_USER@$DEPLOY_HOST "cat > $HML_DEPLOY_DIR/.env << 'EOF'
       DATABASE_HOST=$DATABASE_HOST
       DATABASE_PORT=$DATABASE_PORT
       DATABASE_USERNAME=$DATABASE_USERNAME
@@ -53,7 +39,21 @@ deploy-systatus-api-hml:
       QUERY_SIZE=$QUERY_SIZE
       NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
       EOF"
-    - ssh $HML_DEPLOY_USER@$HML_DEPLOY_HOST "cd $HML_DEPLOY_DIR && docker compose up -d api-hml"
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "cd $HML_DEPLOY_DIR && docker compose up -d api-hml"
+    - docker image prune -f
+  only:
+    - master
+
+deploy-systatus-api-hml:
+  environment:
+    name: homolog
+  stage: deploy-systatus-api-hml
+  tags:
+    - systatus-runner
+  script:
+    - docker compose build --no-cache api
+    - docker compose down api
+    - docker compose up -d api
     - docker image prune -f
   only:
     - homolog
