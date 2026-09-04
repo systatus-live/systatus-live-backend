@@ -11,7 +11,7 @@ deploy-systatus-api:
   script:
     - ssh-keyscan $DEPLOY_HOST >> /home/gitlab-runner/.ssh/known_hosts
     - docker build -f Dockerfile.prod -t systatus-live-api:latest .
-    - docker save systatus.live-api:latest | gzip | ssh $DEPLOY_USER@$DEPLOY_HOST "docker load"
+    - docker save systatus-live-api:latest | gzip | ssh $DEPLOY_USER@$DEPLOY_HOST "docker load"
     - |
       ssh $DEPLOY_USER@$DEPLOY_HOST "cat > $DEPLOY_DIR/.env << 'EOF'
       DATABASE_HOST=$DATABASE_HOST

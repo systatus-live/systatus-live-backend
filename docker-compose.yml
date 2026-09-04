@@ -1,5 +1,5 @@
 services:
-  api:
+  systatus-live-api:
     image: systatus.live-api:latest
     container_name: systatus-live-api
     build:
@@ -41,7 +41,7 @@ services:
         max-file: "1"
     restart: unless-stopped
 
-  api-hml:
+  systatus-live-api-hml:
     image: systatus.live-api-hml:latest
     container_name: systatus-live-api-hml
     build:
