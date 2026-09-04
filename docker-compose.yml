@@ -1,6 +1,6 @@
 services:
   systatus-live-api:
-    image: systatus.live-api:latest
+    image: systatus-live-api:latest
     container_name: systatus-live-api
     build:
       context: .
