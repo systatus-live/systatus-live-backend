@@ -122,7 +122,7 @@ export class MonitorController {
       search = removeAccents(search).toLowerCase();
     }
 
-    const results = await Promise.all([
+    const [list, [extrasRow], [{ total }]] = await Promise.all([
       this.dataSource.query(`
         with dates as (
           select generate_series(
@@ -133,18 +133,40 @@ export class MonitorController {
         ),
         hist_agg as (
           select
-            monitor_id,
-            (created_at at time zone 'America/Sao_Paulo')::date as check_date,
-            count(case when status like '2%' then 1 end) as total_online,
-            count(case when status not like '2%' then 1 end) as total_offline
-          from monitor_historical
-          where created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
-          group by monitor_id, (created_at at time zone 'America/Sao_Paulo')::date
+            mh.monitor_id,
+            (mh.created_at at time zone 'America/Sao_Paulo')::date as check_date,
+            count(case when mh.status like '2%' then 1 end) as total_online,
+            count(case when mh.status not like '2%' then 1 end) as total_offline
+          from monitor_historical mh
+          join monitors m on m.id = mh.monitor_id and m.created_user_id = '${request["loggedUser"]}'
+          where mh.created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
+          group by mh.monitor_id, (mh.created_at at time zone 'America/Sao_Paulo')::date
         ),
         last_check as (
-          select distinct on (monitor_id) monitor_id, created_at, status, total_ms
-          from monitor_historical
-          order by monitor_id, created_at desc
+          select distinct on (mh.monitor_id) mh.monitor_id, mh.created_at, mh.status, mh.total_ms
+          from monitor_historical mh
+          join monitors m on m.id = mh.monitor_id and m.created_user_id = '${request["loggedUser"]}'
+          order by mh.monitor_id, mh.created_at desc
+        ),
+        monitor_history_json as (
+          select
+            mon.id as monitor_id,
+            array_agg(json_build_object(
+              'date', d.date
+              , 'totalOnline', coalesce(ha.total_online, 0)
+              , 'totalOffline', coalesce(ha.total_offline, 0)
+            ) order by d.date) as historical
+          from monitors mon
+          cross join dates d
+          left join hist_agg ha on ha.monitor_id = mon.id and ha.check_date = d.date
+          where mon.created_user_id = '${request["loggedUser"]}'
+          group by mon.id
+        ),
+        last_incident as (
+          select distinct on (inc.monitor_id) inc.monitor_id, coalesce(inc.ended_at, inc.created_at) as last_incident_at
+          from incidents inc
+          join monitors m on m.id = inc.monitor_id and m.created_user_id = '${request["loggedUser"]}'
+          order by inc.monitor_id, inc.created_at desc
         )
         select
           mon.id
@@ -152,24 +174,17 @@ export class MonitorController {
           , mon.type
           , mon.address
           , mon.active
-          , (
-              select array_agg(json_build_object(
-                'date', d.date
-                , 'totalOnline', coalesce(h.total_online, 0)
-                , 'totalOffline', coalesce(h.total_offline, 0)
-              ) order by d.date)
-              from dates d
-              left join hist_agg h on h.monitor_id = mon.id and h.check_date = d.date
-            ) as "historical"
+          , mhj.historical
           , ite.name as interval
           , to_char(lc.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheck"
           , lc.status as "lastStatus"
           , round(lc.total_ms::numeric, 2) as "lastDuration"
-          , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
-          , count(*) over() as total
+          , coalesce(li.last_incident_at, mon.created_at) as "lastIncident"
         from monitors mon
         join intervals ite on ite.id = mon.interval_id
         left join last_check lc on lc.monitor_id = mon.id
+        left join monitor_history_json mhj on mhj.monitor_id = mon.id
+        left join last_incident li on li.monitor_id = mon.id
         where mon.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
         order by mon.active desc, (case when lc.status is null then 1 when lc.status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
@@ -177,9 +192,10 @@ export class MonitorController {
       `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
         with last_check as (
-          select distinct on (monitor_id) monitor_id, status
-          from monitor_historical
-          order by monitor_id, created_at desc
+          select distinct on (mh.monitor_id) mh.monitor_id, mh.status
+          from monitor_historical mh
+          join monitors m on m.id = mh.monitor_id and m.created_user_id = '${request["loggedUser"]}'
+          order by mh.monitor_id, mh.created_at desc
         )
         select
           count(case when mon.active = true and lc.status like '2%' then 1 end) as "totalUp",
@@ -191,9 +207,13 @@ export class MonitorController {
         left join last_check lc on lc.monitor_id = mon.id
         where mon.created_user_id = '${request["loggedUser"]}'
       `),
+      this.dataSource.query(`
+        select count(*) as total
+        from monitors mon
+        where mon.created_user_id = '${request["loggedUser"]}'
+        and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
+      `, [search ? `%${search}%` : null]),
     ]);
-
-    const list = results[0];
 
     for (let row of list) {
       row["percentOnline"] = this.calcHistoricalDays(row.historical);
@@ -203,13 +223,11 @@ export class MonitorController {
       }
     }
 
-    const extrasRow = results[1][0];
-
     return {
       data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(list[0]?.total ?? 0)
+        total: parseInt(total ?? 0)
       },
       extras: {
         totalUp: parseInt(extrasRow.totalUp) || 0,
@@ -458,14 +476,16 @@ export class MonitorController {
           , inc.active
           , inc.created_at
           , inc.ended_at
-          , (
-              select his.status
-              from monitor_historical his
-              where his.incident_id = inc.id
-              order by his.created_at asc
-              limit 1
-            ) as "firstError"
+          , first_status.status as "firstError"
         from incidents inc
+        left join lateral (
+          select his.status
+          from monitor_historical his
+          where his.monitor_id = $1
+            and his.incident_id = inc.id
+          order by his.created_at asc
+          limit 1
+        ) first_status on true
         where inc.monitor_id = $1
         order by inc.created_at desc
         limit 5
