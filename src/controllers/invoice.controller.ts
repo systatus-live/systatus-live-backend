@@ -135,7 +135,7 @@ export class InvoiceController {
       [InvoiceStatusEnum.PAID]: "#05DF72",
       [InvoiceStatusEnum.PENDING]: "#FDC700",
       [InvoiceStatusEnum.CANCELED]: "#9b9b9bff",
-      [InvoiceStatusEnum.DUEDATE]: "#FF6467"
+      [InvoiceStatusEnum.DUE_DATE]: "#FF6467"
     };
 
     const imageUrlToBase64 = async (imageUrl: string) => {

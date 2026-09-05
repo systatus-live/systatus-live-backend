@@ -1,21 +1,22 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { getRepository, In } from "typeorm";
+import { Cron } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, QueryRunner, Repository } from "typeorm";
+import momentTz from "moment-timezone";
 import Stripe from "stripe";
+import { DataSource, In, IsNull, LessThan, Not, Repository } from "typeorm";
 import { GatewayLogEntity } from "../database/entities/GatewayLogEntity";
 import { InvoiceEntity } from "../database/entities/InvoiceEntity";
 import { PaymentEntity } from "../database/entities/PaymentEntity";
 import { PlanEntity } from "../database/entities/PlanEntity";
 import { SubscriptionEntity } from "../database/entities/SubscriptionEntity";
 import { UserEntity } from "../database/entities/UserEntity";
-import { ProviderEnum } from "../types/ProviderEnum";
+import { CronIntervalEnum } from "../types/CronIntervalEnum";
 import { InvoiceStatusEnum } from "../types/InvoiceStatusEnum";
 import { PaymentStatusEnum } from "../types/PaymentStatusEnum";
+import { ProviderEnum } from "../types/ProviderEnum";
 import { SubscriptionStatusEnum } from "../types/SubscriptionStatusEnum";
 import formatDate from "../utils/formatDate";
 import getCurrentDate from "../utils/getCurrenDate";
-import momentTz from "moment-timezone";
 
 @Injectable()
 export class StripeService {
@@ -27,6 +28,7 @@ export class StripeService {
     @InjectRepository(PlanEntity) private planRepository: Repository<PlanEntity>,
     @InjectRepository(SubscriptionEntity) private subscriptionRepository: Repository<SubscriptionEntity>,
     @InjectRepository(GatewayLogEntity) private gatewayLogRepository: Repository<GatewayLogEntity>,
+    @InjectRepository(InvoiceEntity) private invoiceRepository: Repository<InvoiceEntity>,
   ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: "2026-02-25.clover",
@@ -305,6 +307,60 @@ export class StripeService {
       country: addr?.country ?? "",
       phone: customer.phone ?? "",
     };
+  }
+
+  @Cron(CronIntervalEnum.EVERY_24_HOURS, { name: "reconcileStripeSubscriptions" })
+  async reconcileStripeSubscriptions(): Promise<void> {
+    const subscriptionList = await this.subscriptionRepository.find({
+      where: {
+        status: In([SubscriptionStatusEnum.ACTIVE, SubscriptionStatusEnum.OVERDUE]),
+        gateway_id: Not(IsNull()),
+        end_date: LessThan(formatDate(getCurrentDate(), "YYYY-MM-DD HH:mm:ssZ")),
+      },
+    });
+
+    for (const subscription of subscriptionList) {
+      try {
+        const stripeSub = await this.stripe.subscriptions.retrieve(subscription.gateway_id!);
+
+        if (stripeSub.status === "canceled") {
+          await this.subscriptionRepository.save({
+            id: subscription.id,
+            status: SubscriptionStatusEnum.CANCELED,
+          });
+          continue;
+        }
+
+        const stripeInvoiceList = await this.stripe.invoices.list({
+          subscription: subscription.gateway_id!,
+          status: "paid",
+        });
+
+        const existingGatewayIdList = new Set(
+          (await this.invoiceRepository.find({
+            where: {
+              subscription_id: subscription.id,
+            },
+            select: ["gateway_id"],
+          })).map((inv) => inv.gateway_id),
+        );
+
+        const missingInvoiceList = stripeInvoiceList.data.filter((inv) => !existingGatewayIdList.has(inv.id));
+
+        for (const stripeInvoice of missingInvoiceList) {
+          await this.saveInvoicePayment(stripeInvoice, subscription);
+
+          const updated = await this.subscriptionRepository.findOne({
+            where: {
+              id: subscription.id
+            }
+          });
+          if (updated) Object.assign(subscription, updated);
+        }
+      } catch (_) {
+        continue;
+      }
+    }
   }
 
   async handleSubscriptionDeleted(stripeSubscription: any): Promise<void> {
