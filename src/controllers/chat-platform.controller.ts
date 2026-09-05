@@ -27,27 +27,35 @@ export class ChatPlatformController {
 
     const planId = request["loggedPlan"];
 
-    const list = await this.dataSource.query(`
-      select cpl.id
-        , cpl.name
-        , cpl.description
-        , cpl.icon_url
-        , cpl.doc_url
-        , cpl.created_at
-        , cpl.updated_at
-        , cpl.type
-        , count(*) over() as total
-      from chat_platforms cpl
-      join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
-      where pcp.plan_id = '${planId}'
-      and ($1::text is null or lower(trim(unaccent(cpl.name))) like $1 or lower(trim(unaccent(cpl.description))) like $1)
-      order by cpl.created_at desc
-      limit ${this.querySize} offset ${this.querySize * page}
-    `, [search ? `%${search}%` : null]);
+    const [list, [{ total }]] = await Promise.all([
+      this.dataSource.query(`
+        select cpl.id
+          , cpl.name
+          , cpl.description
+          , cpl.icon_url
+          , cpl.doc_url
+          , cpl.created_at
+          , cpl.updated_at
+          , cpl.type
+        from chat_platforms cpl
+        join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
+        where pcp.plan_id = '${planId}'
+        and ($1::text is null or lower(trim(unaccent(cpl.name))) like $1 or lower(trim(unaccent(cpl.description))) like $1)
+        order by cpl.created_at desc
+        limit ${this.querySize} offset ${this.querySize * page}
+      `, [search ? `%${search}%` : null]),
+      this.dataSource.query(`
+        select count(*) as total
+        from chat_platforms cpl
+        join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
+        where pcp.plan_id = '${planId}'
+        and ($1::text is null or lower(trim(unaccent(cpl.name))) like $1 or lower(trim(unaccent(cpl.description))) like $1)
+      `, [search ? `%${search}%` : null]),
+    ]);
 
     return {
       data: list,
-      total: parseInt(list[0]?.total ?? 0)
+      total: parseInt(total ?? 0)
     }
   }
 }

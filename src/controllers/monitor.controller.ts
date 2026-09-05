@@ -326,8 +326,8 @@ export class MonitorController {
 
       // Delete monitor x integrations removed by user
       if (body.integrationList.length === 0) {
-        await queryRunner.manager.delete(MonitorIntegrationEntity, { 
-          monitor_id: monitor.id 
+        await queryRunner.manager.delete(MonitorIntegrationEntity, {
+          monitor_id: monitor.id
         });
       } else {
         await queryRunner.manager.delete(MonitorIntegrationEntity, {

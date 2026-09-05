@@ -160,20 +160,26 @@ export class UserController {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
 
-    const list = await this.dataSource.query(`
-      select his.*
-        , count(*) over() as total
-      from auth_historical his
-      where his.user_id = '${request["loggedUser"]}'
-      order by his.created_at desc
-      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-    `);
+    const [list, [{ total }]] = await Promise.all([
+      this.dataSource.query(`
+        select his.*
+        from auth_historical his
+        where his.user_id = '${request["loggedUser"]}'
+        order by his.created_at desc
+        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+      `),
+      this.dataSource.query(`
+        select count(*) as total
+        from auth_historical his
+        where his.user_id = '${request["loggedUser"]}'
+      `),
+    ]);
 
     return {
       data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(list[0]?.total ?? 0)
+        total: parseInt(total ?? 0)
       }
     }
   }

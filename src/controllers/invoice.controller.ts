@@ -30,30 +30,37 @@ export class InvoiceController {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
 
-    const list = await this.dataSource.query(`
-      select
-        inv.id
-        , inv.iid
-        , inv.issue_date
-        , inv.due_date
-        , inv.amount
-        , inv.status
-        , pla.name as "plan"
-        , pla.image
-        , count(*) over() as total
-      from invoices inv
-      join subscriptions sub on sub.id = inv.subscription_id
-      join plans pla on pla.id = sub.plan_id
-      where sub.user_id = '${request["loggedUser"]}'
-      order by inv.created_at desc
-      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-    `);
+    const [list, [{ total }]] = await Promise.all([
+      this.dataSource.query(`
+        select
+          inv.id
+          , inv.iid
+          , inv.issue_date
+          , inv.due_date
+          , inv.amount
+          , inv.status
+          , pla.name as "plan"
+          , pla.image
+        from invoices inv
+        join subscriptions sub on sub.id = inv.subscription_id
+        join plans pla on pla.id = sub.plan_id
+        where sub.user_id = '${request["loggedUser"]}'
+        order by inv.created_at desc
+        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+      `),
+      this.dataSource.query(`
+        select count(*) as total
+        from invoices inv
+        join subscriptions sub on sub.id = inv.subscription_id
+        where sub.user_id = '${request["loggedUser"]}'
+      `),
+    ]);
 
     return {
       data: list,
       pagination: {
         rows: this.querySize,
-        total: parseInt(list[0]?.total ?? 0)
+        total: parseInt(total ?? 0)
       }
     }
   }

@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { StatusPageEntity } from '../database/entities/StatusPageEntity';
@@ -54,7 +54,7 @@ export class StatusPageController {
     })
 
     if (!await this.authService.hasPermission(subscription?.plan_id!, PermissionEnum.STATUS_PAGE)) {
-      throw new NotFoundException("Página de status não encontrada.");
+      throw new ForbiddenException("Página de status não encontrada.");
     }
 
     const monitors = await this.dataSource.query(`

@@ -1,10 +1,8 @@
 import { BadRequestException, Controller, Get, NotFoundException, Param, Query, Request, UseGuards } from '@nestjs/common';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AuthGuard } from '../middlewares/auth.guard';
 import removeAccents from '../utils/removeAccents';
 import calcDuration from '../utils/calcDuration';
-import { IncidentEntity } from 'src/database/entities/IncidentEntity';
-import { InjectRepository } from '@nestjs/typeorm';
 
 @Controller({
   version: "1",
@@ -16,7 +14,6 @@ export class IncidentController {
 
   constructor(
     private dataSource: DataSource,
-    @InjectRepository(IncidentEntity) private incidentRepository: Repository<IncidentEntity>
   ) { }
 
   @Get("/")
@@ -29,7 +26,7 @@ export class IncidentController {
       search = removeAccents(search).toLowerCase();
     }
 
-    const [list, [{ total }], totalNotResolved] = await Promise.all([
+    const [list, [{ total }], [{ total: totalNotResolved }]] = await Promise.all([
       this.dataSource.query(`
         select
           inc.id
@@ -63,17 +60,13 @@ export class IncidentController {
         where mon.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
       `, [search ? `%${search}%` : null]),
-      this.incidentRepository.count({
-        relations: {
-          monitor: true
-        },
-        where: {
-          ended_at: IsNull(),
-          monitor: {
-            created_user_id: request["loggedUser"]
-          }
-        },
-      })
+      this.dataSource.query(`
+        select count(*) as total
+        from incidents inc
+        join monitors mon on mon.id = inc.monitor_id
+        where mon.created_user_id = '${request["loggedUser"]}'
+        and inc.ended_at is null
+      `),
     ]);
 
     for (let row of list) {
@@ -87,7 +80,7 @@ export class IncidentController {
         total: parseInt(total ?? 0)
       },
       extras: {
-        totalNotResolved: totalNotResolved
+        totalNotResolved: parseInt(totalNotResolved ?? 0)
       }
     }
   }
@@ -112,93 +105,109 @@ export class IncidentController {
 
   @Get("/:id")
   async getIncidentById(@Request() request: Request, @Param("id") id: string) {
-    const incident = await this.incidentRepository.findOne({
-      relations: {
-        monitor: true
-      },
-      where: {
-        monitor: {
-          created_user_id: request["loggedUser"],
-        },
-        id: id
-      },
-      select: {
-        id: true,
-        active: true,
-        created_at: true,
-        ended_at: true,
-        monitor: {
-          id: true,
-          name: true,
-          type: true,
-          address: true
-        }
-      },
-    }).catch(_ => {
-      throw new NotFoundException("Incidente não encontrado.");
-    })
+    const [row] = await this.dataSource.query(`
+      select
+        inc.id
+        , inc.active
+        , inc.created_at
+        , inc.ended_at
+        , mon.id as monitor_id
+        , mon.name as monitor_name
+        , mon.type as monitor_type
+        , mon.address as monitor_address
+        , first_err.status as "firstError"
+        , last_status.status as "status"
+        , last_req.request_headers as "lastRequestHeaders"
+        , last_res.response_headers as "lastResponseHeaders"
+      from incidents inc
+      join monitors mon on mon.id = inc.monitor_id
+      left join lateral (
+        select status from monitor_historical
+        where incident_id = inc.id and status not like '2%'
+        order by created_at asc limit 1
+      ) first_err on true
+      left join lateral (
+        select status from monitor_historical
+        where incident_id = inc.id
+        order by created_at desc limit 1
+      ) last_status on true
+      left join lateral (
+        select request_headers from monitor_historical
+        where incident_id = inc.id and request_headers is not null
+        order by created_at desc limit 1
+      ) last_req on true
+      left join lateral (
+        select response_headers from monitor_historical
+        where incident_id = inc.id and response_headers is not null
+        order by created_at desc limit 1
+      ) last_res on true
+      where inc.id = $1
+      and mon.created_user_id = $2
+    `, [id, request["loggedUser"]]);
 
-    if (!incident) {
+    if (!row) {
       throw new NotFoundException("Incidente não encontrado.");
     }
 
-    incident["duration"] = calcDuration(incident.created_at, incident.ended_at);
-
-    const [extraRow] = await this.dataSource.query(`
-      select
-        (select t.status from monitor_historical t where t.incident_id = $1 and t.status not like '2%' order by t.created_at asc limit 1) as "firstError",
-        (select t.status from monitor_historical t where t.incident_id = $1 order by t.created_at desc limit 1) as "status",
-        (select t.request_headers from monitor_historical t where t.incident_id = $1 and t.request_headers is not null order by t.created_at desc limit 1) as "lastRequestHeaders",
-        (select t.response_headers from monitor_historical t where t.incident_id = $1 and t.response_headers is not null order by t.created_at desc limit 1) as "lastResponseHeaders"
-    `, [incident.id]);
-
-    incident["firstError"] = extraRow.firstError;
-    incident["status"] = extraRow.status;
-    incident["lastRequestHeaders"] = extraRow.lastRequestHeaders;
-    incident["lastResponseHeaders"] = extraRow.lastResponseHeaders;
-
-    return incident
+    return {
+      id: row.id,
+      active: row.active,
+      created_at: row.created_at,
+      ended_at: row.ended_at,
+      duration: calcDuration(row.created_at, row.ended_at),
+      monitor: {
+        id: row.monitor_id,
+        name: row.monitor_name,
+        type: row.monitor_type,
+        address: row.monitor_address,
+      },
+      firstError: row.firstError,
+      status: row.status,
+      lastRequestHeaders: row.lastRequestHeaders,
+      lastResponseHeaders: row.lastResponseHeaders,
+    };
   }
 
   @Get("/:id/historical")
   async getIncidentHistoricalById(@Request() request: Request, @Param("id") id: string, @Query("page") page: string) {
-    const incident = await this.incidentRepository.findOne({
-      where: {
-        monitor: {
-          created_user_id: request["loggedUser"],
-        },
-        id: id
-      }
-    }).catch(_ => {
-      throw new NotFoundException("Incidente não encontrado.");
-    })
-
-    if (!incident) {
-      throw new NotFoundException("Incidente não encontrado.");
-    }
-
     if (page == null || isNaN(parseInt(page)) || parseInt(page) < 0) {
       throw new BadRequestException("Informe o parâmetro numérico 'page >= 0'");
     }
 
-    const historical = await this.dataSource.query(`
-      select
-        his.id
-        , his.status
-        , round(his.total_ms::numeric, 2) as total_ms
-        , his.created_at
-        , count(*) over() as total
-      from monitor_historical his
-      where his.incident_id = $1
-      order by his.created_at desc
-      limit ${this.querySize} offset ${this.querySize * parseInt(page)}
-    `, [incident.id]);
+    const [historicalList, [{ total }]] = await Promise.all([
+      this.dataSource.query(`
+        select
+          his.id
+          , his.status
+          , round(his.total_ms::numeric, 2) as total_ms
+          , his.created_at
+        from monitor_historical his
+        join incidents inc on inc.id = his.incident_id
+        join monitors mon on mon.id = inc.monitor_id
+        where his.incident_id = $1
+        and mon.created_user_id = $2
+        order by his.created_at desc
+        limit ${this.querySize} offset ${this.querySize * parseInt(page)}
+      `, [id, request["loggedUser"]]),
+      this.dataSource.query(`
+        select count(*) as total
+        from monitor_historical his
+        join incidents inc on inc.id = his.incident_id
+        join monitors mon on mon.id = inc.monitor_id
+        where his.incident_id = $1
+        and mon.created_user_id = $2
+      `, [id, request["loggedUser"]]),
+    ]);
+
+    if (parseInt(total) === 0) {
+      throw new NotFoundException("Incidente não encontrado.");
+    }
 
     return {
-      data: historical,
+      data: historicalList,
       pagination: {
         rows: this.querySize,
-        total: parseInt(historical[0]?.total ?? 0)
+        total: parseInt(total ?? 0)
       }
     }
   }
