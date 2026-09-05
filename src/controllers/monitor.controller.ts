@@ -143,12 +143,18 @@ export class MonitorController {
           group by mh.monitor_id, (mh.created_at at time zone 'America/Sao_Paulo')::date
         ),
         last_check as (
-          select distinct on (mh.monitor_id) mh.monitor_id, mh.created_at, mh.status, mh.total_ms
-          from monitor_historical mh
-          join monitors m on m.id = mh.monitor_id and m.created_user_id = '${request["loggedUser"]}'
-          order by mh.monitor_id, mh.created_at desc
+          select lc.monitor_id, lc.created_at, lc.status, lc.total_ms
+          from monitors m
+          join lateral (
+            select mh.monitor_id, mh.created_at, mh.status, mh.total_ms
+            from monitor_historical mh
+            where mh.monitor_id = m.id
+            order by mh.created_at desc
+            limit 1
+          ) lc on true
+          where m.created_user_id = '${request["loggedUser"]}'
         ),
-        monitor_history_json as (
+        monitor_history_json as materialized (
           select
             mon.id as monitor_id,
             array_agg(json_build_object(
@@ -192,10 +198,16 @@ export class MonitorController {
       `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
         with last_check as (
-          select distinct on (mh.monitor_id) mh.monitor_id, mh.status
-          from monitor_historical mh
-          join monitors m on m.id = mh.monitor_id and m.created_user_id = '${request["loggedUser"]}'
-          order by mh.monitor_id, mh.created_at desc
+          select lc.monitor_id, lc.status
+          from monitors m
+          join lateral (
+            select mh.monitor_id, mh.status
+            from monitor_historical mh
+            where mh.monitor_id = m.id
+            order by mh.created_at desc
+            limit 1
+          ) lc on true
+          where m.created_user_id = '${request["loggedUser"]}'
         )
         select
           count(case when mon.active = true and lc.status like '2%' then 1 end) as "totalUp",
