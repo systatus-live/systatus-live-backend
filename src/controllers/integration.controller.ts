@@ -60,25 +60,16 @@ export class IntegrationController {
 
     const hasCustomNotification = await this.authService.hasPermission(request["loggedPlan"], PermissionEnum.CUSTOM_NOTIFICATION);
 
-    const downTemplate = hasCustomNotification ? (body.downTemplate || this.downTemplateDefault) : this.downTemplateDefault;
-    const upTemplate = hasCustomNotification ? (body.upTemplate || this.upTemplateDefault) : this.upTemplateDefault;
+    const chatPlatform = await this.dataSource.getRepository(ChatPlatformEntity).findOne({
+      where: {
+        id: body.chatPlatformId
+      },
+      select: ["type"]
+    });
 
-    if (hasCustomNotification) {
-      const chatPlatform = await this.dataSource.getRepository(ChatPlatformEntity).findOne({
-        where: {
-          id: body.chatPlatformId
-        },
-        select: ["type"]
-      });
-
-      if (chatPlatform?.type !== ChatPlatformTypeEnum.WEBHOOK) {
-        throw new BadRequestException("Mensagens personalizadas disponíveis apenas para integrações de webhook.");
-      }
-
-      if (downTemplate.length > 250 || upTemplate.length > 250) {
-        throw new BadRequestException("Os templates devem ter no máximo 250 caracteres.");
-      }
-    }
+    const isWebhook = chatPlatform?.type === ChatPlatformTypeEnum.WEBHOOK;
+    const downTemplate = (hasCustomNotification && isWebhook) ? (body.downTemplate || this.downTemplateDefault) : this.downTemplateDefault;
+    const upTemplate = (hasCustomNotification && isWebhook) ? (body.upTemplate || this.upTemplateDefault) : this.upTemplateDefault;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
@@ -98,7 +89,7 @@ export class IntegrationController {
         integration_id: newIntegration.id,
         created_user_id: request["loggedUser"],
         updated_user_id: request["loggedUser"],
-        ...(hasCustomNotification ? {
+        ...(hasCustomNotification && isWebhook ? {
           type: IntegrationTemplateTypeEnum.CUSTOM,
           down_template: downTemplate,
           up_template: upTemplate,
@@ -235,27 +226,18 @@ export class IntegrationController {
 
     const hasCustomNotification = await this.authService.hasPermission(request["loggedPlan"], PermissionEnum.CUSTOM_NOTIFICATION);
 
-    const downTemplate = hasCustomNotification ? (body.downTemplate || this.downTemplateDefault) : this.downTemplateDefault;
-    const upTemplate = hasCustomNotification ? (body.upTemplate || this.upTemplateDefault) : this.upTemplateDefault;
+    const platformId = body.chatPlatformId ?? integration.chat_platform_id;
 
-    if (hasCustomNotification) {
-      const platformId = body.chatPlatformId ?? integration.chat_platform_id;
+    const chatPlatform = await this.dataSource.getRepository(ChatPlatformEntity).findOne({
+      where: {
+        id: platformId
+      },
+      select: ["type"]
+    });
 
-      const chatPlatform = await this.dataSource.getRepository(ChatPlatformEntity).findOne({
-        where: {
-          id: platformId
-        },
-        select: ["type"]
-      });
-
-      if (chatPlatform?.type != ChatPlatformTypeEnum.WEBHOOK) {
-        throw new BadRequestException("Mensagens personalizadas disponíveis apenas para integrações de webhook.");
-      }
-
-      if (downTemplate.length > 250 || upTemplate.length > 250) {
-        throw new BadRequestException("Os templates devem ter no máximo 250 caracteres.");
-      }
-    }
+    const isWebhook = chatPlatform?.type === ChatPlatformTypeEnum.WEBHOOK;
+    const downTemplate = (hasCustomNotification && isWebhook) ? (body.downTemplate || this.downTemplateDefault) : this.downTemplateDefault;
+    const upTemplate = (hasCustomNotification && isWebhook) ? (body.upTemplate || this.upTemplateDefault) : this.upTemplateDefault;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.startTransaction();
@@ -278,7 +260,7 @@ export class IntegrationController {
 
       const templateData = {
         updated_user_id: request["loggedUser"],
-        ...(hasCustomNotification ? {
+        ...(hasCustomNotification && isWebhook ? {
           type: IntegrationTemplateTypeEnum.CUSTOM,
           down_template: downTemplate,
           up_template: upTemplate,
