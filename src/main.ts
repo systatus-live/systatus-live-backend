@@ -13,6 +13,15 @@ async function bootstrap() {
     })
   });
 
+  app.use((req: any, res: any, next: any) => {
+    const allowedMethods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+    if (!allowedMethods.has(req.method)) {
+      res.status(405).end();
+      return;
+    }
+    next();
+  });
+
   app.enableCors({
     origin: [process.env.WEB_URL],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
