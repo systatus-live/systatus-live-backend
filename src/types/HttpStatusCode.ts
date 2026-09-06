@@ -63,6 +63,8 @@ export enum HttpStatusCode {
   NOT_EXTENDED = 510,
   NETWORK_AUTHENTICATION_REQUIRED = 511,
   UNKNOWN = "UNKNOWN",
+  SSL_HANDSHAKE_FAILED = 525,
+  INVALID_SSL_CERTIFICATE = 526,
   SITE_FROZEN = 530,
 }
 
@@ -131,9 +133,11 @@ export enum HttpStatusCodeLabel {
   NOT_EXTENDED = "Not Extended",
   NETWORK_AUTHENTICATION_REQUIRED = "Network Authentication Required",
   UNKNOWN = "Desconhecido",
+  SSL_HANDSHAKE_FAILED = "SSL Handshake Failed",
+  INVALID_SSL_CERTIFICATE = "Invalid SSL Certificate",
   SITE_FROZEN = "Site Congelado",
 }
 
 export function getHttpStatusKey(code: string) {
-  return Object.keys(HttpStatusCode).find(key => HttpStatusCode[key] == code) as string;
+  return Object.keys(HttpStatusCode).find((key: any) => HttpStatusCode[key] == code) as string;
 }

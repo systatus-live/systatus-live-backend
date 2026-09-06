@@ -234,8 +234,10 @@ export class MonitorService {
               newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
             } else if (exitCode == 28) {
               newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
-            } else if ([35, 51, 60].includes(exitCode)) {
-              newStatus = HttpStatusCode.BAD_GATEWAY.toString();
+            } else if (exitCode == 35) {
+              newStatus = HttpStatusCode.SSL_HANDSHAKE_FAILED.toString();
+            } else if ([51, 60].includes(exitCode)) {
+              newStatus = HttpStatusCode.INVALID_SSL_CERTIFICATE.toString();
             } else {
               newStatus = HttpStatusCode.UNKNOWN.toString();
             }
