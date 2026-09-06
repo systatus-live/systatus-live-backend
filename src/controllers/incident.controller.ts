@@ -162,7 +162,7 @@ export class IncidentController {
         type: row.monitor_type,
         address: row.monitor_address,
       },
-      firstError: row.firstHttpError,
+      firstHttpError: row.firstHttpError,
       lastHttpStatus: row.lastHttpStatus,
       lastRequestHeaders: row.lastRequestHeaders,
       lastResponseHeaders: row.lastResponseHeaders,
