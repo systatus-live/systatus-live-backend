@@ -31,8 +31,8 @@ export class IntegrationController {
 
   private querySize: number = parseInt(process.env.QUERY_SIZE as string);
 
-  private readonly downTemplateDefault = "🔴 {{monitor}} ({{address}}) ficou indisponível: {{status_description}}";
-  private readonly upTemplateDefault = "🟢 {{monitor}} ({{address}}) ficou disponível. Downtime: {{downtime}}";
+  private readonly downTemplateDefault = "{{monitor}} ({{address}}) ficou indisponível: {{status_description}}";
+  private readonly upTemplateDefault = "{{monitor}} ({{address}}) ficou disponível. Downtime: {{downtime}}";
 
   constructor(
     private dataSource: DataSource,

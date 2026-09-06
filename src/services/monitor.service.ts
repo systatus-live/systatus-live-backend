@@ -403,12 +403,12 @@ export class MonitorService {
     };
 
     for await (let { integration } of integrationList) {
-      let title = `🟢 ${monitor.name} ficou disponível`;
-      let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível.`;
+      let title = `${monitor.name} ficou disponível`;
+      let description = `${monitor.name} (${monitor.address}) ficou disponível.`;
 
       if (notifyType == "FAILURE") {
-        title = `🔴 ${monitor.name} ficou indisponível`;
-        description = `🔴 ${monitor.name} (${monitor.address}) ficou indisponível: ${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}.`;
+        title = `${monitor.name} ficou indisponível`;
+        description = `${monitor.name} (${monitor.address}) ficou indisponível: ${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}.`;
       }
 
       if (notifyType == "OK" && monitorIncident) {
