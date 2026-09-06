@@ -5,6 +5,7 @@ import { MonitorEntity } from '../database/entities/MonitorEntity';
 import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegrationEntity';
 import { AuthGuard } from '../middlewares/auth.guard';
 import { PlanService } from '../services/plan.service';
+import { MonitorHistoryStatusEnum } from '../types/MonitorHistoryStatusEnum';
 import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
 import formatDate from '../utils/formatDate';
 import formatSince from '../utils/formatSince';
@@ -135,18 +136,18 @@ export class MonitorController {
           select
             mh.monitor_id,
             (mh.created_at at time zone 'America/Sao_Paulo')::date as check_date,
-            count(case when mh.status like '2%' then 1 end) as total_online,
-            count(case when mh.status not like '2%' then 1 end) as total_offline
+            count(case when mh.status = '${MonitorHistoryStatusEnum.SUCCESS}' then 1 end) as total_online,
+            count(case when mh.status = '${MonitorHistoryStatusEnum.ERROR}' then 1 end) as total_offline
           from monitor_historical mh
           join monitors m on m.id = mh.monitor_id and m.created_user_id = '${request["loggedUser"]}'
           where mh.created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
           group by mh.monitor_id, (mh.created_at at time zone 'America/Sao_Paulo')::date
         ),
         last_check as (
-          select lc.monitor_id, lc.created_at, lc.status, lc.total_ms
+          select lc.monitor_id, lc.created_at, lc.status, lc.http_status, lc.total_ms
           from monitors m
           join lateral (
-            select mh.monitor_id, mh.created_at, mh.status, mh.total_ms
+            select mh.monitor_id, mh.created_at, mh.status, mh.http_status, mh.total_ms
             from monitor_historical mh
             where mh.monitor_id = m.id
             order by mh.created_at desc
@@ -183,6 +184,7 @@ export class MonitorController {
           , mhj.historical
           , ite.name as interval
           , to_char(lc.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheck"
+          , lc.http_status as "lastHttpStatus"
           , lc.status as "lastStatus"
           , round(lc.total_ms::numeric, 2) as "lastDuration"
           , coalesce(li.last_incident_at, mon.created_at) as "lastIncident"
@@ -193,7 +195,7 @@ export class MonitorController {
         left join last_incident li on li.monitor_id = mon.id
         where mon.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(mon.name))) like $1 or lower(trim(unaccent(mon.address))) like $1)
-        order by mon.active desc, (case when lc.status is null then 1 when lc.status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
+        order by mon.active desc, (case when lc.status is null then 1 when lc.status = '${MonitorHistoryStatusEnum.ERROR}' then 0 else -1 end) desc, mon.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
@@ -210,8 +212,8 @@ export class MonitorController {
           where m.created_user_id = '${request["loggedUser"]}'
         )
         select
-          count(case when mon.active = true and lc.status like '2%' then 1 end) as "totalUp",
-          count(case when mon.active = true and lc.status not like '2%' and lc.status is not null then 1 end) as "totalDown",
+          count(case when mon.active = true and lc.status = '${MonitorHistoryStatusEnum.SUCCESS}' then 1 end) as "totalUp",
+          count(case when mon.active = true and lc.status = '${MonitorHistoryStatusEnum.ERROR}' then 1 end) as "totalDown",
           count(case when mon.active = false then 1 end) as "totalPaused",
           count(case when mon.active = true then 1 end) as "totalMonitoring",
           count(1) as "totalMonitors"
@@ -404,6 +406,7 @@ export class MonitorController {
     const isPing = monitor.type === MonitorTypeEnum.PING;
 
     const [lastCheckRows, historicalDaysRows, avgMetricsRows, recentIncidentsRows, responseTime24hRows] = await Promise.all([
+      // lastCheckRows
       isPing
         ? this.dataSource.query(`
             select
@@ -411,6 +414,7 @@ export class MonitorController {
               , round(his.ping_avg_ms::numeric, 2) as "lastAvgMs"
               , round(his.ping_min_ms::numeric, 2) as "lastMinMs"
               , round(his.ping_max_ms::numeric, 2) as "lastMaxMs"
+              , his.http_status as "lastHttpStatus"
               , his.status as "lastStatus"
               , to_char(his.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheckedAt"
             from monitor_historical his
@@ -425,6 +429,7 @@ export class MonitorController {
               , round(his.tls_ms::numeric, 2) as "lastTls"
               , round(his.ttfb_ms::numeric, 2) as "lastTtfb"
               , round(his.total_ms::numeric, 2) as "lastDuration"
+              , his.http_status as "lastHttpStatus"
               , his.status as "lastStatus"
               , to_char(his.created_at at time zone 'America/Sao_Paulo', 'dd/mm/yyyy hh24:mi') as "lastCheckedAt"
             from monitor_historical his
@@ -432,6 +437,7 @@ export class MonitorController {
             order by his.created_at desc
             limit 1
           `, [monitor.id]),
+      // historicalDaysRows
       this.dataSource.query(`
         with dates as (
           select generate_series(
@@ -443,8 +449,8 @@ export class MonitorController {
         hist_agg as (
           select
             (created_at at time zone 'America/Sao_Paulo')::date as check_date,
-            count(case when status like '2%' then 1 end) as total_online,
-            count(case when status not like '2%' then 1 end) as total_offline
+            count(case when status = '${MonitorHistoryStatusEnum.SUCCESS}' then 1 end) as total_online,
+            count(case when status = '${MonitorHistoryStatusEnum.ERROR}' then 1 end) as total_offline
           from monitor_historical
           where monitor_id = $1
           and created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
@@ -458,6 +464,7 @@ export class MonitorController {
         from dates d
         left join hist_agg h on h.check_date = d.date
       `, [monitor.id]),
+      // avgMetricsRows
       isPing
         ? this.dataSource.query(`
             select
@@ -482,16 +489,17 @@ export class MonitorController {
             and created_at >= now() - interval '7 days'
             and total_ms is not null
           `, [monitor.id]),
+      // recentIncidentsRows
       this.dataSource.query(`
         select
           inc.id
           , inc.active
           , inc.created_at
           , inc.ended_at
-          , first_status.status as "firstError"
+          , first_status.http_status as "firstError"
         from incidents inc
         left join lateral (
-          select his.status
+          select his.http_status
           from monitor_historical his
           where his.monitor_id = $1
             and his.incident_id = inc.id
@@ -502,6 +510,7 @@ export class MonitorController {
         order by inc.created_at desc
         limit 5
       `, [monitor.id]),
+      // responseTime24hRows
       isPing
         ? this.dataSource.query(`
             with hours as (

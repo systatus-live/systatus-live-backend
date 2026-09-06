@@ -15,7 +15,7 @@ import { AuthService } from '../services/auth.service';
 import { SubscriptionEntity } from '../database/entities/SubscriptionEntity';
 import formatDate from 'src/utils/formatDate';
 import momentTz from "moment-timezone";
-import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
+import { SubscriptionStatusEnum } from '../types/SubscriptionStatusEnum';
 
 @Controller({
   version: "1",

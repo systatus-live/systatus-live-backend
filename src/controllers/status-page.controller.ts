@@ -11,7 +11,8 @@ import formatSince from '../utils/formatSince';
 import normalizeSlug from '../utils/normalizeSlug';
 import { PlanEntity } from 'src/database/entities/PlanEntity';
 import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
-import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
+import { MonitorHistoryStatusEnum } from '../types/MonitorHistoryStatusEnum';
+import { SubscriptionStatusEnum } from '../types/SubscriptionStatusEnum';
 
 @Controller({
   version: "1",
@@ -69,15 +70,15 @@ export class StatusPageController {
         select
           monitor_id,
           (created_at at time zone 'America/Sao_Paulo')::date as check_date,
-          count(case when status like '2%' then 1 end) as total_online,
-          count(case when status not like '2%' then 1 end) as total_offline
+          count(case when status = '${MonitorHistoryStatusEnum.SUCCESS}' then 1 end) as total_online,
+          count(case when status = '${MonitorHistoryStatusEnum.ERROR}' then 1 end) as total_offline
         from monitor_historical
         where created_at >= (current_timestamp at time zone 'America/Sao_Paulo')::date - interval '29 days'
         group by monitor_id, (created_at at time zone 'America/Sao_Paulo')::date
       ),
       last_check as (
         select distinct on (monitor_id)
-          monitor_id, created_at, status, total_ms
+          monitor_id, created_at, status, http_status, total_ms
         from monitor_historical
         order by monitor_id, created_at desc
       )
@@ -87,6 +88,7 @@ export class StatusPageController {
         , mon.type
         , mon.address
         , ite.name as interval
+        , lc.http_status as "lastHttpStatus"
         , lc.status as "lastStatus"
         , lc.total_ms as "lastDuration"
         , coalesce((select coalesce(t.ended_at, t.created_at) from incidents t where t.monitor_id = mon.id order by t.created_at desc limit 1), mon.created_at) as "lastIncident"
@@ -104,7 +106,7 @@ export class StatusPageController {
       join status_page_monitors spm on spm.monitor_id = mon.id and spm.status_page_id = '${statusPage.id}'
       left join last_check lc on lc.monitor_id = mon.id
       where mon.active = true
-      order by (case when lc.status is null then 1 when lc.status not like '2%%' then 0 else -1 end) desc, mon.created_at desc
+      order by (case when lc.status is null then 1 when lc.status = '${MonitorHistoryStatusEnum.ERROR}' then 0 else -1 end) desc, mon.created_at desc
     `);
 
     for (let row of monitors) {

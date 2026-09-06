@@ -13,9 +13,9 @@ import { MonitorIntegrationEntity } from '../database/entities/MonitorIntegratio
 import { ChatPlatformEnum, ChatPlatformTypeEnum } from '../types/ChatPlatformEnum';
 import { CronIntervalEnum } from '../types/CronIntervalEnum';
 import { getHttpStatusKey, HttpStatusCode, HttpStatusCodeLabel } from '../types/HttpStatusCode';
+import { MonitorHistoryStatusEnum } from '../types/MonitorHistoryStatusEnum';
 import { MonitorTypeEnum } from '../types/MonitorTypeEnum';
 import { PlanEnum } from '../types/PlanEnum';
-import { SubscriptionStatusEnum } from '../types/SubscriptionStatusEnum';
 import formatSince from '../utils/formatSince';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
@@ -155,8 +155,9 @@ export class MonitorService {
 
   private async processMonitor(monitor: any) {
     this.logger.log(`Checking ${monitor.name} (${monitor.id})`);
+
     try {
-      let newStatus: string = HttpStatusCode.UNKNOWN.toString();
+      let newHttpStatus: string = HttpStatusCode.UNKNOWN.toString();
       let totalMs: number | null = null;
       let requestHeaders: any = null;
       let responseHeaders: any = null;
@@ -198,13 +199,13 @@ export class MonitorService {
             const separatorIndex = stdout.indexOf("\n---CURL-METRICS---\n");
 
             if (separatorIndex == -1) {
-              newStatus = HttpStatusCode.UNKNOWN.toString();
+              newHttpStatus = HttpStatusCode.UNKNOWN.toString();
             } else {
               const headersRaw = stdout.slice(0, separatorIndex);
               const metricsRaw = stdout.slice(separatorIndex + "\n---CURL-METRICS---\n".length).trim();
               const metrics = JSON.parse(metricsRaw);
 
-              newStatus = metrics.status.toString();
+              newHttpStatus = metrics.status.toString();
               dnsMs = toMs(metrics.dns);
               tcpMs = toMs(metrics.tcp - metrics.dns);
               tlsMs = toMs(Math.max(0, metrics.tls > 0 ? metrics.tls - metrics.tcp : 0));
@@ -229,17 +230,17 @@ export class MonitorService {
           } catch (error: any) {
             const exitCode: number = error.code ?? -1;
             if (exitCode == 6) {
-              newStatus = HttpStatusCode.NOT_FOUND.toString();
+              newHttpStatus = HttpStatusCode.NOT_FOUND.toString();
             } else if (exitCode == 7) {
-              newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+              newHttpStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
             } else if (exitCode == 28) {
-              newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
+              newHttpStatus = HttpStatusCode.REQUEST_TIMEOUT.toString();
             } else if (exitCode == 35) {
-              newStatus = HttpStatusCode.SSL_HANDSHAKE_FAILED.toString();
+              newHttpStatus = HttpStatusCode.SSL_HANDSHAKE_FAILED.toString();
             } else if ([51, 60].includes(exitCode)) {
-              newStatus = HttpStatusCode.INVALID_SSL_CERTIFICATE.toString();
+              newHttpStatus = HttpStatusCode.INVALID_SSL_CERTIFICATE.toString();
             } else {
-              newStatus = HttpStatusCode.UNKNOWN.toString();
+              newHttpStatus = HttpStatusCode.UNKNOWN.toString();
             }
             responseHeaders = null;
 
@@ -268,13 +269,13 @@ export class MonitorService {
             });
 
             if (pingResponse.alive) {
-              newStatus = HttpStatusCode.OK.toString();
+              newHttpStatus = HttpStatusCode.OK.toString();
             } else if (pingResponse.output.includes("Destination Host Unreachable")) {
-              newStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
+              newHttpStatus = HttpStatusCode.SERVICE_UNAVAILABLE.toString();
             } else if (parseFloat(pingResponse.packetLoss) == 100) {
-              newStatus = HttpStatusCode.REQUEST_TIMEOUT.toString()
+              newHttpStatus = HttpStatusCode.REQUEST_TIMEOUT.toString()
             } else if (pingResponse.output.includes("Name or service not known")) {
-              newStatus = HttpStatusCode.NOT_FOUND.toString()
+              newHttpStatus = HttpStatusCode.NOT_FOUND.toString()
             }
 
             pingPacketLoss = parseFloat(parseFloat(pingResponse.packetLoss).toFixed(2));
@@ -283,12 +284,14 @@ export class MonitorService {
             pingMaxMs = pingResponse.max != "unknown" ? parseFloat(parseFloat(pingResponse.max).toFixed(2)) : null;
             totalMs = pingAvgMs;
           } catch (error) {
-            newStatus = HttpStatusCode.UNKNOWN.toString();
+            newHttpStatus = HttpStatusCode.UNKNOWN.toString();
           }
           break;
         default:
           break;
       }
+
+      const newStatus: MonitorHistoryStatusEnum = newHttpStatus.startsWith("2") ? MonitorHistoryStatusEnum.SUCCESS : MonitorHistoryStatusEnum.ERROR;
 
       let [monitorIncident, monitorHistory] = await Promise.all([
         this.monitorIncidentRepository.findOne({
@@ -310,12 +313,12 @@ export class MonitorService {
       let notifyType: "OK" | "FAILURE" | null = null;
 
       if (monitorHistory) { // has previous check
-        if (monitorHistory.status.startsWith("2") && !newStatus.startsWith("2")) { // went down
+        if (monitorHistory.status == MonitorHistoryStatusEnum.SUCCESS && newStatus == MonitorHistoryStatusEnum.ERROR) { // went down
           notifyType = "FAILURE";
-        } else if (!monitorHistory.status.startsWith("2") && newStatus.startsWith("2")) { // went up
+        } else if (monitorHistory.status == MonitorHistoryStatusEnum.ERROR && newStatus == MonitorHistoryStatusEnum.SUCCESS) { // went up
           notifyType = "OK";
         }
-      } else if (!monitorHistory && !newStatus.startsWith("2")) { // first check and is down
+      } else if (!monitorHistory && newStatus == MonitorHistoryStatusEnum.ERROR) { // first check and is down
         notifyType = "FAILURE";
       }
 
@@ -347,6 +350,7 @@ export class MonitorService {
         await manager.save(MonitorHistoryEntity, {
           monitor_id: monitor.id,
           incident_id: monitorIncident?.id,
+          http_status: newHttpStatus,
           status: newStatus,
           total_ms: totalMs,
           request_headers: requestHeaders ? JSON.parse(JSON.stringify(requestHeaders)) : null,
@@ -363,90 +367,95 @@ export class MonitorService {
       });
 
       if (notifyType) {
-        const integrationList = await this.monitorIntegrationRepository.find({
-          where: {
-            monitor_id: monitor.id
-          },
-          relations: ["integration", "integration.chatPlatform"]
+        this.processNotifications(monitor, notifyType, monitorIncident, newHttpStatus, totalMs).catch((error) => {
+          this.logger.error(`Error in processNotifications for monitor ID: ${monitor.id}: ${error.message}`);
         });
-
-        const allTemplates = integrationList.length > 0
-          ? await this.integrationTemplateRepository.find({
-            where: {
-              integration_id: In(integrationList.map(m => m.integration.id))
-            },
-            select: ["integration_id", "down_template", "up_template"]
-          })
-          : [];
-
-
-        const templateVars: Record<string, string> = {
-          monitor: monitor.name,
-          address: monitor.address,
-          status_code: newStatus,
-          status_description: HttpStatusCodeLabel[getHttpStatusKey(newStatus)] ?? newStatus,
-          downtime: notifyType == "OK" && monitorIncident ? formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ") : "",
-          datetime: formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")
-        };
-
-        for await (let { integration } of integrationList) {
-          let title = `🟢 ${monitor.name} ficou disponível`;
-          let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível.`;
-
-          if (notifyType == "FAILURE") {
-            title = `🔴 ${monitor.name} ficou indisponível`;
-            description = `🔴 ${monitor.name} (${monitor.address}) ficou indisponível: ${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}.`;
-          }
-
-          if (notifyType == "OK" && monitorIncident) {
-            description += ` Downtime: ${formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ")}.`;
-          }
-
-          if (integration.chatPlatform.type == ChatPlatformTypeEnum.WEBHOOK) {
-            const template = allTemplates.find(t => t.integration_id == integration.id);
-            const templateField = notifyType == "FAILURE" ? "down_template" : "up_template";
-
-            if (template?.[templateField]) {
-              description = this.integrationService.renderTemplate(template[templateField]!, templateVars);
-            }
-          }
-
-          const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
-
-          try {
-            switch (integration.chatPlatform.name) {
-              case ChatPlatformEnum.DISCORD:
-                await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
-                break;
-              case ChatPlatformEnum.GOOGLE_CHAT:
-                if (monitor.address.startsWith("http")) {
-                  description = description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`);
-                }
-                await this.integrationService.sendGoogleChatWebhook(integration.address, "", description, footer);
-                break;
-              case ChatPlatformEnum.SLACK:
-                await this.integrationService.sendSlackWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
-                break;
-              case ChatPlatformEnum.WHATSAPP:
-                if (notifyType == "OK") {
-                  await this.integrationService.sendWhatsApp("systatus_monitor_up", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"));
-                } else {
-                  await this.integrationService.sendWhatsApp("systatus_monitor_down", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newStatus)]}`, "");
-                }
-                break;
-              case ChatPlatformEnum.EMAIL:
-                await this.integrationService.sendMonitorEmail(integration.address, title, notifyType == "OK", monitor.name, monitor.address, newStatus, totalMs, monitorIncident?.created_at ?? null);
-                break;
-              default:
-                break;
-            }
-          } catch (error) {
-            this.logger.error(`Error sending notification for monitor ID: ${monitor.id} via integration ID: ${integration.id}: ${error.message}`);
-          }
-        }
       }
     } catch (error) {
       this.logger.error(`Global error ${error.message}`);
+    }
+  }
+
+  private async processNotifications(monitor: any, notifyType: "OK" | "FAILURE", monitorIncident: IncidentEntity | null, newHttpStatus: string, totalMs: number | null) {
+    const integrationList = await this.monitorIntegrationRepository.find({
+      where: {
+        monitor_id: monitor.id
+      },
+      relations: ["integration", "integration.chatPlatform"]
+    });
+
+    const allTemplates = integrationList.length > 0
+      ? await this.integrationTemplateRepository.find({
+        where: {
+          integration_id: In(integrationList.map(m => m.integration.id))
+        },
+        select: ["integration_id", "down_template", "up_template"]
+      })
+      : [];
+
+    const templateVars: Record<string, string> = {
+      monitor: monitor.name,
+      address: monitor.address,
+      status_code: newHttpStatus,
+      status_description: HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)] ?? newHttpStatus,
+      downtime: notifyType == "OK" && monitorIncident ? formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ") : "",
+      datetime: formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")
+    };
+
+    for await (let { integration } of integrationList) {
+      let title = `🟢 ${monitor.name} ficou disponível`;
+      let description = `🟢 ${monitor.name} (${monitor.address}) ficou disponível.`;
+
+      if (notifyType == "FAILURE") {
+        title = `🔴 ${monitor.name} ficou indisponível`;
+        description = `🔴 ${monitor.name} (${monitor.address}) ficou indisponível: ${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}.`;
+      }
+
+      if (notifyType == "OK" && monitorIncident) {
+        description += ` Downtime: ${formatSince(monitorIncident.created_at, "YYYY-MM-DD HH:mm:ssZ")}.`;
+      }
+
+      if (integration.chatPlatform.type == ChatPlatformTypeEnum.WEBHOOK) {
+        const template = allTemplates.find(t => t.integration_id == integration.id);
+        const templateField = notifyType == "FAILURE" ? "down_template" : "up_template";
+
+        if (template?.[templateField]) {
+          description = this.integrationService.renderTemplate(template[templateField]!, templateVars);
+        }
+      }
+
+      const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
+
+      try {
+        switch (integration.chatPlatform.name) {
+          case ChatPlatformEnum.DISCORD:
+            await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
+            break;
+          case ChatPlatformEnum.GOOGLE_CHAT:
+            if (monitor.address.startsWith("http")) {
+              description = description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`);
+            }
+            await this.integrationService.sendGoogleChatWebhook(integration.address, "", description, footer);
+            break;
+          case ChatPlatformEnum.SLACK:
+            await this.integrationService.sendSlackWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
+            break;
+          case ChatPlatformEnum.WHATSAPP:
+            if (notifyType == "OK") {
+              await this.integrationService.sendWhatsApp("systatus_monitor_up", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"));
+            } else {
+              await this.integrationService.sendWhatsApp("systatus_monitor_down", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}`, "");
+            }
+            break;
+          case ChatPlatformEnum.EMAIL:
+            await this.integrationService.sendMonitorEmail(integration.address, title, notifyType == "OK", monitor.name, monitor.address, newHttpStatus, totalMs, monitorIncident?.created_at ?? null);
+            break;
+          default:
+            break;
+        }
+      } catch (error) {
+        this.logger.error(`Error sending notification for monitor ID: ${monitor.id} via integration ID: ${integration.id}: ${error.message}`);
+      }
     }
   }
 

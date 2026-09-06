@@ -4,11 +4,11 @@ import { AuthGuard } from "../middlewares/auth.guard";
 import { PdfService } from "src/services/pdf.service";
 import { StripeService } from "src/services/stripe.service";
 import { Response } from "express";
-import { InvoiceStatusEnum, InvoiceStatusLabelEnum } from "src/types/InvoiceStatusEnum";
+import { InvoiceStatusEnum, InvoiceStatusLabelEnum } from "../types/InvoiceStatusEnum";
 import formatDate from "src/utils/formatDate";
-import { PaymentStatusEnum } from "src/types/PaymentStatusEnum";
+import { PaymentStatusEnum } from "../types/PaymentStatusEnum";
 import axios from "axios";
-import { CreditCardBrandLabelEnum } from "src/types/CreditCardBrandEnum";
+import { CreditCardBrandLabelEnum } from "../types/CreditCardBrandEnum";
 
 @Controller({
   version: "1",

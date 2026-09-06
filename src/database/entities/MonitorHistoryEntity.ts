@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { IncidentEntity } from './IncidentEntity';
 import { MonitorEntity } from './MonitorEntity';
+import { MonitorHistoryStatusEnum } from '../../types/MonitorHistoryStatusEnum';
 
 @Entity({ name: "monitor_historical" })
 export class MonitorHistoryEntity {
@@ -22,7 +23,10 @@ export class MonitorHistoryEntity {
   incident_id: string;
 
   @Column({ type: "varchar", length: 7, nullable: false })
-  status: string;
+  http_status: string;
+
+  @Column({ type: "enum", enum: MonitorHistoryStatusEnum, nullable: false })
+  status: MonitorHistoryStatusEnum;
 
   @Column({ type: "double precision", nullable: true })
   total_ms: number | null;

@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { OAuth2Client } from "google-auth-library";
 import momentTz from 'moment-timezone';
 import { SubscriptionEntity } from 'src/database/entities/SubscriptionEntity';
-import { SubscriptionStatusEnum } from 'src/types/SubscriptionStatusEnum';
+import { SubscriptionStatusEnum } from '../types/SubscriptionStatusEnum';
 import { DataSource, Repository } from 'typeorm';
 import { AuthFlowEntity } from '../database/entities/AuthFlowEntity';
 import { PlanEntity } from '../database/entities/PlanEntity';

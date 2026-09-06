@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { AuthGuard } from '../middlewares/auth.guard';
 import removeAccents from '../utils/removeAccents';
 import calcDuration from '../utils/calcDuration';
+import { MonitorHistoryStatusEnum } from '../types/MonitorHistoryStatusEnum';
 
 @Controller({
   version: "1",
@@ -34,17 +35,17 @@ export class IncidentController {
           , mon.address
           , inc.created_at
           , inc.ended_at
-          , first_err.status as "firstError"
-          , last_status.status as "status"
+          , first_err.http_status as "firstHttpError"
+          , last_status.http_status as "lastHttpStatus"
         from incidents inc
         join monitors mon on mon.id = inc.monitor_id
         left join lateral (
-          select status from monitor_historical
-          where monitor_id = mon.id and incident_id = inc.id and status not like '2%'
+          select http_status from monitor_historical
+          where monitor_id = mon.id and incident_id = inc.id and status = '${MonitorHistoryStatusEnum.ERROR}'
           order by created_at asc limit 1
         ) first_err on true
         left join lateral (
-          select status from monitor_historical
+          select http_status from monitor_historical
           where monitor_id = mon.id and incident_id = inc.id
           order by created_at desc limit 1
         ) last_status on true
@@ -115,19 +116,19 @@ export class IncidentController {
         , mon.name as monitor_name
         , mon.type as monitor_type
         , mon.address as monitor_address
-        , first_err.status as "firstError"
-        , last_status.status as "status"
+        , first_err.http_status as "firstHttpError"
+        , last_status.http_status as "lastHttpStatus"
         , last_req.request_headers as "lastRequestHeaders"
         , last_res.response_headers as "lastResponseHeaders"
       from incidents inc
       join monitors mon on mon.id = inc.monitor_id
       left join lateral (
-        select status from monitor_historical
-        where incident_id = inc.id and status not like '2%'
+        select http_status from monitor_historical
+        where incident_id = inc.id and status = '${MonitorHistoryStatusEnum.ERROR}'
         order by created_at asc limit 1
       ) first_err on true
       left join lateral (
-        select status from monitor_historical
+        select http_status from monitor_historical
         where incident_id = inc.id
         order by created_at desc limit 1
       ) last_status on true
@@ -161,8 +162,8 @@ export class IncidentController {
         type: row.monitor_type,
         address: row.monitor_address,
       },
-      firstError: row.firstError,
-      status: row.status,
+      firstError: row.firstHttpError,
+      lastHttpStatus: row.lastHttpStatus,
       lastRequestHeaders: row.lastRequestHeaders,
       lastResponseHeaders: row.lastResponseHeaders,
     };
@@ -178,6 +179,7 @@ export class IncidentController {
       this.dataSource.query(`
         select
           his.id
+          , his.http_status
           , his.status
           , round(his.total_ms::numeric, 2) as total_ms
           , his.created_at
