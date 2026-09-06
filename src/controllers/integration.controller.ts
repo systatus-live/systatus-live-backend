@@ -149,7 +149,7 @@ export class IntegrationController {
         join chat_platforms cpl on cpl.id = itg.chat_platform_id
         where itg.created_user_id = '${request["loggedUser"]}'
         and ($1::text is null or lower(trim(unaccent(itg.name))) like $1 or lower(trim(unaccent(itg.address))) like $1)
-        order by itg.created_at desc
+        order by cpl.index asc, itg.created_at desc
         limit ${this.querySize} offset ${this.querySize * parseInt(page)}
       `, [search ? `%${search}%` : null]),
       this.dataSource.query(`
@@ -355,6 +355,9 @@ export class IntegrationController {
           break;
         case ChatPlatformEnum.DISCORD:
           await this.integrationService.sendDiscordWebhook(integration.address, title, msg, footer, "#999999");
+          break;
+        case ChatPlatformEnum.MATTERMOST:
+          await this.integrationService.sendMattermostWebhook(integration.address, title, msg, footer, "#999999");
           break;
         case ChatPlatformEnum.WHATSAPP:
           break;

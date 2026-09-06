@@ -41,7 +41,7 @@ export class ChatPlatformController {
         join plan_chat_platforms pcp on pcp.chat_platform_id = cpl.id
         where pcp.plan_id = '${planId}'
         and ($1::text is null or lower(trim(unaccent(cpl.name))) like $1 or lower(trim(unaccent(cpl.description))) like $1)
-        order by cpl.created_at desc
+        order by cpl.index asc
         limit ${this.querySize} offset ${this.querySize * page}
       `, [search ? `%${search}%` : null]),
       this.dataSource.query(`

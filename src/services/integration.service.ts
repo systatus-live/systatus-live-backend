@@ -35,6 +35,31 @@ export class IntegrationService {
     }
   }
 
+  public async sendMattermostWebhook(url: string, title: string, description: string, footer: string, border: string) {
+    const template = {
+      username: "Systatus.Live",
+      icon_url: this.systatusAvatarUrl,
+      attachments: [
+        {
+          color: border,
+          title: title,
+          text: `${description}\n${footer}`,
+        }
+      ],
+      priority: {
+        priority: "important"
+      }
+    }
+
+    try {
+      const { data } = await axios.post(url, template);
+      return data;
+    } catch (error) {
+      if (!error.response) throw new Error(error.message);
+      throw new Error(error.response.data);
+    }
+  }
+
   public async sendDiscordWebhook(url: string, title: string, description: string, footer: string, border: string) {
     const template = {
       content: null,
@@ -165,7 +190,8 @@ export class IntegrationService {
     monitorAddress: string,
     newStatus: string,
     durationMs: number | null,
-    incidentCreatedAt: string | null
+    incidentCreatedAt: string | null,
+    actionUrl: string
   ): Promise<void> {
     const eventAt = formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss");
     const responseTimeLabel = durationMs != null ? `${durationMs}ms` : "—";
@@ -181,6 +207,16 @@ export class IntegrationService {
         + this.buildEmailRow("Lat&ecirc;ncia", responseTimeLabel, "#10b981")
         + this.buildEmailRow("Incidente iniciado em", incidentStartedAt, "#f9fafb")
         + this.buildEmailRow("Resolvido em", eventAt, "#10b981");
+
+      alertNote = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top:20px;">
+        <tr>
+          <td bgcolor="#031a0f" style="background-color:#031a0f;padding:14px 16px;border:1px solid #14532d;">
+            <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#6ee7b7;line-height:1.6;">
+              O monitor retornou ao estado operacional e est&#225; respondendo normalmente.
+            </p>
+          </td>
+        </tr>
+      </table>`;
     } else {
       const statusLabel = HttpStatusCodeLabel[getHttpStatusKey(newStatus)] ?? newStatus;
 
@@ -192,7 +228,7 @@ export class IntegrationService {
         <tr>
           <td bgcolor="#1c0a0a" style="background-color:#1c0a0a;padding:14px 16px;border:1px solid #3d1515;">
             <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#fca5a5;line-height:1.6;">
-              <strong>A&ccedil;&atilde;o necess&aacute;ria:</strong> Verifique o servi&ccedil;o imediatamente. Voc&ecirc; receber&aacute; uma nova notifica&ccedil;&atilde;o quando o monitor for restaurado.
+              Voc&ecirc; receber&aacute; uma nova notifica&ccedil;&atilde;o quando o monitor detectar disponibilidade.
             </p>
           </td>
         </tr>
@@ -203,15 +239,14 @@ export class IntegrationService {
       .replace(/{{STATUS_BG}}/g, isUp ? "#052e1c" : "#2d0e0e")
       .replace(/{{STATUS_BORDER_COLOR}}/g, isUp ? "#10b981" : "#ef4444")
       .replace(/{{STATUS_TEXT_COLOR}}/g, isUp ? "#10b981" : "#ef4444")
-      .replace(/{{STATUS_LABEL}}/g, isUp ? "&#10003;&nbsp;&nbsp;SERVI&#199;O OPERACIONAL" : "&#9888;&nbsp;&nbsp;SERVI&#199;O INDISPON&#205;VEL")
-      .replace(/{{EMAIL_INTRO}}/g, isUp ? "O monitor abaixo retornou ao estado operacional e est&#225; respondendo normalmente." : "Um dos seus monitores detectou uma falha e est&#225; indispon&#237;vel. Verifique o painel imediatamente.")
+      .replace(/{{STATUS_LABEL}}/g, isUp ? "&#10003;&nbsp;&nbsp;SERVI&#199;O OPERACIONAL" : "&#9888;&nbsp;&nbsp;INDISPONIBILIDADE DETECTADA")
       .replace(/{{MONITOR_NAME}}/g, monitorName)
       .replace(/{{MONITOR_URL}}/g, monitorAddress)
       .replace(/{{DETAILS_ROWS}}/g, detailsRows)
       .replace(/{{ALERT_NOTE}}/g, alertNote)
       .replace(/{{CTA_BG}}/g, isUp ? "#10b981" : "#ef4444")
-      .replace(/{{CTA_TEXT}}/g, isUp ? "Ver no Dashboard" : "Analisar Incidente no Painel")
-      .replace(/{{ACTION_URL}}/g, `${process.env.WEB_URL}/panel/monitors`);
+      .replace(/{{CTA_TEXT}}/g, "Ver incidente")
+      .replace(/{{ACTION_URL}}/g, actionUrl);
 
     await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", to, title, emailBody);
   }

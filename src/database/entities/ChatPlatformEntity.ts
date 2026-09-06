@@ -21,6 +21,9 @@ export class ChatPlatformEntity {
   @Column({ type: "varchar", length: 255, nullable: false })
   type: ChatPlatformTypeEnum;
 
+  @Column({ type: "int", nullable: false, default: 0 })
+  index: ChatPlatformTypeEnum;
+
   @CreateDateColumn({ type: "timestamptz" })
   created_at: string;
 

@@ -367,7 +367,7 @@ export class MonitorService {
       });
 
       if (notifyType) {
-        this.processNotifications(monitor, notifyType, monitorIncident, newHttpStatus, totalMs).catch((error) => {
+        this.processNotifications(monitor, notifyType, monitorIncident!, newHttpStatus, totalMs).catch((error) => {
           this.logger.error(`Error in processNotifications for monitor ID: ${monitor.id}: ${error.message}`);
         });
       }
@@ -376,7 +376,7 @@ export class MonitorService {
     }
   }
 
-  private async processNotifications(monitor: any, notifyType: "OK" | "FAILURE", monitorIncident: IncidentEntity | null, newHttpStatus: string, totalMs: number | null) {
+  private async processNotifications(monitor: any, notifyType: "OK" | "FAILURE", monitorIncident: IncidentEntity, newHttpStatus: string, totalMs: number | null) {
     const integrationList = await this.monitorIntegrationRepository.find({
       where: {
         monitor_id: monitor.id
@@ -424,21 +424,25 @@ export class MonitorService {
         }
       }
 
+      const viewUrl = `${process.env.WEB_URL}/panel/monitoring/incidents/view/${monitorIncident.id}`
       const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
 
       try {
         switch (integration.chatPlatform.name) {
           case ChatPlatformEnum.DISCORD:
-            await this.integrationService.sendDiscordWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
+            await this.integrationService.sendDiscordWebhook(integration.address, "", `${description}\n[Ver incidente](${viewUrl})`, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
             break;
           case ChatPlatformEnum.GOOGLE_CHAT:
             if (monitor.address.startsWith("http")) {
               description = description.replace(monitor.address, `<a href="${monitor.address}">${monitor.address}</a>`);
             }
-            await this.integrationService.sendGoogleChatWebhook(integration.address, "", description, footer);
+            await this.integrationService.sendGoogleChatWebhook(integration.address, "", `${description}<br><a href="${viewUrl}">Ver incidente</a>`, footer);
             break;
           case ChatPlatformEnum.SLACK:
-            await this.integrationService.sendSlackWebhook(integration.address, "", description, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
+            await this.integrationService.sendSlackWebhook(integration.address, "", `${description}\n<${viewUrl}|Ver incidente>`, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
+            break;
+          case ChatPlatformEnum.MATTERMOST:
+            await this.integrationService.sendMattermostWebhook(integration.address, "", `${description}\n[Ver incidente](${viewUrl})`, footer, notifyType == "OK" ? "#7CB342" : "#F44336");
             break;
           case ChatPlatformEnum.WHATSAPP:
             if (notifyType == "OK") {
@@ -448,7 +452,7 @@ export class MonitorService {
             }
             break;
           case ChatPlatformEnum.EMAIL:
-            await this.integrationService.sendMonitorEmail(integration.address, title, notifyType == "OK", monitor.name, monitor.address, newHttpStatus, totalMs, monitorIncident?.created_at ?? null);
+            await this.integrationService.sendMonitorEmail(integration.address, title, notifyType == "OK", monitor.name, monitor.address, newHttpStatus, totalMs, monitorIncident?.created_at ?? null, viewUrl);
             break;
           default:
             break;
