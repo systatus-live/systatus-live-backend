@@ -37,7 +37,7 @@ export class IntegrationService {
 
   public async sendMattermostWebhook(url: string, title: string, description: string, footer: string, border: string) {
     const template = {
-      username: "Systatus.Live",
+      username: "Systatus",
       icon_url: this.systatusAvatarUrl,
       attachments: [
         {
@@ -74,7 +74,7 @@ export class IntegrationService {
           },
         }
       ],
-      username: "Systatus.Live",
+      username: "Systatus",
       avatar_url: this.systatusAvatarUrl,
       attachments: []
     }
@@ -92,7 +92,7 @@ export class IntegrationService {
     const template = {
       cardsV2: [
         {
-          cardId: "systatus.live",
+          cardId: "systatus",
           card: {
             sections: [
               {
@@ -248,7 +248,7 @@ export class IntegrationService {
       .replace(/{{CTA_TEXT}}/g, "Ver incidente")
       .replace(/{{ACTION_URL}}/g, actionUrl);
 
-    await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", to, title, emailBody);
+    await this.mailService.sendMail("Systatus <systatus@artcode.dev>", to, title, emailBody);
   }
 
   public renderTemplate(template: string, vars: Record<string, string>): string {

@@ -1,4 +1,4 @@
-# Systatus Live — Back-end
+# Systatus — Back-end
 
 API de monitoramento de serviços como SaaS — gerencia monitores, incidentes, páginas de status públicas, assinaturas e notificações multicanal.
 

@@ -344,7 +344,7 @@ export class IntegrationController {
     try {
       const title = "Teste de Integração";
       const msg = `A integração '${integration.name}' está funcionando corretamente.`;
-      const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
+      const footer = `Systatus - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
 
       switch (integration.chatPlatform.name) {
         case ChatPlatformEnum.SLACK:
@@ -372,7 +372,7 @@ export class IntegrationController {
           const emailBody = readFileSync(`${__dirname}/../assets/mail/IntegrationVerify.html`, "utf-8")
             .replace(/{{USERNAME}}/g, loggedUser!.name)
             .replace(/{{INTEGRATION}}/g, integration.name);
-          await this.mailService.sendMail("Systatus.Live <systatus@artcode.dev>", integration.address, "Teste Integração", emailBody);
+          await this.mailService.sendMail("Systatus <systatus@artcode.dev>", integration.address, "Teste Integração", emailBody);
           break;
         default:
           throw new UnprocessableEntityException("Plataforma de chat não suportada para validação.");

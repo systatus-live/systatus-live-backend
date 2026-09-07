@@ -178,7 +178,7 @@ export class MonitorService {
             "Cache-Control": "no-cache",
             "Connection": "close",
             "Referer": monitor.address,
-            "User-Agent": "Systatus.live (https://systatus.live)"
+            "User-Agent": "Systatus (https://systatus.live)"
           };
 
           try {
@@ -425,7 +425,7 @@ export class MonitorService {
       }
 
       const viewUrl = `${process.env.WEB_URL}/panel/monitoring/incidents/view/${monitorIncident.id}`
-      const footer = `Systatus.Live - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
+      const footer = `Systatus - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
 
       try {
         switch (integration.chatPlatform.name) {

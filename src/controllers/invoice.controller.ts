@@ -174,7 +174,7 @@ export class InvoiceController {
                       },
                       {
                         margin: [5, 0, 0, 0],
-                        text: "Systatus.Live",
+                        text: "Systatus",
                         style: "companyTitle",
                       },
                     ],
@@ -323,7 +323,7 @@ export class InvoiceController {
             style: "footer"
           },
           {
-            text: "Systatus.Live - Sistema de monitoramento de serviços online",
+            text: "Systatus - Sistema de monitoramento de serviços online",
             alignment: "center",
             style: "footerSmall"
           }
