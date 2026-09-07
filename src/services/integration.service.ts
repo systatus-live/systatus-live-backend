@@ -133,7 +133,7 @@ export class IntegrationService {
     }
   }
 
-  public async sendWhatsApp(template: "systatus_monitor_up" | "systatus_monitor_down", to: string, monitor: string, status: string, downtime: string) {
+  public async sendWhatsApp(template: "systatus_monitor_up" | "systatus_monitor_down", to: string, monitor: string, status: string, downtime: string, incidentId: string) {
     let parameterList = [
       {
         type: "text",
@@ -164,6 +164,17 @@ export class IntegrationService {
           {
             type: "body",
             parameters: parameterList
+          },
+          {
+            type: "button",
+            sub_type: "url",
+            index: "0",
+            parameters: [
+              {
+                type: "text",
+                text: incidentId
+              }
+            ]
           }
         ]
       },
