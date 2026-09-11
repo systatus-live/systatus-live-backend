@@ -5,6 +5,7 @@ export enum ChatPlatformEnum {
   DISCORD = "DISCORD",
   EMAIL = "EMAIL",
   WHATSAPP = "WHATSAPP",
+  MICROSOFT_TEAMS = "MICROSOFT_TEAMS",
 }
 
 export enum ChatPlatformLabelEnum {
@@ -14,6 +15,7 @@ export enum ChatPlatformLabelEnum {
   DISCORD = "Discord",
   EMAIL = "E-mail",
   WHATSAPP = "WhatsApp",
+  MICROSOFT_TEAMS = "Microsoft Teams",
 }
 
 export enum ChatPlatformTypeEnum {

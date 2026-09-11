@@ -359,6 +359,9 @@ export class IntegrationController {
         case ChatPlatformEnum.MATTERMOST:
           await this.integrationService.sendMattermostWebhook(integration.address, title, msg, footer, "#999999");
           break;
+        case ChatPlatformEnum.MICROSOFT_TEAMS:
+          await this.integrationService.sendMicrosoftTeamsWebhook(integration.address, msg, footer, true);
+          break;
         case ChatPlatformEnum.WHATSAPP:
           break;
         case ChatPlatformEnum.EMAIL:

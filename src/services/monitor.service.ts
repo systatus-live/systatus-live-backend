@@ -446,13 +446,16 @@ export class MonitorService {
             break;
           case ChatPlatformEnum.WHATSAPP:
             if (notifyType == "OK") {
-              await this.integrationService.sendWhatsApp("systatus_monitor_up", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"), monitorIncident.id);
+              await this.integrationService.sendWhatsApp("systatus_monitor_up_pt_br", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}`, formatSince(monitorIncident!.created_at, "YYYY-MM-DD HH:mm:ssZ"), monitorIncident.id);
             } else {
-              await this.integrationService.sendWhatsApp("systatus_monitor_down", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}`, "", monitorIncident.id);
+              await this.integrationService.sendWhatsApp("systatus_monitor_down_v2_pt_br", integration.address, `${monitor.name} (${monitor.address})`, `${HttpStatusCodeLabel[getHttpStatusKey(newHttpStatus)]}`, "", monitorIncident.id);
             }
             break;
           case ChatPlatformEnum.EMAIL:
             await this.integrationService.sendMonitorEmail(integration.address, title, notifyType == "OK", monitor.name, monitor.address, newHttpStatus, totalMs, monitorIncident?.created_at ?? null, viewUrl);
+            break;
+          case ChatPlatformEnum.MICROSOFT_TEAMS:
+            await this.integrationService.sendMicrosoftTeamsWebhook(integration.address, `${description}\n[Ver incidente](${viewUrl})`, footer, notifyType == "OK");
             break;
           default:
             break;

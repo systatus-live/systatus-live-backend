@@ -133,14 +133,14 @@ export class IntegrationService {
     }
   }
 
-  public async sendWhatsApp(template: "systatus_monitor_up" | "systatus_monitor_down", to: string, monitor: string, status: string, downtime: string, incidentId: string) {
+  public async sendWhatsApp(template: "systatus_monitor_up_pt_br" | "systatus_monitor_down_v2_pt_br", to: string, monitor: string, status: string, downtime: string, incidentId: string) {
     let parameterList = [
       {
         type: "text",
         parameter_name: "monitor",
         text: monitor
       },
-      template == "systatus_monitor_up" ? {
+      template == "systatus_monitor_up_pt_br" ? {
         type: "text",
         parameter_name: "downtime",
         text: downtime
@@ -148,7 +148,7 @@ export class IntegrationService {
         type: "text",
         parameter_name: "status",
         text: status
-      },
+      }
     ]
 
     const request = {
@@ -161,6 +161,16 @@ export class IntegrationService {
           code: "pt_BR"
         },
         components: [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "text",
+                parameter_name: "icon",
+                text: template == "systatus_monitor_up_pt_br" ? "🟢" : "🔴"
+              },
+            ]
+          },
           {
             type: "body",
             parameters: parameterList
@@ -190,6 +200,50 @@ export class IntegrationService {
     } catch (error) {
       if (!error.response) throw new Error(error.message);
       throw new Error(error.response.data.error.message);
+    }
+  }
+
+  public async sendMicrosoftTeamsWebhook(url: string, description: string, footer: string, isSuccess: boolean) {
+    const template = {
+      type: "message",
+      attachments: [
+        {
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+            version: "1.4",
+            body: [
+              {
+                type: "Container",
+                style: isSuccess ? "good" : "attention",
+                items: [
+                  {
+                    type: "TextBlock",
+                    text: description,
+                    wrap: true
+                  },
+                  {
+                    type: "TextBlock",
+                    text: footer,
+                    size: "Small",
+                    isSubtle: true,
+                    wrap: true
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+
+    try {
+      const { data } = await axios.post(url, template);
+      return data;
+    } catch (error) {
+      if (!error.response) throw new Error(error.message);
+      throw new Error(error.response.data);
     }
   }
 
