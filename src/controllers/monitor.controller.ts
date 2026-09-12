@@ -269,14 +269,6 @@ export class MonitorController {
       throw new NotFoundException("Monitor não encontrado.");
     }
 
-    monitor["integrationList"] = await this.dataSource.query(`
-      select int.id, int.name, cha.description as "chatPlatform", cha.icon_url as "chatPlatformIconUrl"
-      from monitor_integrations min
-      join integrations int on int.id = min.integration_id
-      join chat_platforms cha on cha.id = int.chat_platform_id
-      where min.monitor_id = $1
-    `, [monitor.id]);
-
     return monitor
   }
 
@@ -385,6 +377,35 @@ export class MonitorController {
     return {
       message: "Monitor excluído com sucesso."
     }
+  }
+
+  @Get("/:id/integrations")
+  async getIntegrationsByMonitorId(@Request() request: Request, @Param("id") id: string) {
+    const monitor = await this.monitorRepository.findOne({
+      where: {
+        created_user_id: request["loggedUser"],
+        id: id
+      },
+      select: ["id"]
+    }).catch(_ => {
+      throw new NotFoundException("Monitor não encontrado.");
+    });
+
+    if (!monitor) {
+      throw new NotFoundException("Monitor não encontrado.");
+    }
+
+    const integrations = await this.dataSource.query(`
+      select int.id, int.name, cha.description as "chatPlatform", cha.icon_url as "chatPlatformIconUrl"
+      from monitor_integrations mi
+      join integrations int on int.id = mi.integration_id
+      join chat_platforms cha on cha.id = int.chat_platform_id
+      where mi.monitor_id = $1
+    `, [monitor.id]);
+
+    return {
+      data: integrations
+    };
   }
 
   @Get("/:id/historical")

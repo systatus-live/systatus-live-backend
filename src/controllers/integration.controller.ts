@@ -145,6 +145,7 @@ export class IntegrationController {
           , cpl.icon_url as "chatPlatformIconUrl"
           , itg.created_at
           , itg.updated_at
+          , (select count(*) from monitor_integrations mi where mi.integration_id = itg.id)::int as "monitorCount"
         from integrations itg
         join chat_platforms cpl on cpl.id = itg.chat_platform_id
         where itg.created_user_id = '${request["loggedUser"]}'
@@ -195,6 +196,33 @@ export class IntegrationController {
     integration["template"] = templates.find(t => t.type == IntegrationTemplateTypeEnum.CUSTOM) ?? templates.find(t => t.type == IntegrationTemplateTypeEnum.DEFAULT);
 
     return integration
+  }
+
+  @Get("/:id/monitors")
+  async getMonitorsByIntegrationId(@Request() request: Request, @Param("id") id: string) {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        created_user_id: request["loggedUser"],
+        id: id
+      },
+      select: ["id"]
+    });
+
+    if (!integration) {
+      throw new NotFoundException("Integração não encontrada.");
+    }
+
+    const monitors = await this.dataSource.query(`
+      select mon.id, mon.name, mon.type, mon.address, mon.active
+      from monitor_integrations mi
+      join monitors mon on mon.id = mi.monitor_id
+      where mi.integration_id = $1
+      order by mon.created_at desc
+    `, [integration.id]);
+
+    return {
+      data: monitors
+    };
   }
 
   @Put("/:id")
