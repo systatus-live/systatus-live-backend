@@ -183,6 +183,7 @@ export class MonitorService {
 
           try {
             const curlArgs = [
+              "-4",
               "-X", "HEAD",
               "-I",
               "-s",
