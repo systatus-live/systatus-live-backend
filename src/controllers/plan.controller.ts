@@ -12,9 +12,6 @@ export class PlanController {
 
   @Get("/")
   async getPlanList() {
-    const planList = await this.planService.getPlanList();
-    return {
-      data: planList
-    }
+    return this.planService.getPlanList();
   }
 }

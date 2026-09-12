@@ -23,8 +23,8 @@ export class PlanEntity {
   @Column({ type: "int", nullable: false })
   monitor_qty: number;
 
-  @Column({ type: "jsonb", nullable: false, default: "[]" })
-  display_features: { label: string; included: boolean; }[];
+  @Column({ type: "jsonb", nullable: false, default: "{}" })
+  display_features: { [key: string]: number | string | boolean };
 
   @Column({ type: "varchar", length: 100, nullable: true })
   stripe_price_id: string | null;

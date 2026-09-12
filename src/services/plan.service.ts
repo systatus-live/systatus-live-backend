@@ -23,7 +23,23 @@ export class PlanService {
   }
 
   async getPlanList() {
-    return this._getPlanList();
+    return {
+      features: [
+        { key: "monitors", label: "Monitores" },
+        { key: "interval", label: "Intervalo mínimo" },
+        { key: "retention_days", label: "Retenção de dados" },
+        { key: "slack", label: "Notificações no Slack" },
+        { key: "whatsapp", label: "Notificações no WhatsApp", hint: "Com limite de 100 mensagens por mês" },
+        { key: "google_chat", label: "Notificações no Google Chat" },
+        { key: "microsoft_teams", label: "Notificações no Microsoft Teams" },
+        { key: "discord", label: "Notificações no Discord" },
+        { key: "mattermost", label: "Notificações no Mattermost" },
+        { key: "email", label: "Notificações no E-mail" },
+        { key: "custom_messages", label: "Mensagens personalizáveis", hint: "Compatível com Slack, Discord, Google Chat e Mattermost" },
+        { key: "status_page", label: "Página de status pública" },
+      ],
+      data: await this._getPlanList(),
+    };
   }
 
   async assertMonitorLimit(planId: string, userId: string): Promise<void> {
@@ -91,16 +107,16 @@ export class PlanService {
 
   async assertChatPlatformAllowed(planId: string, chatPlatformId: string): Promise<void> {
     const planChatPlatform = await this.planChatPlatformRepository.findOne({
-      where: { 
-        plan_id: planId, 
-        chat_platform_id: chatPlatformId 
+      where: {
+        plan_id: planId,
+        chat_platform_id: chatPlatformId
       }
     });
 
     if (!planChatPlatform) {
       const chatPlatform = await this.chatPlatformRepository.findOne({
-        where: { 
-          id: chatPlatformId 
+        where: {
+          id: chatPlatformId
         },
         select: ["description"]
       });
