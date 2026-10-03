@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
+import { CronIntervalEnum } from '../types/CronIntervalEnum';
 import formatDate from '../utils/formatDate';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
@@ -14,7 +15,7 @@ export class DailySummaryService {
     private dataSource: DataSource
   ) { }
 
-  @Cron("0 0,6 * * *", {
+  @Cron(CronIntervalEnum.EVERY_12_HOURS, {
     name: "daily-discord-summary",
     timeZone: "America/Sao_Paulo"
   })

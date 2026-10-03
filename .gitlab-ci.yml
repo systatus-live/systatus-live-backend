@@ -32,6 +32,7 @@ deploy-systatus-api:
       GOOGLE_OAUTH_CLIENT_ID=$GOOGLE_OAUTH_CLIENT_ID
       WHATSAPP_PHONE_NUMBER_ID=$WHATSAPP_PHONE_NUMBER_ID
       WHATSAPP_API_KEY=$WHATSAPP_API_KEY
+      DISCORD_WEBHOOK=$DISCORD_WEBHOOK
       CONTACT_EMAIL=$CONTACT_EMAIL
       VERCEL_BLOB_READ_WRITE_TOKEN=$VERCEL_BLOB_READ_WRITE_TOKEN
       TYPEORM_ENTITIES=$TYPEORM_ENTITIES
@@ -44,17 +45,3 @@ deploy-systatus-api:
     - docker image prune -f
   only:
     - master
-
-deploy-systatus-api-hml:
-  environment:
-    name: homolog
-  stage: deploy-systatus-api-hml
-  tags:
-    - systatus-runner
-  script:
-    - docker compose build --no-cache systatus-live-api-hml
-    - docker compose down systatus-live-api-hml
-    - docker compose up -d systatus-live-api-hml
-    - docker image prune -f
-  only:
-    - homolog

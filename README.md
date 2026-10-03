@@ -164,7 +164,7 @@ DISCORD_WEBHOOK=
 VERCEL_VERCEL_BLOB_READ_WRITE_TOKEN=
 ```
 
-O job `daily-discord-summary` envia diariamente às 00:00 e às 06:00 os totais gerais de usuários, monitores (incluindo os inativos) e integrações, além dos usuários em ordem alfabética no formato `usuário (email) - plano Coruja`, para `DISCORD_WEBHOOK`, no fuso `America/Sao_Paulo`. O plano é obtido da assinatura mais recente; usuários sem assinatura aparecem com `sem plano`. Listas extensas são divididas em mais de uma mensagem. Sem essa variável configurada, o envio é ignorado e um aviso é registrado nos logs. Os logs também registram o início da execução, a conclusão da consulta e o resultado do envio. A API precisa estar em execução no horário agendado; o cron não recupera automaticamente execuções perdidas durante uma parada.
+O job `daily-discord-summary` envia diariamente às 00:00 e às 12:00 os totais gerais de usuários, monitores (incluindo os inativos) e integrações, além dos usuários em ordem alfabética no formato `usuário (email) - plano Coruja`, para `DISCORD_WEBHOOK`, no fuso `America/Sao_Paulo`. O plano é obtido da assinatura mais recente; usuários sem assinatura aparecem com `sem plano`. Listas extensas são divididas em mais de uma mensagem. Sem essa variável configurada, o envio é ignorado e um aviso é registrado nos logs. Os logs também registram o início da execução, a conclusão da consulta e o resultado do envio. A API precisa estar em execução no horário agendado; o cron não recupera automaticamente execuções perdidas durante uma parada.
 
 ---
 
