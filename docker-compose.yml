@@ -31,6 +31,7 @@ services:
       STRIPE_PRICE_ID_AGUIA: ${STRIPE_PRICE_ID_AGUIA}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
       WHATSAPP_API_KEY: ${WHATSAPP_API_KEY}
+      DISCORD_WEBHOOK: ${DISCORD_WEBHOOK:-}
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     volumes:
       - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
@@ -73,6 +74,7 @@ services:
       STRIPE_PRICE_ID_AGUIA: ${STRIPE_PRICE_ID_AGUIA}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
       WHATSAPP_API_KEY: ${WHATSAPP_API_KEY}
+      DISCORD_WEBHOOK: ${DISCORD_WEBHOOK:-}
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     volumes:
       - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro

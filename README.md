@@ -157,9 +157,14 @@ STRIPE_PRICE_ID_AGUIA=
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_API_KEY=
 
+# Discord (resumo diário)
+DISCORD_WEBHOOK=
+
 # Storage
 VERCEL_VERCEL_BLOB_READ_WRITE_TOKEN=
 ```
+
+O job `daily-discord-summary` envia os totais gerais de usuários, monitores (incluindo os inativos) e integrações, além dos usuários em ordem alfabética no formato `usuário (email) - plano Coruja`, para `DISCORD_WEBHOOK`, no fuso `America/Sao_Paulo`. O plano é obtido da assinatura mais recente; usuários sem assinatura aparecem com `sem plano`. Listas extensas são divididas em mais de uma mensagem. Temporariamente, está agendado a cada minuto para teste; para envio diário às 00:00, altere o decorator para `CronIntervalEnum.EVERY_24_HOURS` em `daily-summary.service.ts`. Sem essa variável configurada, o envio é ignorado.
 
 ---
 
