@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
-import { CronIntervalEnum } from '../types/CronIntervalEnum';
 import formatDate from '../utils/formatDate';
 import getCurrentDate from '../utils/getCurrenDate';
 import { IntegrationService } from './integration.service';
@@ -15,15 +14,20 @@ export class DailySummaryService {
     private dataSource: DataSource
   ) { }
 
-  @Cron(CronIntervalEnum.EVERY_24_HOURS, {
+  @Cron("0 0,6 * * *", {
     name: "daily-discord-summary",
     timeZone: "America/Sao_Paulo"
   })
   async scheduleDailySummary() {
     const webhook = process.env.DISCORD_WEBHOOK?.trim();
-    if (!webhook) return;
+
+    if (!webhook) {
+      this.logger.warn("Resumo diário ignorado: DISCORD_WEBHOOK não configurado.");
+      return;
+    }
 
     try {
+      this.logger.log("Iniciando resumo diário do Discord.");
       const [totals] = await this.dataSource.query(`
         select
           (select count(*) from users) as users,
@@ -65,6 +69,7 @@ export class DailySummaryService {
       if (!totals.user_details.length) description += "\nNenhum usuário cadastrado.";
       descriptions.push(description);
 
+      this.logger.log(`Resumo diário consultado. Enviando ${descriptions.length} mensagem(ns) ao Discord.`);
       const footer = `Systatus - ${formatDate(getCurrentDate(), "DD/MM/YYYY HH:mm:ss")}`;
       for (const description of descriptions) {
         await this.integrationService.sendDiscordWebhook(
