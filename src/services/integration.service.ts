@@ -313,7 +313,7 @@ export class IntegrationService {
       .replace(/{{CTA_TEXT}}/g, "Ver incidente")
       .replace(/{{ACTION_URL}}/g, actionUrl);
 
-    await this.mailService.sendMail("Systatus <systatus@artcode.dev>", to, title, emailBody);
+    await this.mailService.sendMail(`Systatus <${process.env.MAIL_FROM_ADDRESS}>`, to, title, emailBody);
   }
 
   public renderTemplate(template: string, vars: Record<string, string>): string {

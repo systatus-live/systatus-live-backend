@@ -183,7 +183,7 @@ export class InvoiceController {
                   { text: "Sistema de monitoramento de serviços online", style: "muted" },
                   ...invoice.companyAddressLines.map(line => ({ text: line, style: "muted" })),
                   ...(invoice.companyPhone ? [{ text: invoice.companyPhone, style: "muted" }] : []),
-                  ...[{ text: "systatus@artcode.dev", style: "muted" }],
+                  ...[{ text: process.env.MAIL_FROM_ADDRESS, style: "muted" }],
                 ]
               },
               {
@@ -318,7 +318,7 @@ export class InvoiceController {
             style: "footer"
           },
           {
-            text: "Para dúvidas sobre essa fatura, contate systatus@artcode.dev",
+            text: `Para dúvidas sobre essa fatura, contate ${process.env.MAIL_FROM_ADDRESS}`,
             alignment: "center",
             style: "footer"
           },

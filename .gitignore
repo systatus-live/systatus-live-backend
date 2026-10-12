@@ -29,6 +29,7 @@ deploy.sh
 .settings/
 *.sublime-workspace
 memory
+.vscode
 
 # IDE - VSCode
 .vscode/*

@@ -29,7 +29,7 @@ export class SupportController {
   ) {
     try {
       await this.mailService.sendMail(
-        "Systatus <systatus@artcode.dev>",
+        `Systatus <${process.env.MAIL_FROM_ADDRESS}>`,
         process.env.CONTACT_EMAIL as string,
         "[Nova Mensagem]",
         `

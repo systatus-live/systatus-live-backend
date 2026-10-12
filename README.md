@@ -1,195 +1,124 @@
-# Systatus — Back-end
+<p align="center">
+  <img src="https://raw.githubusercontent.com/systatus-live/systatus-live-frontend/master/.github/assets/logo.png" alt="Systatus" width="96" />
+</p>
 
-API de monitoramento de serviços como SaaS — gerencia monitores, incidentes, páginas de status públicas, assinaturas e notificações multicanal.
+<h1 align="center">Systatus</h1>
 
-## Stack Tecnológica
+<p align="center">
+  <strong>Descubra falhas antes dos seus clientes.</strong>
+</p>
 
-| Tecnologia | Versão | Papel no Projeto |
-|---|---|---|
-| Node.js | 24.x | Runtime da aplicação |
-| TypeScript | 5.9 | Linguagem principal |
-| NestJS | 11.x | Framework HTTP com injeção de dependências, guards e decorators |
-| TypeORM | 0.3 | ORM e gerenciamento de migrações |
-| PostgreSQL | — | Banco de dados relacional |
-| JWT (@nestjs/jwt) | 11.x | Autenticação via token |
-| Bcrypt | 5.x | Hash de senhas |
-| Helmet | 8.x | Cabeçalhos de segurança HTTP |
-| @nestjs/schedule | 6.x | Agendamento de tarefas (cron jobs) |
-| @nestjs/throttler | 6.x | Rate limiting por rota |
-| Stripe | 20.x | Gateway de pagamentos e gerenciamento de assinaturas |
-| Google Auth Library | 9.x | Autenticação social via Google OAuth 2.0 |
-| Axios | 1.x | Cliente HTTP para integrações externas |
-| Moment Timezone | 0.6 | Manipulação de datas com suporte a timezone |
-| PDFMake | 0.2 | Geração de relatórios em PDF |
-| Ping | 0.4 | Verificação de disponibilidade de hosts (HTTP/ICMP) |
-| Vercel Blob | 2.x | Armazenamento de arquivos (avatares) |
-| Docker | — | Containerização da aplicação |
+<p align="center">
+  API de monitoramento de disponibilidade do Systatus, com verificações periódicas de serviços,<br/>
+  gestão de incidentes, envio de alertas e gerenciamento de assinaturas.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="Licença Apache 2.0"></a>
+  <img src="https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white" alt="NestJS 11">
+  <img src="https://img.shields.io/badge/PostgreSQL-TypeORM-336791?logo=postgresql&logoColor=white" alt="PostgreSQL + TypeORM">
+</p>
 
 ---
 
-## Arquitetura e Estrutura de Pastas
+> [!IMPORTANT]
+> O produto **[systatus.live](https://systatus.live)** foi descontinuado. O código-fonte está disponível sob a licença Apache 2.0 para estudo, adaptação e desenvolvimento de novos projetos pela comunidade.
 
-```text
-src/
-├── main.ts                        # Ponto de entrada — configura prefixo global, versionamento, helmet e filtros
-├── app.module.ts                  # Módulo raiz — registra TypeORM, JWT, throttler e módulos de domínio
-├── app.controller.ts              # Controller raiz (health check e rotas públicas de página de status)
-├── http-exception.filter.ts       # Filtro global de exceções HTTP
-├── controllers/                   # Controladores organizados por domínio
-├── services/                      # Regras de negócio e integrações externas
-├── middlewares/                   # Guards de autenticação e autorização
-├── modules/                       # Módulos NestJS de domínio
-├── database/
-│   ├── entities/                  # Entidades TypeORM (modelos de dados)
-│   ├── migrations/                # Migrações de schema e seeds de dados iniciais
-│   └── dataSource.ts              # Configuração do DataSource para CLI do TypeORM
-├── types/                         # Enums e DTOs de domínio
-├── utils/                         # Funções utilitárias
-└── assets/
-    └── mail/                      # Templates HTML para e-mails transacionais
+Este repositório contém a **API do Systatus**. A interface para gerenciar monitores e visualizar métricas está disponível no repositório do painel web: [systatus-live/systatus-live-frontend](https://github.com/systatus-live/systatus-live-frontend).
+
+## Demonstração
+
+Interface do painel web integrado à API, disponível em [systatus-live/systatus-live-frontend](https://github.com/systatus-live/systatus-live-frontend):
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/systatus-live/systatus-live-frontend/master/.github/assets/screenshot.png" alt="Painel do Systatus" width="800" />
+</p>
+
+## Funcionalidades
+
+- Monitoramento HTTP (DNS, TCP, TLS e TTFB via `curl`) e ICMP via `ping`, com intervalo de 1 minuto a 24 horas conforme o plano.
+- Abertura e encerramento automáticos de incidentes, com até 30 dias de histórico de uptime por monitor.
+- Alertas em 7 canais: Slack (Webhook), Discord (Webhook), Google Chat (Webhook), Mattermost (Webhook), Microsoft Teams (Webhook), e-mail (Resend) e WhatsApp (Meta Business API).
+- Modelos de notificação personalizáveis por integração, conforme as permissões do plano.
+- Página pública de status identificada por slug, com acesso independente do painel.
+- Checkout, assinaturas e faturas via Stripe, com geração de PDF sob demanda.
+- Autenticação por e-mail com verificação por código (OTP) ou Google OAuth, com validação do status da assinatura pelo guard de autenticação.
+- Registro de requisições com criptografia AES-256 do corpo antes do armazenamento.
+
+## Tecnologias e arquitetura
+
+```mermaid
+flowchart LR
+    User(["Usuário"])
+    API["API\nNestJS + TypeScript"]
+    DB[("PostgreSQL")]
+    Cron["Scheduler interno\n(@nestjs/schedule)"]
+    Targets[("Serviços monitorados")]
+    Stripe[("Stripe")]
+    Channels["Slack · Discord · Google Chat\nMattermost · Teams · E-mail · WhatsApp"]
+    CI["GitLab CI + Docker"]
+
+    User -- login / gerencia monitores --> API
+    API -- persiste --> DB
+    API -- checkout / assinatura --> Stripe
+    Cron -- HTTP / ICMP --> Targets
+    Cron -- grava histórico --> DB
+    Cron -- incidente --> Channels
+    CI -. build & deploy .-> API
 ```
 
----
+| Camada | Tecnologia | Papel no projeto |
+| --- | --- | --- |
+| API | NestJS 11 · TypeScript · Node 24 | Framework HTTP, guards de autenticação e assinatura, versionamento de rotas |
+| Banco | PostgreSQL · TypeORM 0.3 | Persistência e migrations |
+| Autenticação | `@nestjs/jwt` · bcrypt · Google OAuth | Sessão, hash de senha, login social |
+| Pagamentos | Stripe | Checkout, assinaturas, webhooks, faturas |
+| Notificações | axios (webhooks) · Resend (e-mail) · WhatsApp Business API | Envio de alertas por múltiplos canais |
+| Monitoramento | `curl` (HTTP) · `ping` (ICMP) | Verificações agendadas via cron interno |
+| PDF | pdfmake | Geração de fatura em PDF |
+| Armazenamento | Vercel Blob | Avatares de usuário |
+| Infraestrutura | Docker · GitLab CI | Build e deploy |
 
-## Padrões e Convenções Técnicas
+## Execução local
 
-### Idioma do Código
-
-Código e nomes de identificadores em inglês. Comentários, mensagens de erro, commits e textos de interface em português (PT-BR).
-
-### Estilo de Código e Nomenclaturas
-
-| Elemento | Convenção | Exemplo |
-|---|---|---|
-| Arquivo | kebab-case com sufixo de camada | `auth.controller.ts`, `monitor.service.ts` |
-| Classe | PascalCase com sufixo obrigatório | `AuthGuard`, `StripeService`, `MonitorEntity` |
-| Sufixos de camada | `Controller`, `Service`, `Entity`, `Guard`, `Module`, `Enum`, `DTO` | — |
-| Variáveis e funções | camelCase | `generateJWT()`, `hasPermission()`, `loggedUser` |
-| Enums | PascalCase com sufixo `Enum`; valores em `UPPER_SNAKE_CASE` ou sigla | `SubscriptionStatusEnum`, `PersonTypeEnum` |
-| DTOs | PascalCase com sufixo `DTO` | `SignInOptionsDTO`, `UpdateUserDTO` |
-
-### Padrão de Dados (TypeORM)
-
-| Aspecto | Convenção |
-|---|---|
-| Nomes de tabelas | `snake_case` no plural (ex: `users`, `monitors`, `status_pages`) |
-| Tabelas históricas | Sufixo `_historical` (ex: `monitor_historical`, `auth_historical`) |
-| Tabelas associativas | Formato `{entidade_a}_{entidade_b}s` (ex: `plan_permissions`, `monitor_integrations`) |
-| Colunas | `snake_case` (ex: `created_at`, `stripe_customer_id`, `accepted_terms`) |
-| Chaves primárias | `id` — UUID v4 gerado automaticamente |
-| Chaves estrangeiras | `{entidade_singular}_id` (ex: `user_id`, `monitor_id`, `plan_id`) |
-| Timestamps | `created_at` e `updated_at` com tipo `TIMESTAMPTZ`, gerenciados pelo TypeORM |
-| Flags booleanas | Nome descritivo sem prefixo (ex: `verified`, `active`, `accepted_terms`) |
-| Sincronização | Desabilitada (`synchronize: false`) — toda alteração de schema via migrations |
-| Execução de migrations | Automática na inicialização (`migrationsRun: true`) |
-
----
-
-## Rotas e Segurança
-
-### Roteamento
-
-Todas as rotas são versionadas via URI. O prefixo global `/v1` é configurado em `main.ts` usando `VersioningType.URI` do NestJS. Cada controller declara `{ version: "1", path: "/recurso" }`, resultando no padrão `/v1/{recurso}`.
-
-### Autenticação e Autorização
-
-- **Mecanismo:** JWT via header `Authorization: Bearer {token}`.
-- **Guard principal:** `AuthGuard` — valida o token JWT, busca o usuário no banco e executa uma cadeia de verificações: existência do usuário → e-mail verificado → assinatura ativa (ACTIVE, FREE ou EXPIRED). Em caso de falha em qualquer etapa, lança `UnauthorizedException` ou `ForbiddenException` com mensagens descritivas.
-- **Injeção de contexto:** Após validação bem-sucedida, o guard injeta `loggedUser`, `loggedSubscription` e `loggedPlan` no objeto de requisição para uso nas camadas subsequentes.
-- **Verificação de e-mail:** Usuários com `verified = false` recebem resposta HTTP 403 com a flag `needVerifyFlow`, sinalizando ao cliente que o fluxo de confirmação por código OTP (6 dígitos) deve ser iniciado.
-- **Controle de acesso por plano:** Permissões são verificadas via `hasPermission(planId, permission)` e `assertPermission(planId, permission, message)`, consultando a tabela associativa do plano antes de executar operações restritas.
-- **Rate limiting:** `@nestjs/throttler` aplicado globalmente; rotas específicas utilizam `@SkipThrottle()` para contornar o limite (ex: verificação de token).
-- **Segurança de senhas:** Hash com bcrypt; dados sensíveis cifrados com chave configurada via `ENCRYPT_KEY`.
-
----
-
-## Conexões e Integrações Externas
-
-| Serviço | Finalidade |
-|---|---|
-| **Stripe** | Gateway de pagamentos — gerencia customers, checkout sessions, subscriptions e processamento de webhooks de cobrança |
-| **Google OAuth 2.0** | Autenticação social — valida tokens de identidade do Google para login sem senha |
-| **Resend** | Envio de e-mails transacionais (confirmação de conta, recuperação de senha, suporte) com templates HTML |
-| **Vercel Blob** | Armazenamento de avatares dos usuários com acesso público |
-| **WhatsApp Business API** | Envio de notificações de incidentes via templates de mensagem |
-| **Cloudflare Turnstile** | Proteção de formulários públicos contra bots (substituto do reCAPTCHA) |
-
----
-
-## Ambiente e Configurações (Environment)
-
-Crie o arquivo `.env` a partir do `.env.template`:
-
-```env
-# Banco de Dados
-DATABASE_HOST=
-DATABASE_PORT=
-DATABASE_USERNAME=
-DATABASE_PASSWORD=
-DATABASE_NAME=
-TYPEORM_ENTITIES=
-TYPEORM_MIGRATIONS=
-QUERY_SIZE=50
-
-# Autenticação
-JWT_KEY=
-ENCRYPT_KEY=
-
-# Aplicação
-ENV=DEV
-PORT=
-WEB_URL=
-
-# Google OAuth
-GOOGLE_OAUTH_CLIENT_ID=
-
-# E-mail (Resend)
-RESEND_API_URL=https://api.resend.com
-RESEND_API_KEY=
-
-# Pagamentos (Stripe)
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_PRICE_ID_CORUJA=
-STRIPE_PRICE_ID_AGUIA=
-
-# WhatsApp
-WHATSAPP_PHONE_NUMBER_ID=
-WHATSAPP_API_KEY=
-
-# Discord (resumo diário)
-DISCORD_WEBHOOK=
-
-# Storage
-VERCEL_VERCEL_BLOB_READ_WRITE_TOKEN=
-```
-
-O job `daily-discord-summary` envia diariamente às 00:00 e às 12:00 os totais gerais de usuários, monitores (incluindo os inativos) e integrações, além dos usuários em ordem alfabética no formato `usuário (email) - plano Coruja`, para `DISCORD_WEBHOOK`, no fuso `America/Sao_Paulo`. O plano é obtido da assinatura mais recente; usuários sem assinatura aparecem com `sem plano`. Listas extensas são divididas em mais de uma mensagem. Sem essa variável configurada, o envio é ignorado e um aviso é registrado nos logs. Os logs também registram o início da execução, a conclusão da consulta e o resultado do envio. A API precisa estar em execução no horário agendado; o cron não recupera automaticamente execuções perdidas durante uma parada.
-
----
-
-## Execução e Comandos Úteis
-
-### Desenvolvimento local
+Requisitos: Node.js 24 ou superior e uma instância acessível do PostgreSQL.
 
 ```bash
+git clone https://github.com/systatus-live/systatus-live-backend.git
+cd systatus-live-backend
 npm ci
+cp .env.example .env   # preencha com suas credenciais
 npm run dev
 ```
 
-O comando `dev` inicia o servidor com `nest start --debug --watch`, habilitando hot-reload e modo de depuração.
+As migrations são executadas automaticamente na inicialização (`migrationsRun: true`). A API fica disponível em `http://localhost:3000`. Para utilizar outra porta, configure a variável `PORT`.
 
-### Containerização e CI/CD
+<details>
+<summary>Variáveis de ambiente</summary>
 
-O projeto possui um `Dockerfile` com build multistágio (dependências → compilação → runner de produção com usuário não-root) e um `docker-compose.yml` para orquestração local. O container de produção executa diretamente o artefato compilado via `node dist/main.js`.
+| Variável | Descrição |
+| --- | --- |
+| `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` / `DATABASE_NAME` | Conexão com o PostgreSQL |
+| `JWT_KEY` / `ENCRYPT_KEY` | Assinatura dos tokens de sessão e criptografia AES de dados sensíveis |
+| `GOOGLE_OAUTH_CLIENT_ID` | Client ID do login social com Google |
+| `RESEND_API_KEY` / `MAIL_FROM_ADDRESS` / `CONTACT_EMAIL` | Envio de e-mails transacionais e destino do formulário de suporte |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_ID_CORUJA` / `STRIPE_PRICE_ID_AGUIA` | Checkout, assinaturas e webhooks de pagamento |
+| `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_API_KEY` | Notificações via WhatsApp Business API |
+| `VERCEL_BLOB_READ_WRITE_TOKEN` | Armazenamento dos avatares de usuário |
+| `WEB_URL` | Origem liberada no CORS e usada em links dos e-mails |
 
-### Comandos customizados
+Consulte a lista completa de variáveis, incluindo as configurações de infraestrutura, em [.env.example](.env.example).
 
-| Comando | Descrição |
-|---|---|
-| `npm run dev` | Inicia o servidor em modo de desenvolvimento com hot-reload |
-| `npm run build` | Compila o TypeScript para `dist/` via SWC |
-| `npm run start` | Inicia a aplicação compilada (produção) |
-| `npm run typeorm migration:generate -- ./src/database/migrations/nome-migration -d ./src/database/dataSource.ts` | Gera uma migration com base nas diferenças entre entidades e schema |
-| `npm run typeorm migration:create -- ./src/database/migrations/nome-migration` | Cria uma migration vazia |
-| `npm run typeorm migration:run -- -d ./src/database/dataSource.ts` | Executa as migrations pendentes manualmente |
+</details>
+
+## Docker
+
+```bash
+docker compose up -d --build
+```
+
+O comando inicia a API na porta `4003`, conforme definido em [docker-compose.yml](docker-compose.yml), utilizando o build multi-stage de [Dockerfile.prod](Dockerfile.prod).
+
+## Licença
+
+Este projeto está licenciado sob a [Apache 2.0](LICENSE).

@@ -1,3 +1,6 @@
+# ⚠️ INATIVO: repositório se tornou open source e migrou para o GitHub, que não executa .gitlab-ci.yml.
+# Caso queira configurar CI/CD, migre para o GitHub Actions.
+
 stages:
   - deploy-systatus-api
   - deploy-systatus-api-hml
@@ -25,6 +28,7 @@ deploy-systatus-api:
       WEB_URL=$WEB_URL
       RESEND_API_URL=$RESEND_API_URL
       RESEND_API_KEY=$RESEND_API_KEY
+      MAIL_FROM_ADDRESS=$MAIL_FROM_ADDRESS
       STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY
       STRIPE_WEBHOOK_SECRET=$STRIPE_WEBHOOK_SECRET
       STRIPE_PRICE_ID_CORUJA=$STRIPE_PRICE_ID_CORUJA
@@ -32,7 +36,6 @@ deploy-systatus-api:
       GOOGLE_OAUTH_CLIENT_ID=$GOOGLE_OAUTH_CLIENT_ID
       WHATSAPP_PHONE_NUMBER_ID=$WHATSAPP_PHONE_NUMBER_ID
       WHATSAPP_API_KEY=$WHATSAPP_API_KEY
-      DISCORD_WEBHOOK=$DISCORD_WEBHOOK
       CONTACT_EMAIL=$CONTACT_EMAIL
       VERCEL_BLOB_READ_WRITE_TOKEN=$VERCEL_BLOB_READ_WRITE_TOKEN
       TYPEORM_ENTITIES=$TYPEORM_ENTITIES

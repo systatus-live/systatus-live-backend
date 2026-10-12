@@ -46,7 +46,6 @@ import { IntegrationTemplateEntity } from 'src/database/entities/IntegrationTemp
 import { CheckoutGuard } from 'src/middlewares/checkout.guard';
 import { UtilsController } from '../controllers/utils.controller';
 import { SupportController } from '../controllers/support.controller';
-import { DailySummaryService } from '../services/daily-summary.service';
 
 const providerList = [
   AuthService,
@@ -56,7 +55,6 @@ const providerList = [
   PlanService,
   PdfService,
   StripeService,
-  DailySummaryService,
   CheckoutGuard
 ]
 
